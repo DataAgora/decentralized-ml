@@ -5,7 +5,6 @@ from core.utils.enums                   import callback_handler_no_default, Opti
 from core.fed_avg_optimizer             import FederatedAveragingOptimizer
 from core.cloud_connected_optimizer     import CloudConnectedOptimizer
 from core.utils.dmljob                  import DMLJob
-from core.blockchain.blockchain_utils   import TxEnum
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -34,6 +33,8 @@ class CommunicationManager(object):
                               # concerned with one optimizer.
         self.scheduler = None
         self.dataset_manager = None
+        self.websocket_clients = {}
+        self.optimizer = None
         # NOTE: This should be updated when Gateway PR is merged and we make
         # the Communication Manager error-handle out of order/missed messages.
         self.EVENT_TYPE_2_CALLBACK = {
@@ -50,7 +51,7 @@ class CommunicationManager(object):
 
     # Setup Methods
 
-    def configure(self, scheduler, dataset_manager):
+    def configure(self, scheduler, dataset_manager, websocket_clients):
         """
         Configures the Communication Manager so that it can submit jobs to the
         Scheduler.
@@ -58,9 +59,9 @@ class CommunicationManager(object):
         logging.info("Configuring the Communication Manager...")
         self.scheduler = scheduler
         logging.info("Communication Manager is configured!")
-        logging.info("Configuring the Dataset Manager...")
         self.dataset_manager = dataset_manager
-        logging.info("Dataset Manager is configured!")
+        self.websocket_clients = websocket_clients
+        self.optimizer = FederatedAveragingOptimizer(self.websocket_clients)
 
     # Public methods
 
@@ -79,7 +80,7 @@ class CommunicationManager(object):
         decide it's time to communicate the new weights to the network.
         """
         logging.info("Information has been received: {}".format(event_type))
-        if self.optimizer:
+        if "action" not in payload:
             # We have an active session so we ask the optimizer what to do.
             event_type, payload = self.optimizer.ask(event_type, payload)
         callback = callback_handler_no_default(
@@ -99,25 +100,11 @@ class CommunicationManager(object):
         # NOTE: We removed the 'optimizer_type' argument since for the MVP we're
         # only considering the 'FederatedAveragingOptimizer' for now.
         # TODO: We need to incorporate session id's when we're ready.
-        if not self.dataset_manager:
-            raise Exception("Dataset Manager has not been set. Communication Manager needs to be configured first!")
-        assert payload.get(TxEnum.KEY.name) is MessageEventTypes.NEW_SESSION.name, \
-            "Expected a new session but got {}".format(payload.get(TxEnum.KEY.name))
-        initialization_payload = payload.get(TxEnum.CONTENT.name)
-        job_info = initialization_payload.get(TxEnum.CONTENT.name)
-        optimizer_type = job_info["optimizer_params"].get("optimizer_type", None)
-        optimizer_to_init = callback_handler_with_default(
-            optimizer_type, 
-            self.OPTIMIZER_CALLBACK,
-            OptimizerTypes.FEDAVG.name
-        )
+        
         logging.info("New optimizer session is being set up...")
-        self.optimizer = optimizer_to_init(
-                            initialization_payload,
-                            self.dataset_manager
-                        )
         logging.info("Optimizer session is set! Now doing kickoff...")
-        event_type, payload = self.optimizer.kickoff()
+        print(payload)
+        event_type, payload = self.optimizer.received_new_message(payload, payload["repo_id"], self.dataset_manager)
         callback = callback_handler_no_default(
             event_type,
             self.EVENT_TYPE_2_CALLBACK,

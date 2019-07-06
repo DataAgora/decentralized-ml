@@ -3,7 +3,6 @@ import random
 import uuid
 import time
 import os
-import ipfsapi
 import pandas as pd
 import numpy as np
 import requests
@@ -62,13 +61,13 @@ class DMLRunner(object):
         }
         self.JOBS_NEEDING_STATE = [JobTypes.JOB_COMM.name]
     
-    def configure(self, ipfs_client):
-        """
-        Sets up IPFS client for _communicate
-        """
-        self._client = ipfs_client
+    # def configure(self, ipfs_client):
+    #     """
+    #     Sets up IPFS client for _communicate
+    #     """
+    #     self._client = ipfs_client
 
-    def run_job(self, job, state=None):
+    def run_job(self, job):
         """
         Identifies a DMLJob type and executes it.
 
@@ -82,10 +81,7 @@ class DMLRunner(object):
             self.JOB_CALLBACKS,
         )
         try:
-            if job.job_type in self.JOBS_NEEDING_STATE:
-                results = callback(job, state)
-            else:
-                results = callback(job)
+            results = callback(job)
         except Exception as e:
             logging.error("RunnerError: " + str(e))
             results = DMLResult(
@@ -94,6 +90,7 @@ class DMLRunner(object):
                 error_message=str(e),
                 results={},
             )
+        results.repo_id = job.repo_id
         self.current_job = None
         logging.info("Finished running job! (type: {0})".format(job.job_type))
         return results
@@ -262,26 +259,31 @@ class DMLRunner(object):
                 )
         return results
 
-    def _communicate(self, job, state):
+    def _communicate(self, job):
         """
         Communicates a message to the blockchain using the Runner's
         IPFS client, puts the tx_receipt in DMLResult.
         """
         assert job.round_num, "Nonzero round number is needed for this message!"
-        tx_receipt = setter(
-            client=self._client,
-            key = content_to_ipfs(self._client, serialize_weights(job.key)),
-            port = self._port,
-            value = job.serialize_job(),
-            round_num = job.round_num,
-            state_append=state
-        )
+
+        # tx_receipt = setter(
+        #     client=self._client,
+        #     key = content_to_ipfs(self._client, serialize_weights(job.key)),
+        #     port = self._port,
+        #     value = job.serialize_job(),
+        #     round_num = job.round_num,
+        #     state_append=state
+        # )
+
+        train_results = {
+            "weights": job.weights,
+            "omega": job.omega
+        }
+        job.websocket_client.send_new_weights(train_results, job.session_id, job.loop)
+
         results = DMLResult(
             status='successful',
             job=job,
-            results={
-                'receipt': tx_receipt,
-            },
             error_message="",
         )
         return results

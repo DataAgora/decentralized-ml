@@ -9,11 +9,9 @@ import uuid
 
 import numpy as np
 import pandas as pd
-import ipfsapi
 
 import core.utils.context
 from core.configuration import ConfigurationManager
-from core.blockchain.blockchain_utils import setter
 
 
 logging.basicConfig(level=logging.INFO,

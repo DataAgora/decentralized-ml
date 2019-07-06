@@ -166,10 +166,9 @@ class DMLCommunicateJob(DMLJob):
     def __init__(
         self,
         round_num,
-        key,
         weights,
         omega,
-        sigma_omega
+        session_id
         ):
         """
         Initializes a DML Communicate Job object.
@@ -181,10 +180,9 @@ class DMLCommunicateJob(DMLJob):
         """
         self.job_type = JobTypes.JOB_COMM.name
         self.round_num = round_num
-        self.key = key
         self.weights = weights
         self.omega = omega
-        self.sigma_omega = sigma_omega
+        self.session_id = session_id
 
     def serialize_job(self):
         """
