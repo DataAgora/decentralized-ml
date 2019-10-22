@@ -41,13 +41,10 @@ class DMLTrainJob(DMLJob):
     """
     def __init__(
         self,
-        datapoint_count,
         hyperparams,
         label_column_name,
         framework_type,
-        serialized_model,
-        weights,
-        session_filepath
+        model,
         ):
         """
         Initializes a DML Train Job object.
@@ -69,13 +66,10 @@ class DMLTrainJob(DMLJob):
                                     `train.csv` and `test.csv` are in folder.
         """
         self.job_type = JobTypes.JOB_TRAIN.name
-        self.datapoint_count = datapoint_count
         self.hyperparams = hyperparams
         self.label_column_name = label_column_name
         self.framework_type = framework_type
-        self.serialized_model = serialized_model
-        self.weights = weights
-        self.session_filepath = session_filepath
+        self.model = model
 
 class DMLValidateJob(DMLJob):
     """
@@ -130,7 +124,7 @@ class DMLInitializeJob(DMLJob):
     def __init__(
         self,
         framework_type,
-        serialized_model,
+        h5_model,
         ):
         """
         Initializes a DML initialization Job object.
@@ -142,7 +136,7 @@ class DMLInitializeJob(DMLJob):
         """
         self.job_type = JobTypes.JOB_INIT.name
         self.framework_type = framework_type
-        self.serialized_model = serialized_model
+        self.h5_model = h5_model
     
     def serialize_job(self):
         """

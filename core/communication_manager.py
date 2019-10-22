@@ -33,7 +33,6 @@ class CommunicationManager(object):
                               # concerned with one optimizer.
         self.scheduler = None
         self.dataset_manager = None
-        self.websocket_clients = {}
         self.optimizer = None
         # NOTE: This should be updated when Gateway PR is merged and we make
         # the Communication Manager error-handle out of order/missed messages.
@@ -51,17 +50,14 @@ class CommunicationManager(object):
 
     # Setup Methods
 
-    def configure(self, scheduler, dataset_manager, websocket_clients):
+    def configure(self, websocket_client, runner):
         """
         Configures the Communication Manager so that it can submit jobs to the
         Scheduler.
         """
         logging.info("Configuring the Communication Manager...")
-        self.scheduler = scheduler
         logging.info("Communication Manager is configured!")
-        self.dataset_manager = dataset_manager
-        self.websocket_clients = websocket_clients
-        self.optimizer = FederatedAveragingOptimizer(self.websocket_clients)
+        self.optimizer = FederatedAveragingOptimizer(websocket_client, runner)
 
     # Public methods
 

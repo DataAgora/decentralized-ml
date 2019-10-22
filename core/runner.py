@@ -1,4 +1,3 @@
-import logging
 import random
 import uuid
 import time
@@ -14,15 +13,20 @@ from data.iterators import count_datapoints
 from data.iterators import create_random_train_dataset_iterator
 from data.iterators import create_random_test_dataset_iterator
 from core.utils.keras import train_keras_model, validate_keras_model
+from keras.models import load_model
 
 from core.utils.keras import serialize_weights, deserialize_weights
 from core.utils.dmlresult import DMLResult
 from core.utils.enums import JobTypes, callback_handler_no_default
 from core.blockchain.blockchain_utils import setter, content_to_ipfs
+import base64
 
+import logging as runner_logging
 
-logging.basicConfig(level=logging.DEBUG,
+runner_logging.basicConfig(level=runner_logging.DEBUG,
                     format='[Runner] %(asctime)s %(levelname)s %(message)s')
+
+
 
 class DMLRunner(object):
     """
@@ -50,6 +54,7 @@ class DMLRunner(object):
         self.config = dict(config.items("RUNNER"))
         self._port = config.getint('BLOCKCHAIN', 'http_port')
         self._server_url = config.get('RUNNER', 'server_url')
+        self._dataset_path = config.get('GENERAL', 'dataset_path')
         self.JOB_CALLBACKS = {
             JobTypes.JOB_TRAIN.name: self._train,
             JobTypes.JOB_INIT.name: self._initialize,
@@ -75,35 +80,36 @@ class DMLRunner(object):
         """
         assert job.job_type.upper() in self.JOB_CALLBACKS, \
             'DMLJob type ({0}) is not valid'.format(job.job_type)
-        logging.info("Running job (type: {0})...".format(job.job_type))
+        runner_logging.info("Running job (type: {0})...".format(job.job_type))
         callback = callback_handler_no_default(
             job.job_type,
             self.JOB_CALLBACKS,
         )
+        results = callback(job)
         try:
             results = callback(job)
         except Exception as e:
-            logging.error("RunnerError: " + str(e))
+            runner_logging.error("RunnerError: " + str(e))
             results = DMLResult(
                 status='failed',
                 job=job,
                 error_message=str(e),
                 results={},
             )
-        results.repo_id = job.repo_id
+        results.session_id = job.session_id
         self.current_job = None
-        logging.info("Finished running job! (type: {0})".format(job.job_type))
+        runner_logging.info("Finished running job! (type: {0})".format(job.job_type))
         return results
 
-    def _set_up(self, job):
-        assert job.session_filepath, \
+    def _set_up(self):
+        assert self._dataset_path, \
             "Transformed training and test sets not created yet!"
         train_path = os.path.join(
-                                job.session_filepath, 
+                                self._dataset_path, 
                                 'train.csv'
                             )
         test_path = os.path.join(
-                                job.session_filepath, 
+                                self._dataset_path, 
                                 'test.csv'
                             )
         return train_path, test_path
@@ -123,16 +129,16 @@ class DMLRunner(object):
         NOTE2: Assumes 'job.weights' are the actual weights and not a path.
         """
         
-        train_dataset_path, test_dataset_path = self._set_up(job)
-        data_count = job.datapoint_count
+        train_dataset_path, test_dataset_path = self._set_up()
+        data_count_mappings = count_datapoints(self._dataset_path)
+        print(data_count_mappings)
 
         # Get the right dataset iterator based on the averaging type.
-        avg_type = job.hyperparams['averaging_type']
+        avg_type = job.hyperparams.get('averaging_type', 'data_size')
         batch_size = job.hyperparams['batch_size']
-        split = job.hyperparams['split']
         assert avg_type in ['data_size', 'val_acc'], \
             "Averaging type '{0}' is not supported.".format(avg_type)
-        logging.info("Training model...")
+        runner_logging.info("Training model...")
         if avg_type == 'data_size':
             dataset_iterator = create_random_train_dataset_iterator(
                 train_dataset_path,
@@ -156,18 +162,17 @@ class DMLRunner(object):
             "Model type '{0}' is not supported.".format(job.framework_type)
 
         if job.framework_type == 'keras':
-            new_weights_path, train_stats = train_keras_model(
-                job.serialized_model,
-                job.weights,
+            trained_model, train_stats = train_keras_model(
+                job.model,
                 dataset_iterator,
-                data_count*split,
+                data_count_mappings['train.csv'],
                 job.hyperparams,
                 self.config
             )
 
         # Get the right omega based on the averaging type.
         if avg_type == 'data_size':
-            omega = float(data_count * split)
+            omega = data_count_mappings['train.csv']
         elif avg_type == 'val_acc':
             val_stats = self._validate(
                 job,
@@ -175,14 +180,20 @@ class DMLRunner(object):
             ).results['val_stats']
             omega = val_stats['val_metric']['acc']
             train_stats.update(val_stats)
-
+        trained_model.save("sessions/my_model.h5")
+        with open("sessions/my_model.h5", mode='rb') as file:
+            file_content = file.read()
+            encoded_content = base64.b64encode(file_content)
+            h5_model = encoded_content.decode('ascii')
+        # new_weights_path = [weights.tolist() for weights in new_weights_path]
+        #print(new_weights_path)
         # Return the results.
         # return new_weights_path, omega, train_stats
         results = DMLResult(
             status='successful',
             job=job,
             results={
-                'weights': new_weights_path,
+                'h5_model': h5_model,
                 'omega': omega,
                 'train_stats': train_stats,
             },
@@ -199,7 +210,7 @@ class DMLRunner(object):
 
         NOTE: Assumes 'weights' are the actual weights and not a path.
         """
-        logging.info("Validating model...")
+        runner_logging.info("Validating model...")
         
         train_dataset_path, test_dataset_path = self._set_up(job)
         data_count = job.datapoint_count
@@ -244,16 +255,22 @@ class DMLRunner(object):
         """
         assert job.framework_type in ['keras'], \
             "Model type '{0}' is not supported.".format(job.framework_type)
-        logging.info("Initializing model...")
+        runner_logging.info("Initializing model...")
         if job.framework_type == 'keras':
-            model = model_from_serialized(job.serialized_model)
-            #model.summary()
-            initial_weights = model.get_weights()
+            h5_model_folder = os.path.join('sessions', job.session_id)
+            h5_model_path = os.path.join(h5_model_folder, 'model.h5')
+            h5_model = job.h5_model.encode('ascii')
+            h5_model_bytes = base64.b64decode(h5_model)
+            if not os.path.isdir(h5_model_folder):
+                os.makedirs(h5_model_folder)
+            with open(h5_model_path, 'wb') as fp:
+                fp.write(h5_model_bytes)
+            model = load_model(h5_model_path)
         results = DMLResult(
                     status='successful',
                     job=job,
                     results={
-                        'weights': initial_weights,
+                        'model': model,
                     },
                     error_message="",
                 )
@@ -279,7 +296,7 @@ class DMLRunner(object):
             "weights": job.weights,
             "omega": job.omega
         }
-        job.websocket_client.send_new_weights(train_results, job.session_id, job.loop)
+        job.websocket_client.send_new_weights(train_results, job.session_id)
 
         results = DMLResult(
             status='successful',

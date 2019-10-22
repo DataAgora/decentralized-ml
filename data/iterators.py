@@ -13,15 +13,17 @@ def count_datapoints(dataset_path):
     """
     assert os.path.isdir(dataset_path), "Dataset path is invalid."
 
-    count = 0
+    mappings = {}
     for filename in os.listdir(dataset_path):
+        count = 0
         if not filename.endswith(".csv"): continue
         full_path = os.path.join(dataset_path, filename)
         with open(full_path, 'r') as f:
             for line in f:
                 count += 1
         count -= 1 #exclude header
-    return count
+        mappings[filename] = count
+    return mappings
 
 def create_sequential_train_dataset_iterator(dataset_path, count, split=0.8, \
     batch_size=1, labeler=None, infinite=True):

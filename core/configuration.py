@@ -5,9 +5,6 @@ import configparser
 import logging
 
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='[ConfigurationManager] %(asctime)s %(levelname)s %(message)s')
-
 class ConfigurationManager(object):
     """
     Configuration Manager
@@ -20,6 +17,8 @@ class ConfigurationManager(object):
         """
         Initializes Configuration Manager, config not set up yet
         """
+        logging.basicConfig(level=logging.DEBUG,
+            format='[ConfigurationManager] %(asctime)s %(levelname)s %(message)s')
         self.question_format = "{question} [default = {default}] "
         self._config = None
 

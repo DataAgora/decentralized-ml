@@ -1,4 +1,4 @@
-import logging
+
 import time
 import requests
 
@@ -10,9 +10,8 @@ from core.utils.keras 					import serialize_weights, deserialize_weights
 from core.utils.dmlresult 				import DMLResult
 from core.blockchain.blockchain_utils	import TxEnum, content_to_ipfs
 
+import logging
 
-logging.basicConfig(level=logging.DEBUG,
-	format='[FedAvgOpt] %(asctime)s %(levelname)s %(message)s')
 
 class FederatedAveragingOptimizer(object):
 	"""
@@ -35,7 +34,7 @@ class FederatedAveragingOptimizer(object):
 
 	"""
 
-	def __init__(self, websocket_clients):
+	def __init__(self, runner):
 		"""
 		Initializes the basic optimizer, which does not communicate with
 		the status_server or with Explora.
@@ -57,13 +56,11 @@ class FederatedAveragingOptimizer(object):
 		and can move on to training
 		max_rounds(int): how many rounds of fed learning this optimizer wants to do
 		"""
+		logging.basicConfig(level=logging.DEBUG,
+			format='[FedAvgOpt] %(asctime)s %(levelname)s %(message)s')
 		logging.info("Setting up Optimizer...")
 		self.job_data = {}
-
-		self.websocket_clients = websocket_clients
-
-		for repo in websocket_clients:
-			self.job_data[repo] = {}
+		self.runner = runner
 		
 		self.LEVEL1_CALLBACKS = {
 			RawEventTypes.JOB_DONE.name: self._handle_job_done,
@@ -73,7 +70,7 @@ class FederatedAveragingOptimizer(object):
 			JobTypes.JOB_TRAIN.name: self._done_training,
 			JobTypes.JOB_INIT.name: self._done_initializing,
 			JobTypes.JOB_COMM.name: self._done_communicating,
-			JobTypes.JOB_SPLIT.name: self._done_split,
+			#JobTypes.JOB_SPLIT.name: self._done_split,
 		}
 		self.LEVEL_2_NEW_INFO_CALLBACKS = {
 			MessageEventTypes.TERMINATE.name: self._received_termination,
@@ -82,55 +79,55 @@ class FederatedAveragingOptimizer(object):
 
 		logging.info("Optimizer has been set up!")
 
-	def received_new_message(self, serialized_job, repo_id, dataset_manager):
-		url = "http://" + repo_id + ".au4c4pd2ch.us-west-1.elasticbeanstalk.com/model/model.json"
-		response = requests.get(url)
-		print(response.text)
+	def received_new_message(self, serialized_job):
+		session_id = serialized_job.get("session_id")
 
-		if self.job_data[repo_id]:
-			self.job_data[repo_id]["serialized_model"] = response.text
-			return self._continue_training(repo_id)
+		if 'session_id' in self.job_data:
+			assert self.job_data['session_id'] == serialized_job['session_id'], \
+				"Received new session while in the middle of another session!"
+			return self._continue_training(serialized_job, session_id)
 		else:
-			self.job_data[repo_id]["serialized_model"] = response.text
-			return self.new_job(serialized_job, repo_id, dataset_manager)
+			return self.new_job(serialized_job, session_id)
 
+	def _continue_training(self, serialized_job, session_id):
+		self.job_data['h5_model'] = serialized_job.get("h5_model")
+		self.job_data["curr_round"] = serialized_job.get("round")
+		return self.kickoff(session_id)
 
-	def new_job(self, serialized_job, repo_id, dataset_manager):
-		self.job_data[repo_id]["session_id"] = serialized_job.get("session_id")
-		self.job_data[repo_id]["framework_type"] = serialized_job.get("framework_type", "keras")
+	def new_job(self, serialized_job, session_id):
+		self.job_data["session_id"] = serialized_job.get("session_id")
+		self.job_data["framework_type"] = serialized_job.get("framework_type", "keras")
 		#self.job_data["serialized_model"] = serialized_job.get("serialized_model")
-		self.job_data[repo_id]["hyperparams"] = serialized_job.get("hyperparams")
-		self.job_data[repo_id]["label_column_name"] = serialized_job.get("hyperparams").get("label_column_name")
-		self.job_data[repo_id]["raw_filepath"] = dataset_manager.get_mappings()[repo_id]
-		self.job_data[repo_id]["sigma_omega"] = 0
+		self.job_data["hyperparams"] = serialized_job.get("hyperparams")
+		self.job_data["label_column_name"] = serialized_job.get("hyperparams").get("label_column_name")
+		self.job_data["sigma_omega"] = 0
 		# self.num_averages_per_round = optimizer_params.get('num_averages_per_round')
-		self.job_data[repo_id]["curr_round"] = 1
-		self.job_data[repo_id]["initialization_complete"] = False
+		self.job_data["curr_round"] = 1
+		self.job_data["h5_model"] = serialized_job.get("h5_model")
 		# Set other participants so that the optimizer knows which other nodes 
 		# it's expected to hear messages from for future session_info messages
 		# participants = job_info.get('participants')
 		# self.other_participants = [participant for participant in participants
 		# 							if participant != self.job_data["dataset_uuid"]]
-		return self.kickoff(repo_id)
+		return self.kickoff(session_id)
 		
 
-	def kickoff(self, repo_id):
+	def kickoff(self, session_id):
 		"""
 		Kickoff method used at the beginning of a DML Session.
 
 		Creates a job that transforms and splits the dataset, and also
 		randomly initializes the model.
 		"""
-		job_arr = []
-		init_job = DMLInitializeJob(framework_type=self.job_data[repo_id]["framework_type"],
-									serialized_model=self.job_data[repo_id]["serialized_model"])
-		init_job.repo_id = repo_id
-		job_arr.append(init_job)
-		split_job = DMLSplitJob(hyperparams=self.job_data[repo_id]["hyperparams"],
-								raw_filepath=self.job_data[repo_id]["raw_filepath"])
-		split_job.repo_id = repo_id
-		job_arr.append(split_job)
-		return ActionableEventTypes.SCHEDULE_JOBS.name, job_arr
+		init_job = DMLInitializeJob(framework_type=self.job_data["framework_type"],
+									h5_model=self.job_data["h5_model"])
+		init_job.session_id = session_id
+		# split_job = DMLSplitJob(hyperparams=self.job_data["hyperparams"],
+		# 						raw_filepath=self.job_data["raw_filepath"])
+		# split_job.session_id = session_id
+		# job_arr.append(split_job)
+		dmlresult_obj = self.runner.run_job(init_job)
+		return self._handle_job_done(dmlresult_obj)
 
 	def ask(self, event_type, payload):
 		"""
@@ -160,49 +157,44 @@ class FederatedAveragingOptimizer(object):
 		a DML Job of type train unless transforming and splitting is not yet done
 		and modifies the current state of the job.
 		"""
-		new_weights = dmlresult_obj.results.get('weights')
-		self._update_weights(new_weights)
-		if self.job_data[repo_id]["initialization_complete"]:
-			repo_id = dmlresult_obj.repo_id
-			train_job = DMLTrainJob(
-				datapoint_count=self.job_data[repo_id]["datapoint_count"],
-				hyperparams=self.job_data[repo_id]["hyperparams"],
-				label_column_name=self.job_data[repo_id]["label_column_name"],
-				framework_type=self.job_data[repo_id]["framework_type"],
-				serialized_model=self.job_data[repo_id]["serialized_model"],
-				weights=self.job_data[repo_id]["weights"],
-				session_filepath=self.job_data[repo_id]["session_filepath"]
-			)
-			train_job.repo_id = repo_id
-			return ActionableEventTypes.SCHEDULE_JOBS.name, [train_job]
-		else:
-			self.job_data[repo_id]["initialization_complete"] = True
-			return ActionableEventTypes.NOTHING.name, None
+		session_id = dmlresult_obj.job.session_id
+		self.job_data['model'] = dmlresult_obj.results.get('model')
+		new_weights = self.job_data['model'].get_weights()
+		self._update_weights(new_weights, session_id)
+		train_job = DMLTrainJob(
+			hyperparams=self.job_data["hyperparams"],
+			label_column_name=self.job_data["label_column_name"],
+			framework_type=self.job_data["framework_type"],
+			model=self.job_data['model'],
+		)
+		train_job.session_id = session_id
+		dmlresult_obj = self.runner.run_job(train_job)
+		return self._handle_job_done(dmlresult_obj)
 
-	def _done_split(self, dmlresult_obj):
-		"""
-		"LEVEL 2" Callback for a split job that just finished.
-		Returns a DML Job of type train unless initialization is not yet done
-		and modifies the current state of the job.
-		"""
-		repo_id = dmlresult_obj.repo_id
-		self.job_data[repo_id]["session_filepath"] = dmlresult_obj.results['session_filepath']
-		self.job_data[repo_id]["datapoint_count"] = dmlresult_obj.results['datapoint_count']
-		if self.job_data[repo_id]["initialization_complete"]:
-			train_job = DMLTrainJob(
-				datapoint_count=self.job_data[repo_id]["datapoint_count"],
-				hyperparams=self.job_data[repo_id]["hyperparams"],
-				label_column_name=self.job_data[repo_id]["label_column_name"],
-				framework_type=self.job_data[repo_id]["framework_type"],
-				serialized_model=self.job_data[repo_id]["serialized_model"],
-				weights=self.job_data[repo_id]["weights"],
-				session_filepath=self.job_data[repo_id]["session_filepath"]
-			)
-			train_job.repo_id = repo_id
-			return ActionableEventTypes.SCHEDULE_JOBS.name, [train_job]
-		else:
-			self.job_data[repo_id]["initialization_complete"] = True
-			return ActionableEventTypes.NOTHING.name, None
+	# def _done_split(self, dmlresult_obj):
+	# 	"""
+	# 	"LEVEL 2" Callback for a split job that just finished.
+	# 	Returns a DML Job of type train unless initialization is not yet done
+	# 	and modifies the current state of the job.
+	# 	"""
+	# 	session_id = dmlresult_obj.job.session_id
+	# 	self.job_data["session_filepath"] = dmlresult_obj.results['session_filepath']
+	# 	self.job_data["datapoint_count"] = dmlresult_obj.results['datapoint_count']
+	# 	if self.job_data["initialization_complete"]:
+	# 		train_job = DMLTrainJob(
+	# 			datapoint_count=self.job_data["datapoint_count"],
+	# 			hyperparams=self.job_data["hyperparams"],
+	# 			label_column_name=self.job_data["label_column_name"],
+	# 			framework_type=self.job_data["framework_type"],
+	# 			serialized_model=self.job_data["serialized_model"],
+	# 			weights=self.job_data["weights"],
+	# 			session_filepath=self.job_data["session_filepath"]
+	# 		)
+	# 		train_job.session_id = session_id
+	# 		return ActionableEventTypes.SCHEDULE_JOBS.name, [train_job]
+	# 	else:
+	# 		self.job_data["initialization_complete"] = True
+	# 		return ActionableEventTypes.NOTHING.name, None
 
 	def _done_training(self, dmlresult_obj):
 		"""
@@ -213,18 +205,7 @@ class FederatedAveragingOptimizer(object):
 		about a degree of accuracy needing to be reached before updating the
 		weights.
 		"""
-		repo_id = dmlresult_obj.repo_id
-		comm_job = DMLCommunicateJob(
-			# TODO: Consider synchronization issues
-			round_num=self.curr_round,
-			weights=dmlresult_obj.results.get('weights'),
-			omega=dmlresult_obj.results.get('omega'),
-			session_id=self.job_data[repo_id].get("session_id")
-		)
-		comm_job.repo_id = repo_id
-		comm_job.websocket_client = self.websocket_clients[repo_id]
-		comm_job.loop = self.websocket_clients["loop"]
-		return ActionableEventTypes.SCHEDULE_JOBS.name, [comm_job]
+		return dmlresult_obj.results
 
 	def _done_communicating(self, dmlresult_obj):
 		"""
@@ -260,19 +241,19 @@ class FederatedAveragingOptimizer(object):
 
 	# Helper functions
 
-	def _update_weights(self, weights):
+	def _update_weights(self, weights, session_id):
 		"""
 		Helper function to update the weights in the optimizer's currently
 		stored DML Job, therefore ensuring that any future DML Jobs will operate
 		with the correct weights. Mutates, does not return anything.
 		"""
-		self.job_data[repo_id]["weights"] = weights
+		self.job_data["weights"] = weights
 
-	def _update_old_weights(self):
+	def _update_old_weights(self, session_id):
 		"""
 		Helper function to update the old_weights instance variable.
 		"""
-		self.old_weights = self.job_data[repo_id]["weights"]
+		self.old_weights = self.job_data["weights"]
 
 	def _do_nothing(self, payload):
 		"""
