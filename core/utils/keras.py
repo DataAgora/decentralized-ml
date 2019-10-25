@@ -8,15 +8,17 @@ import keras
 
 from custom.keras import model_from_serialized
 from core.utils.filesys import ensure_dir
+import logging 
 
-import logging as utils_logging
+logger = logging.getLogger('Utils/Keras')
+# import logging as utils_logging
 
-utils_logging.basicConfig(level=utils_logging.INFO,
-                    format='[Utils/Keras] %(asctime)s %(levelname)s %(message)s')
+# utils_logging.basicConfig(level=utils_logging.INFO,
+#                     format='[Utils/Keras] %(asctime)s %(levelname)s %(message)s')
 
 def train_keras_model(model, dataset_iterator, data_count,
     hyperparams, config):
-    utils_logging.info('Keras training just started.')
+    logger.info('Keras training just started.')
     print(data_count, hyperparams['batch_size'])
     hist = model.fit_generator(dataset_iterator, epochs=hyperparams['epochs'], \
         steps_per_epoch=data_count//hyperparams['batch_size'])
@@ -28,19 +30,19 @@ def train_keras_model(model, dataset_iterator, data_count,
     # ensure_dir(weights_filepath)
     # model.save_weights(weights_filepath)
     # weights = model.get_weights()
-    utils_logging.info('Keras training complete.')
+    logger.info('Keras training complete.')
     return model, {'training_history' : hist.history}
 
 
 def validate_keras_model(serialized_model, weights, dataset_iterator,
     data_count):
-    utils_logging.info('Keras validation just started.')
+    logger.info('Keras validation just started.')
     assert weights != None, "weights must not be 'None'."
     model = model_from_serialized(serialized_model)
     model.set_weights(weights)
     history = model.evaluate_generator(dataset_iterator, steps=data_count)
     metrics = dict(zip(model.metrics_names, history))
-    utils_logging.info('Keras validation complete.')
+    logger.info('Keras validation complete.')
     return {'val_metric': metrics}
 
 

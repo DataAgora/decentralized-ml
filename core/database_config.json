@@ -1,9 +1,0 @@
-{
-    "user": "datashark",
-    "db": "datasharkdb",
-    "host": "datasharkdatabase.cwnzqu4zi2kl.us-west-1.rds.amazonaws.com",
-    "port": "5432",
-    "table_name": "category_labels",
-    "num_tries": 3, 
-    "wait_time": 10
-}

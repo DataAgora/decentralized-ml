@@ -17,8 +17,7 @@ class ConfigurationManager(object):
         """
         Initializes Configuration Manager, config not set up yet
         """
-        logging.basicConfig(level=logging.DEBUG,
-            format='[ConfigurationManager] %(asctime)s %(levelname)s %(message)s')
+        self.logger = logging.getLogger('ConfigurationManager')
         self.question_format = "{question} [default = {default}] "
         self._config = None
 
@@ -37,18 +36,21 @@ class ConfigurationManager(object):
         core/configuration.ini exists. If not, call _run_setup_mode. Then load
         the config instance from configuration.ini
         """
+        self.logger.info("Bootstrapping...")
         if self._config:
             return False
         self.input_function = input_function if input_function else input
         self.config_filepath = config_filepath
         self.question_filepath = question_filepath
         if not os.path.isfile(self.config_filepath):
+            self.logger.info("Config not found. Running set up mode...")
             self._run_setup_mode(
                 self.config_filepath, 
                 self.question_filepath, 
                 self.input_function
             )
         else:
+            self.logger.info("Found config!")
             self._config = configparser.ConfigParser()
             self._config.read(self.config_filepath)
         return True

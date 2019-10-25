@@ -6,8 +6,8 @@ import logging
 
 from core.utils.enums import RawEventTypes, MessageEventTypes
 
-logging.basicConfig(level=logging.DEBUG,
-					format='[WebSocketClient] %(asctime)s %(levelname)s %(message)s')
+# logging.basicConfig(level=logging.DEBUG,
+# 					format='[WebSocketClient] %(asctime)s %(levelname)s %(message)s')
 from functools import singledispatch
 
 
@@ -20,13 +20,13 @@ busy = False
 
 class WebSocketClient(object):
 
-    def __init__(self, optimizer, config_manager):
-        repo_id = config_manager.get_config().get('GENERAL', 'repo_id')
+    def __init__(self, optimizer, config_manager, repo_id):
         self._optimizer = optimizer
         self.repo_id = repo_id
         self._websocket_url = url = "ws://" + repo_id + ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
         self.consecutive_disconnections_allowed = 3
-        logging.info("WebSocketClient {} set up!".format(repo_id))
+        self.logger = logging.getLogger("WebSocketClient")
+        self.logger.info("WebSocketClient {} set up!".format(repo_id))
 
     async def prepare_dml(self):
         stop_received = False
@@ -41,22 +41,22 @@ class WebSocketClient(object):
                     self.consecutive_disconnections_allowed = 3
                     assert 'action' in json_response, 'No action found: {}'.format(str(json_response))
                     if json_response['action'] == 'TRAIN':
-                        logging.info('Received TRAIN message, beginning training...')
+                        self.logger.info('Received TRAIN message, beginning training...')
                         results = self._optimizer.received_new_message(json_response)
                         await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
                     elif json_response['action'] == 'STOP':
-                        logging.info('Received STOP message, terminating...')
+                        self.logger.info('Received STOP message, terminating...')
                         stop_received = True
                         break
                     else:
-                        logging.info('Unknown action [{}] received, ignoring...'.format(json_response['action']))
+                        self.logger.info('Unknown action [{}] received, ignoring...'.format(json_response['action']))
 
     async def send_register_message(self, websocket): 
         registration_message = {
             "type": "REGISTER",
             "node_type": "LIBRARY"
         }
-        logging.info("Sending register message for {}".format(self.repo_id))
+        self.logger.info("Sending register message for {}".format(self.repo_id))
         await websocket.send(json.dumps(registration_message))
 
 
@@ -68,7 +68,7 @@ class WebSocketClient(object):
             "results": results,
             "round": round
         }
-        logging.info("Sending new weights for {}".format(self.repo_id))
+        self.logger.info("Sending new weights for {}".format(self.repo_id))
         await websocket.send(json.dumps(new_weights_message, default=to_serializable))
             
 
@@ -76,11 +76,11 @@ class WebSocketClient(object):
         try:
             response = await websocket.recv()
         except websockets.exceptions.ConnectionClosedError as e:
-            logging.info("Disconnection occurred, reconnecting...")
+            self.logger.info("Disconnection occurred, reconnecting...")
             return {"success": False}
             
-        logging.info("Received message for {}!".format(self.repo_id))
-        #logging.info("Message is: {}".format(response))
+        self.logger.info("Received message for {}!".format(self.repo_id))
+        #self.logger.info("Message is: {}".format(response))
         json_response = json.loads(response)
         json_response["success"] = True
         return json_response

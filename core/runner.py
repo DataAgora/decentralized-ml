@@ -18,13 +18,13 @@ from keras.models import load_model
 from core.utils.keras import serialize_weights, deserialize_weights
 from core.utils.dmlresult import DMLResult
 from core.utils.enums import JobTypes, callback_handler_no_default
-from core.blockchain.blockchain_utils import setter, content_to_ipfs
 import base64
 
-import logging as runner_logging
+import logging
+# import logging as runner_logging
 
-runner_logging.basicConfig(level=runner_logging.DEBUG,
-                    format='[Runner] %(asctime)s %(levelname)s %(message)s')
+# runner_logging.basicConfig(level=runner_logging.DEBUG,
+#                     format='[Runner] %(asctime)s %(levelname)s %(message)s')
 
 
 
@@ -65,6 +65,7 @@ class DMLRunner(object):
             JobTypes.JOB_STATS.name: self._post_statistics
         }
         self.JOBS_NEEDING_STATE = [JobTypes.JOB_COMM.name]
+        self.logger = logging.getLogger('Runner')
     
     # def configure(self, ipfs_client):
     #     """
@@ -80,7 +81,7 @@ class DMLRunner(object):
         """
         assert job.job_type.upper() in self.JOB_CALLBACKS, \
             'DMLJob type ({0}) is not valid'.format(job.job_type)
-        runner_logging.info("Running job (type: {0})...".format(job.job_type))
+        self.logger.info("Running job (type: {0})...".format(job.job_type))
         callback = callback_handler_no_default(
             job.job_type,
             self.JOB_CALLBACKS,
@@ -89,7 +90,7 @@ class DMLRunner(object):
         try:
             results = callback(job)
         except Exception as e:
-            runner_logging.error("RunnerError: " + str(e))
+            self.logger.error("RunnerError: " + str(e))
             results = DMLResult(
                 status='failed',
                 job=job,
@@ -98,7 +99,7 @@ class DMLRunner(object):
             )
         results.session_id = job.session_id
         self.current_job = None
-        runner_logging.info("Finished running job! (type: {0})".format(job.job_type))
+        self.logger.info("Finished running job! (type: {0})".format(job.job_type))
         return results
 
     def _set_up(self):
@@ -138,7 +139,7 @@ class DMLRunner(object):
         batch_size = job.hyperparams['batch_size']
         assert avg_type in ['data_size', 'val_acc'], \
             "Averaging type '{0}' is not supported.".format(avg_type)
-        runner_logging.info("Training model...")
+        self.logger.info("Training model...")
         if avg_type == 'data_size':
             dataset_iterator = create_random_train_dataset_iterator(
                 train_dataset_path,
@@ -210,7 +211,7 @@ class DMLRunner(object):
 
         NOTE: Assumes 'weights' are the actual weights and not a path.
         """
-        runner_logging.info("Validating model...")
+        self.logger.info("Validating model...")
         
         train_dataset_path, test_dataset_path = self._set_up(job)
         data_count = job.datapoint_count
@@ -255,7 +256,7 @@ class DMLRunner(object):
         """
         assert job.framework_type in ['keras'], \
             "Model type '{0}' is not supported.".format(job.framework_type)
-        runner_logging.info("Initializing model...")
+        self.logger.info("Initializing model...")
         if job.framework_type == 'keras':
             h5_model_folder = os.path.join('sessions', job.session_id)
             h5_model_path = os.path.join(h5_model_folder, 'model.h5')
@@ -266,6 +267,8 @@ class DMLRunner(object):
             with open(h5_model_path, 'wb') as fp:
                 fp.write(h5_model_bytes)
             model = load_model(h5_model_path)
+            os.remove(h5_model_path)
+            os.rmdir(h5_model_folder)
         results = DMLResult(
                     status='successful',
                     job=job,

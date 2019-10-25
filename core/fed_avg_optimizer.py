@@ -8,7 +8,6 @@ from core.utils.dmljob 					import (DMLJob, DMLAverageJob, DMLCommunicateJob, DM
 												DMLInitializeJob, DMLSplitJob, DMLTrainJob, DMLValidateJob)
 from core.utils.keras 					import serialize_weights, deserialize_weights
 from core.utils.dmlresult 				import DMLResult
-from core.blockchain.blockchain_utils	import TxEnum, content_to_ipfs
 
 import logging
 
@@ -56,9 +55,8 @@ class FederatedAveragingOptimizer(object):
 		and can move on to training
 		max_rounds(int): how many rounds of fed learning this optimizer wants to do
 		"""
-		logging.basicConfig(level=logging.DEBUG,
-			format='[FedAvgOpt] %(asctime)s %(levelname)s %(message)s')
-		logging.info("Setting up Optimizer...")
+		self.logger = logging.getLogger("FedAvgOptimizer")
+		self.logger.info("Setting up Optimizer...")
 		self.job_data = {}
 		self.runner = runner
 		
@@ -77,7 +75,7 @@ class FederatedAveragingOptimizer(object):
 			MessageEventTypes.NEW_SESSION.name: self._do_nothing,
 		}
 
-		logging.info("Optimizer has been set up!")
+		self.logger.info("Optimizer has been set up!")
 
 	def received_new_message(self, serialized_job):
 		session_id = serialized_job.get("session_id")
@@ -148,7 +146,7 @@ class FederatedAveragingOptimizer(object):
 			dmlresult_obj.job.job_type,
 			self.LEVEL2_JOB_DONE_CALLBACKS
 		)
-		logging.info("Job completed: {}".format(dmlresult_obj.job.job_type))
+		self.logger.info("Job completed: {}".format(dmlresult_obj.job.job_type))
 		return callback(dmlresult_obj)
 
 	def _done_initializing(self, dmlresult_obj):
@@ -214,7 +212,7 @@ class FederatedAveragingOptimizer(object):
 		return ActionableEventTypes.NOTHING.name, None
 
 	def _done_validating(self, dmlresult_obj):
-		logging.info("Validation accuracy: {}".format(dmlresult_obj.results['val_stats']))
+		self.logger.info("Validation accuracy: {}".format(dmlresult_obj.results['val_stats']))
 		return ActionableEventTypes.TERMINATE.name, None
 	# Handlers for new information from the gateway
 

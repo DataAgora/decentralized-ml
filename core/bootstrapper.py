@@ -2,15 +2,17 @@ import threading
 import asyncio
 
 from core.configuration import ConfigurationManager
-from core.communication_manager import CommunicationManager
-from core.scheduler import DMLScheduler
-from core.dataset_manager import DatasetManager
 from core.websocket_utils import WebSocketClient
 from core.runner import DMLRunner
 from core.fed_avg_optimizer import FederatedAveragingOptimizer
 
+import logging
 
-def bootstrap():
+logging.basicConfig(format='[%(name)s] %(asctime)s %(levelname)s %(message)s',
+                        level=logging.DEBUG)
+
+
+def bootstrap(repo_id=None):
     """
     Bootstraps the data provider unix service.
 
@@ -52,7 +54,7 @@ def bootstrap():
 
     loop = asyncio.get_event_loop()
 
-    websocket_client = WebSocketClient(optimizer, config_manager)
+    websocket_client = WebSocketClient(optimizer, config_manager, repo_id)
     # mappings = dataset_manager.get_mappings()
 
 
