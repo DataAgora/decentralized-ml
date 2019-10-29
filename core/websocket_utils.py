@@ -24,32 +24,37 @@ class WebSocketClient(object):
         self._optimizer = optimizer
         self.repo_id = repo_id
         self._websocket_url = url = "ws://" + repo_id + ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
-        self.consecutive_disconnections_allowed = 3
+        self.reconnections_remaining = 3
         self.logger = logging.getLogger("WebSocketClient")
         self.logger.info("WebSocketClient {} set up!".format(repo_id))
 
     async def prepare_dml(self):
         stop_received = False
-        self.consecutive_disconnections_allowed -= 1
+        self.reconnections_remaining -= 1
         while not stop_received:
+            if not self.reconnections_remaining:
+                self.logger.info("Failed to connect!")
+                return
             async with websockets.connect(self._websocket_url, max_size=2**22) as websocket:
                 await self.send_register_message(websocket)
                 while True:
                     json_response = await self.listen(websocket)
                     if not json_response["success"]:
                         break
-                    self.consecutive_disconnections_allowed = 3
+                    self.reconnections_remaining = 3
                     assert 'action' in json_response, 'No action found: {}'.format(str(json_response))
                     if json_response['action'] == 'TRAIN':
                         self.logger.info('Received TRAIN message, beginning training...')
                         results = self._optimizer.received_new_message(json_response)
-                        await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
+                        if results["success"]:
+                            await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
                     elif json_response['action'] == 'STOP':
                         self.logger.info('Received STOP message, terminating...')
                         stop_received = True
                         break
                     else:
                         self.logger.info('Unknown action [{}] received, ignoring...'.format(json_response['action']))
+                    if 
 
     async def send_register_message(self, websocket): 
         registration_message = {
@@ -76,6 +81,7 @@ class WebSocketClient(object):
         try:
             response = await websocket.recv()
         except websockets.exceptions.ConnectionClosedError as e:
+            print(str(e))
             self.logger.info("Disconnection occurred, reconnecting...")
             return {"success": False}
             

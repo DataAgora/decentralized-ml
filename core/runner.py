@@ -86,7 +86,6 @@ class DMLRunner(object):
             job.job_type,
             self.JOB_CALLBACKS,
         )
-        results = callback(job)
         try:
             results = callback(job)
         except Exception as e:

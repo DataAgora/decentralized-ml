@@ -79,6 +79,12 @@ class FederatedAveragingOptimizer(object):
 
 	def received_new_message(self, serialized_job):
 		session_id = serialized_job.get("session_id")
+		round = serialized_job.get("round")
+		if self.job_data.get("curr_round", 0) + 1 != round:
+			self.logger.info("Received job for unexpected round {}, ignoring...".format(round))
+			return {"success": False}
+
+		self.logger.info("Starting round: {}".format(round))
 
 		if 'session_id' in self.job_data:
 			assert self.job_data['session_id'] == serialized_job['session_id'], \
@@ -203,7 +209,9 @@ class FederatedAveragingOptimizer(object):
 		about a degree of accuracy needing to be reached before updating the
 		weights.
 		"""
-		return dmlresult_obj.results
+		results = dmlresult_obj.results
+		results["success"] = True
+		return results
 
 	def _done_communicating(self, dmlresult_obj):
 		"""

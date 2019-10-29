@@ -1,6 +1,5 @@
 MNIST-data
 logs
-core/configuration.ini
 *.pyc
 *.egg-info/
 .DS_Store

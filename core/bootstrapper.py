@@ -9,7 +9,7 @@ from core.fed_avg_optimizer import FederatedAveragingOptimizer
 import logging
 
 logging.basicConfig(format='[%(name)s] %(asctime)s %(levelname)s %(message)s',
-                        level=logging.DEBUG)
+                        level=logging.INFO)
 
 
 def bootstrap(repo_id=None):
