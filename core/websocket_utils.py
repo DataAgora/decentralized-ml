@@ -54,7 +54,6 @@ class WebSocketClient(object):
                         break
                     else:
                         self.logger.info('Unknown action [{}] received, ignoring...'.format(json_response['action']))
-                    if 
 
     async def send_register_message(self, websocket): 
         registration_message = {
