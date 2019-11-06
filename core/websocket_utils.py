@@ -46,8 +46,9 @@ class WebSocketClient(object):
                     if json_response['action'] == 'TRAIN':
                         self.logger.info('Received TRAIN message, beginning training...')
                         results = self._optimizer.received_new_message(json_response)
-                        if results["success"]:
-                            await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
+                        if not results["success"]:
+                            break
+                        await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
                     elif json_response['action'] == 'STOP':
                         self.logger.info('Received STOP message, terminating...')
                         stop_received = True

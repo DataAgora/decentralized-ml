@@ -33,6 +33,48 @@ class DMLJob(object):
     def serialize_job(self):
         return self.__dict__
 
+class DMLInitializeJob(DMLJob):
+    """
+    DML Job for Initialization
+
+    Holds information specifically needed for initialization
+    """
+    def __init__(
+        self,
+        framework_type,
+        use_gradients,
+        h5_model=None,
+        h5_model_filepath=None,
+        gradients=None
+        ):
+        """
+        Initializes a DML initialization Job object.
+
+        Args:
+            job_type (str): the job type.
+            serialized_model (dict): the model to train in a serialized format.
+            framework_type (str): the type of framework the model is in [keras].
+        """
+        self.job_type = JobTypes.JOB_INIT.name
+        self.framework_type = framework_type
+        self.use_gradients = use_gradients
+        self.h5_model = h5_model
+        self.h5_model_filepath = h5_model_filepath
+        self.gradients = gradients
+    
+    def serialize_job(self):
+        """
+        Serializes a DML Job object into a dictionary.
+
+        Returns:
+            dict: The serialized version of the DML Job.
+        """
+        return {
+            'serialized_model': self.serialized_model,
+            'job_type': self.job_type,
+            'framework_type': self.framework_type,
+        }
+
 class DMLTrainJob(DMLJob):
     """
     DML Job for Training
@@ -45,6 +87,7 @@ class DMLTrainJob(DMLJob):
         label_column_name,
         framework_type,
         model,
+        use_gradients,
         ):
         """
         Initializes a DML Train Job object.
@@ -70,6 +113,7 @@ class DMLTrainJob(DMLJob):
         self.label_column_name = label_column_name
         self.framework_type = framework_type
         self.model = model
+        self.use_gradients = use_gradients
 
 class DMLValidateJob(DMLJob):
     """
@@ -115,41 +159,6 @@ class DMLValidateJob(DMLJob):
         self.weights = weights
         self.session_filepath = session_filepath
 
-class DMLInitializeJob(DMLJob):
-    """
-    DML Job for Initialization
-
-    Holds information specifically needed for initialization
-    """
-    def __init__(
-        self,
-        framework_type,
-        h5_model,
-        ):
-        """
-        Initializes a DML initialization Job object.
-
-        Args:
-            job_type (str): the job type.
-            serialized_model (dict): the model to train in a serialized format.
-            framework_type (str): the type of framework the model is in [keras].
-        """
-        self.job_type = JobTypes.JOB_INIT.name
-        self.framework_type = framework_type
-        self.h5_model = h5_model
-    
-    def serialize_job(self):
-        """
-        Serializes a DML Job object into a dictionary.
-
-        Returns:
-            dict: The serialized version of the DML Job.
-        """
-        return {
-            'serialized_model': self.serialized_model,
-            'job_type': self.job_type,
-            'framework_type': self.framework_type,
-        }
 
 class DMLCommunicateJob(DMLJob):
     """

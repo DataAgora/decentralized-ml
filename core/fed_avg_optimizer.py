@@ -80,15 +80,16 @@ class FederatedAveragingOptimizer(object):
 	def received_new_message(self, serialized_job):
 		session_id = serialized_job.get("session_id")
 		round = serialized_job.get("round")
-		if self.job_data.get("curr_round", 0) + 1 != round:
-			self.logger.info("Received job for unexpected round {}, ignoring...".format(round))
+		if self.job_data.get("curr_round", 0) + 1 >= round:
+			self.logger.error("Received job for unexpected round {}, ignoring...".format(round))
 			return {"success": False}
 
 		self.logger.info("Starting round: {}".format(round))
 
 		if 'session_id' in self.job_data:
-			assert self.job_data['session_id'] == serialized_job['session_id'], \
-				"Received new session while in the middle of another session!"
+			if self.job_data['session_id'] 1= serialized_job['session_id']:
+				self.logger.error("Received new session while in the middle of another session!")
+				return {"success": False}
 			return self._continue_training(serialized_job, session_id)
 		else:
 			return self.new_job(serialized_job, session_id)
@@ -96,6 +97,7 @@ class FederatedAveragingOptimizer(object):
 	def _continue_training(self, serialized_job, session_id):
 		self.job_data['h5_model'] = serialized_job.get("h5_model")
 		self.job_data["curr_round"] = serialized_job.get("round")
+		self.job_data["gradients"] = serialized_job.get("gradients")
 		return self.kickoff(session_id)
 
 	def new_job(self, serialized_job, session_id):
@@ -107,16 +109,20 @@ class FederatedAveragingOptimizer(object):
 		self.job_data["sigma_omega"] = 0
 		# self.num_averages_per_round = optimizer_params.get('num_averages_per_round')
 		self.job_data["curr_round"] = 1
-		self.job_data["h5_model"] = serialized_job.get("h5_model")
+		self.job_data["use_gradients"] = serialized_job.get("use_gradients")
+		self.job_data["h5_model_filepath"] = None
+		self.job_data["gradients"] = None
+		h5_model = serialized_job.get("h5_model")
+		
 		# Set other participants so that the optimizer knows which other nodes 
 		# it's expected to hear messages from for future session_info messages
 		# participants = job_info.get('participants')
 		# self.other_participants = [participant for participant in participants
 		# 							if participant != self.job_data["dataset_uuid"]]
-		return self.kickoff(session_id)
+		return self.kickoff(session_id, h5_model=h5_model)
 		
 
-	def kickoff(self, session_id):
+	def kickoff(self, session_id, h5_model=None):
 		"""
 		Kickoff method used at the beginning of a DML Session.
 
@@ -124,7 +130,10 @@ class FederatedAveragingOptimizer(object):
 		randomly initializes the model.
 		"""
 		init_job = DMLInitializeJob(framework_type=self.job_data["framework_type"],
-									h5_model=self.job_data["h5_model"])
+									use_gradients=self.job_data["use_gradients"],
+									h5_model=h5_model,
+									h5_model_filepath=self.job_data["h5_model_filepath"],
+									gradients=self.job_data["gradients"])
 		init_job.session_id = session_id
 		# split_job = DMLSplitJob(hyperparams=self.job_data["hyperparams"],
 		# 						raw_filepath=self.job_data["raw_filepath"])
@@ -162,14 +171,13 @@ class FederatedAveragingOptimizer(object):
 		and modifies the current state of the job.
 		"""
 		session_id = dmlresult_obj.job.session_id
-		self.job_data['model'] = dmlresult_obj.results.get('model')
-		new_weights = self.job_data['model'].get_weights()
-		self._update_weights(new_weights, session_id)
+		self.job_data['h5_model_filepath'] = dmlresult_obj.results.get('h5_model_filepath')
 		train_job = DMLTrainJob(
 			hyperparams=self.job_data["hyperparams"],
 			label_column_name=self.job_data["label_column_name"],
 			framework_type=self.job_data["framework_type"],
-			model=self.job_data['model'],
+			model= dmlresult_obj.results.get('model'),
+			use_gradients=self.job_data["use_gradients"],
 		)
 		train_job.session_id = session_id
 		dmlresult_obj = self.runner.run_job(train_job)

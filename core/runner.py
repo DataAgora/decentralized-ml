@@ -114,6 +114,50 @@ class DMLRunner(object):
                             )
         return train_path, test_path
 
+    def _initialize(self, job):
+        """
+        Initializes and returns a DMLResult with the model
+        weights as specified in the model.
+        """
+        assert job.framework_type in ['keras'], \
+            "Model type '{0}' is not supported.".format(job.framework_type)
+        self.logger.info("Initializing model...")
+        if job.framework_type == 'keras':
+            if job.h5_model_path:
+                model = load_model(h5_model_path)
+                gradients = np.array(job.gradients)
+                learning_rate = model.optimizer.lr
+                weights = np.array(model.get_weights())
+                new_weights = weights - (learning_rate * gradients)
+                model.set_weights(new_weights)
+                model.save(h5_model_path)
+            else:
+                h5_model_folder = os.path.join('sessions', job.session_id)
+                h5_model_path = os.path.join(h5_model_folder, 'model.h5')
+                h5_model = job.h5_model.encode('ascii')
+                h5_model_bytes = base64.b64decode(h5_model)
+                if not os.path.isdir(h5_model_folder):
+                    os.makedirs(h5_model_folder)
+                with open(h5_model_path, 'wb') as fp:
+                    fp.write(h5_model_bytes)
+                
+                if not job.use_gradients:
+                    os.remove(h5_model_path)
+                    os.rmdir(h5_model_folder)
+                    h5_model_filepath = None
+
+        results = DMLResult(
+            status='successful',
+            job=job,
+            results={
+                'model': model,
+                'h5_model_filepath': h5_model_filepath,
+            },
+            error_message="",
+        )
+        if 
+        return results
+
     def _train(self, job):
         """
         Trains the specified machine learning model on all the local data,
@@ -257,35 +301,7 @@ class DMLRunner(object):
         )
         return results
 
-    def _initialize(self, job):
-        """
-        Initializes and returns a DMLResult with the model
-        weights as specified in the model.
-        """
-        assert job.framework_type in ['keras'], \
-            "Model type '{0}' is not supported.".format(job.framework_type)
-        self.logger.info("Initializing model...")
-        if job.framework_type == 'keras':
-            h5_model_folder = os.path.join('sessions', job.session_id)
-            h5_model_path = os.path.join(h5_model_folder, 'model.h5')
-            h5_model = job.h5_model.encode('ascii')
-            h5_model_bytes = base64.b64decode(h5_model)
-            if not os.path.isdir(h5_model_folder):
-                os.makedirs(h5_model_folder)
-            with open(h5_model_path, 'wb') as fp:
-                fp.write(h5_model_bytes)
-            model = load_model(h5_model_path)
-            os.remove(h5_model_path)
-            os.rmdir(h5_model_folder)
-        results = DMLResult(
-                    status='successful',
-                    job=job,
-                    results={
-                        'model': model,
-                    },
-                    error_message="",
-                )
-        return results
+    
 
     def _communicate(self, job):
         """

@@ -24,11 +24,13 @@ def train_keras_model(model, dataset_iterator, data_count,
     if gradients = True:
         accumulated_gradients = None
         for X, y in dataset_iterator:
+            learning_rate = model.optimizer.lr
             loss = model.train_on_batch(X, y)
             gradients = calculate_gradients(model, X, y)
             if accumulated_gradients is None:
                 accumulated_gradients = keras.initializers.Zeros()(gradients.shape)
-            accumulated_gradients = accumulated_gradients + gradients
+            accumulated_gradients = accumulated_gradients + (gradients * learning_rate)
+            accumulated_gradients = K.eval(accumulated_gradients).tolist()
         return model, accumulated_gradients
 
     hist = model.fit_generator(dataset_iterator, epochs=hyperparams['epochs'], \
