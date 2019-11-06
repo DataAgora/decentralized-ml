@@ -5,6 +5,7 @@ import io
 
 import numpy as np
 import keras
+import keras.backend as K
 
 from custom.keras import model_from_serialized
 from core.utils.filesys import ensure_dir
@@ -17,9 +18,19 @@ logger = logging.getLogger('Utils/Keras')
 #                     format='[Utils/Keras] %(asctime)s %(levelname)s %(message)s')
 
 def train_keras_model(model, dataset_iterator, data_count,
-    hyperparams, config):
+    hyperparams, config, gradients=False):
     logger.info('Keras training just started.')
     print(data_count, hyperparams['batch_size'])
+    if gradients = True:
+        accumulated_gradients = None
+        for X, y in dataset_iterator:
+            loss = model.train_on_batch(X, y)
+            gradients = calculate_gradients(model, X, y)
+            if accumulated_gradients is None:
+                accumulated_gradients = keras.initializers.Zeros()(gradients.shape)
+            accumulated_gradients = accumulated_gradients + gradients
+        return model, accumulated_gradients
+
     hist = model.fit_generator(dataset_iterator, epochs=hyperparams['epochs'], \
         steps_per_epoch=data_count//hyperparams['batch_size'])
     # weights_filepath = os.path.join(
@@ -33,6 +44,26 @@ def train_keras_model(model, dataset_iterator, data_count,
     logger.info('Keras training complete.')
     return model, {'training_history' : hist.history}
 
+def calculate_gradients(model, X, y):
+    weights = model.trainable_weights # weight tensors
+    gradients = model.optimizer.get_gradients(model.total_loss, weights) # gradient tensors
+
+    input_tensors = [model.inputs[0], # input data
+                    model.sample_weights[0], # how much to weight each sample by
+                    model.targets[0], # labels
+                    K.learning_phase(), # train or test mode
+    ]
+
+    get_gradients = K.function(inputs=input_tensors, outputs=gradients)
+
+    inputs = [X, # X
+            np.ones(len(X)), # sample weights
+            y, # y
+            0 # learning phase in TEST mode
+    ]
+
+    gradients = np.array(get_gradients(inputs)).tolist()
+    return gradients
 
 def validate_keras_model(serialized_model, weights, dataset_iterator,
     data_count):

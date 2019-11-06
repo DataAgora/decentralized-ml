@@ -12,7 +12,7 @@ from custom.keras import model_from_serialized, get_optimizer
 from data.iterators import count_datapoints
 from data.iterators import create_random_train_dataset_iterator
 from data.iterators import create_random_test_dataset_iterator
-from core.utils.keras import train_keras_model, validate_keras_model
+from core.utils.keras import train_keras_model, validate_keras_model, calculate_gradients
 from keras.models import load_model
 
 from core.utils.keras import serialize_weights, deserialize_weights
@@ -135,6 +135,7 @@ class DMLRunner(object):
 
         # Get the right dataset iterator based on the averaging type.
         avg_type = job.hyperparams.get('averaging_type', 'data_size')
+        avg_comm = job.hyperparams.get('avg_comm', 'weights')
         batch_size = job.hyperparams['batch_size']
         assert avg_type in ['data_size', 'val_acc'], \
             "Averaging type '{0}' is not supported.".format(avg_type)
@@ -162,12 +163,14 @@ class DMLRunner(object):
             "Model type '{0}' is not supported.".format(job.framework_type)
 
         if job.framework_type == 'keras':
-            trained_model, train_stats = train_keras_model(
+            use_gradients = True if avg_comm == 'gradients' else False
+            trained_model, result_val = train_keras_model(
                 job.model,
                 dataset_iterator,
                 data_count_mappings['train.csv'],
                 job.hyperparams,
                 self.config
+                gradients=use_gradients
             )
 
         # Get the right omega based on the averaging type.
@@ -185,6 +188,16 @@ class DMLRunner(object):
             file_content = file.read()
             encoded_content = base64.b64encode(file_content)
             h5_model = encoded_content.decode('ascii')
+
+        train_results = {
+            'omega': omega,
+        }
+
+        if avg_comm == 'weights':
+            train_results['h5_model'] = h5_model
+            train_results['train_stats'] = result_val
+        else:
+            train_results['gradients'] = result_val
         # new_weights_path = [weights.tolist() for weights in new_weights_path]
         #print(new_weights_path)
         # Return the results.
@@ -192,11 +205,7 @@ class DMLRunner(object):
         results = DMLResult(
             status='successful',
             job=job,
-            results={
-                'h5_model': h5_model,
-                'omega': omega,
-                'train_stats': train_stats,
-            },
+            results=train_results,
             error_message="",
         )
         return results
