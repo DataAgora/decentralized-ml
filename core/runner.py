@@ -14,6 +14,7 @@ from data.iterators import create_random_train_dataset_iterator
 from data.iterators import create_random_test_dataset_iterator
 from core.utils.keras import train_keras_model, validate_keras_model, calculate_gradients
 from keras.models import load_model
+from keras import backend as K
 
 from core.utils.keras import serialize_weights, deserialize_weights
 from core.utils.dmlresult import DMLResult
@@ -59,12 +60,7 @@ class DMLRunner(object):
             JobTypes.JOB_TRAIN.name: self._train,
             JobTypes.JOB_INIT.name: self._initialize,
             JobTypes.JOB_VAL.name: self._validate,
-            JobTypes.JOB_SPLIT.name: self._split_data,
-            JobTypes.JOB_AVG.name: self._average,
-            JobTypes.JOB_COMM.name: self._communicate,
-            JobTypes.JOB_STATS.name: self._post_statistics
         }
-        self.JOBS_NEEDING_STATE = [JobTypes.JOB_COMM.name]
         self.logger = logging.getLogger('Runner')
     
     # def configure(self, ipfs_client):
@@ -86,16 +82,8 @@ class DMLRunner(object):
             job.job_type,
             self.JOB_CALLBACKS,
         )
-        try:
-            results = callback(job)
-        except Exception as e:
-            self.logger.error("RunnerError: " + str(e))
-            results = DMLResult(
-                status='failed',
-                job=job,
-                error_message=str(e),
-                results={},
-            )
+        
+        results = callback(job)
         results.session_id = job.session_id
         self.current_job = None
         self.logger.info("Finished running job! (type: {0})".format(job.job_type))
@@ -123,39 +111,43 @@ class DMLRunner(object):
             "Model type '{0}' is not supported.".format(job.framework_type)
         self.logger.info("Initializing model...")
         if job.framework_type == 'keras':
-            if job.h5_model_path:
-                model = load_model(h5_model_path)
-                gradients = np.array(job.gradients)
+            if job.h5_model_folder:
+                h5_model_folder = job.h5_model_folder
+                h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
+                model = load_model(h5_model_filepath)
+                gradients = job.gradients
                 learning_rate = model.optimizer.lr
                 weights = np.array(model.get_weights())
-                new_weights = weights - (learning_rate * gradients)
+                new_weights = np.subtract(weights, gradients)
                 model.set_weights(new_weights)
-                model.save(h5_model_path)
+                model.save(h5_model_filepath)
             else:
                 h5_model_folder = os.path.join('sessions', job.session_id)
-                h5_model_path = os.path.join(h5_model_folder, 'model.h5')
+                h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
                 h5_model = job.h5_model.encode('ascii')
                 h5_model_bytes = base64.b64decode(h5_model)
                 if not os.path.isdir(h5_model_folder):
                     os.makedirs(h5_model_folder)
-                with open(h5_model_path, 'wb') as fp:
+                with open(h5_model_filepath, 'wb') as fp:
                     fp.write(h5_model_bytes)
-                
+                model = load_model(h5_model_filepath)
+                print("Loaded model!")
                 if not job.use_gradients:
-                    os.remove(h5_model_path)
+                    print("Clearing model folder...")
+                    os.remove(h5_model_filepath)
                     os.rmdir(h5_model_folder)
-                    h5_model_filepath = None
-
+                    h5_model_folder = None
+        print(h5_model_folder)
+        print(h5_model_filepath)
         results = DMLResult(
             status='successful',
             job=job,
             results={
                 'model': model,
-                'h5_model_filepath': h5_model_filepath,
+                'h5_model_folder': h5_model_folder,
             },
             error_message="",
         )
-        if 
         return results
 
     def _train(self, job):
@@ -175,11 +167,9 @@ class DMLRunner(object):
         
         train_dataset_path, test_dataset_path = self._set_up()
         data_count_mappings = count_datapoints(self._dataset_path)
-        print(data_count_mappings)
 
         # Get the right dataset iterator based on the averaging type.
         avg_type = job.hyperparams.get('averaging_type', 'data_size')
-        avg_comm = job.hyperparams.get('avg_comm', 'weights')
         batch_size = job.hyperparams['batch_size']
         assert avg_type in ['data_size', 'val_acc'], \
             "Averaging type '{0}' is not supported.".format(avg_type)
@@ -189,6 +179,8 @@ class DMLRunner(object):
                 train_dataset_path,
                 batch_size=batch_size,
                 labeler=job.label_column_name,
+                infinite=False,
+                num_epochs=job.hyperparams.get('epochs')
             )
         elif avg_type == 'val_acc':
             dataset_iterator = create_random_train_dataset_iterator(
@@ -207,14 +199,13 @@ class DMLRunner(object):
             "Model type '{0}' is not supported.".format(job.framework_type)
 
         if job.framework_type == 'keras':
-            use_gradients = True if avg_comm == 'gradients' else False
             trained_model, result_val = train_keras_model(
                 job.model,
                 dataset_iterator,
                 data_count_mappings['train.csv'],
                 job.hyperparams,
-                self.config
-                gradients=use_gradients
+                self.config,
+                gradients=job.use_gradients,
             )
 
         # Get the right omega based on the averaging type.
@@ -237,11 +228,12 @@ class DMLRunner(object):
             'omega': omega,
         }
 
-        if avg_comm == 'weights':
+        if job.use_gradients:
+            train_results['gradients'] = result_val
+        else:
             train_results['h5_model'] = h5_model
             train_results['train_stats'] = result_val
-        else:
-            train_results['gradients'] = result_val
+            
         # new_weights_path = [weights.tolist() for weights in new_weights_path]
         #print(new_weights_path)
         # Return the results.
@@ -427,38 +419,3 @@ class DMLRunner(object):
                 )
         return results 
       
-    def _average(self, job):
-        """
-        Average the weights in the job weighted by their omegas.
-        """
-        assert list(job.new_weights), "No new_weights supplied to average!"
-        job.new_weights = deserialize_weights(job.new_weights)
-        assert isinstance(job.new_weights[0], np.ndarray), "should have been ndarray but was {}".format(type(job.new_weights[0]))
-        assert job.omega, "No omega supplied to average!"
-        assert isinstance(job.omega, float), job.omega
-        assert job.sigma_omega, "No sigma_omega supplied to average!"
-        assert isinstance(job.sigma_omega, float), job.sigma_omega
-        assert isinstance(job.weights[0], np.ndarray), "should have been ndarray but was {}".format(type(job.weights[0]))
-        averaged_weights = self._weighted_running_avg(job.weights, job.new_weights, job.sigma_omega, job.omega)
-        result = DMLResult(
-            status='successful',
-            job=job,
-            results={
-                'weights': averaged_weights,
-            },
-            error_message="",
-        )
-        return result
-    
-    def _weighted_running_avg(self, curr_weighted_avg, x_n, sigma_w_i, w_n):
-        """
-        Computes a weighting running average.
-        w_n is the weight of datapoint n.
-        x_n is a datapoint.
-        curr_weighted_avg is the current weighted average.
-        Sigma_w_i is the sum of weights currently.
-        """
-        sigma_x_i_times_w_i = np.multiply(curr_weighted_avg, sigma_w_i)
-        sigma_x_i_times_w_i = np.add(sigma_x_i_times_w_i, np.multiply(x_n, w_n))
-        new_weighted_avg = np.divide(sigma_x_i_times_w_i, np.add(sigma_w_i, w_n))
-        return new_weighted_avg

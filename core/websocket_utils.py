@@ -19,11 +19,11 @@ def to_serializable(val):
 busy = False
 
 class WebSocketClient(object):
-
-    def __init__(self, optimizer, config_manager, repo_id):
+    def __init__(self, optimizer, config_manager, repo_id, test):
         self._optimizer = optimizer
         self.repo_id = repo_id
-        self._websocket_url = url = "ws://" + repo_id + ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
+        base_url = "ws://{}.au4c4pd2ch.us-west-1.elasticbeanstalk.com"
+        self._websocket_url = "ws://localhost:8999" if test else base_url.format(repo_id)
         self.reconnections_remaining = 3
         self.logger = logging.getLogger("WebSocketClient")
         self.logger.info("WebSocketClient {} set up!".format(repo_id))
@@ -52,6 +52,7 @@ class WebSocketClient(object):
                     elif json_response['action'] == 'STOP':
                         self.logger.info('Received STOP message, terminating...')
                         stop_received = True
+                        self._optimizer.clear_session()
                         break
                     else:
                         self.logger.info('Unknown action [{}] received, ignoring...'.format(json_response['action']))
@@ -71,7 +72,7 @@ class WebSocketClient(object):
             "session_id": session_id,
             "action": "TRAIN",
             "results": results,
-            "round": round
+            "round": round,
         }
         self.logger.info("Sending new weights for {}".format(self.repo_id))
         await websocket.send(json.dumps(new_weights_message, default=to_serializable))

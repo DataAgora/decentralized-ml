@@ -10,7 +10,7 @@ from core.utils.keras 					import serialize_weights, deserialize_weights
 from core.utils.dmlresult 				import DMLResult
 
 import logging
-
+import os
 
 class FederatedAveragingOptimizer(object):
 	"""
@@ -67,12 +67,6 @@ class FederatedAveragingOptimizer(object):
 		self.LEVEL2_JOB_DONE_CALLBACKS = {
 			JobTypes.JOB_TRAIN.name: self._done_training,
 			JobTypes.JOB_INIT.name: self._done_initializing,
-			JobTypes.JOB_COMM.name: self._done_communicating,
-			#JobTypes.JOB_SPLIT.name: self._done_split,
-		}
-		self.LEVEL_2_NEW_INFO_CALLBACKS = {
-			MessageEventTypes.TERMINATE.name: self._received_termination,
-			MessageEventTypes.NEW_SESSION.name: self._do_nothing,
 		}
 
 		self.logger.info("Optimizer has been set up!")
@@ -80,14 +74,14 @@ class FederatedAveragingOptimizer(object):
 	def received_new_message(self, serialized_job):
 		session_id = serialized_job.get("session_id")
 		round = serialized_job.get("round")
-		if self.job_data.get("curr_round", 0) + 1 >= round:
+		if self.job_data.get("curr_round", 0) >= round:
 			self.logger.error("Received job for unexpected round {}, ignoring...".format(round))
 			return {"success": False}
 
 		self.logger.info("Starting round: {}".format(round))
 
 		if 'session_id' in self.job_data:
-			if self.job_data['session_id'] 1= serialized_job['session_id']:
+			if self.job_data['session_id'] != serialized_job['session_id']:
 				self.logger.error("Received new session while in the middle of another session!")
 				return {"success": False}
 			return self._continue_training(serialized_job, session_id)
@@ -95,10 +89,12 @@ class FederatedAveragingOptimizer(object):
 			return self.new_job(serialized_job, session_id)
 
 	def _continue_training(self, serialized_job, session_id):
-		self.job_data['h5_model'] = serialized_job.get("h5_model")
-		self.job_data["curr_round"] = serialized_job.get("round")
-		self.job_data["gradients"] = serialized_job.get("gradients")
-		return self.kickoff(session_id)
+		if self.job_data["use_gradients"]:
+			self.job_data["gradients"] = serialized_job.get("gradients")
+			return self.kickoff(session_id)
+		else:
+			h5_model = serialized_job.get("h5_model") 
+			return self.kickoff(session_id, h5_model=h5_model)
 
 	def new_job(self, serialized_job, session_id):
 		self.job_data["session_id"] = serialized_job.get("session_id")
@@ -110,15 +106,13 @@ class FederatedAveragingOptimizer(object):
 		# self.num_averages_per_round = optimizer_params.get('num_averages_per_round')
 		self.job_data["curr_round"] = 1
 		self.job_data["use_gradients"] = serialized_job.get("use_gradients")
-		self.job_data["h5_model_filepath"] = None
+		if self.job_data["use_gradients"]:
+			self.logger.info("We are communicating with gradients!")
+		else:
+			self.logger.info("We are communicating with weights!")
+		self.job_data["h5_model_folder"] = None
 		self.job_data["gradients"] = None
 		h5_model = serialized_job.get("h5_model")
-		
-		# Set other participants so that the optimizer knows which other nodes 
-		# it's expected to hear messages from for future session_info messages
-		# participants = job_info.get('participants')
-		# self.other_participants = [participant for participant in participants
-		# 							if participant != self.job_data["dataset_uuid"]]
 		return self.kickoff(session_id, h5_model=h5_model)
 		
 
@@ -132,7 +126,7 @@ class FederatedAveragingOptimizer(object):
 		init_job = DMLInitializeJob(framework_type=self.job_data["framework_type"],
 									use_gradients=self.job_data["use_gradients"],
 									h5_model=h5_model,
-									h5_model_filepath=self.job_data["h5_model_filepath"],
+									h5_model_folder=self.job_data["h5_model_folder"],
 									gradients=self.job_data["gradients"])
 		init_job.session_id = session_id
 		# split_job = DMLSplitJob(hyperparams=self.job_data["hyperparams"],
@@ -171,7 +165,7 @@ class FederatedAveragingOptimizer(object):
 		and modifies the current state of the job.
 		"""
 		session_id = dmlresult_obj.job.session_id
-		self.job_data['h5_model_filepath'] = dmlresult_obj.results.get('h5_model_filepath')
+		self.job_data['h5_model_folder'] = dmlresult_obj.results.get('h5_model_folder')
 		train_job = DMLTrainJob(
 			hyperparams=self.job_data["hyperparams"],
 			label_column_name=self.job_data["label_column_name"],
@@ -182,31 +176,6 @@ class FederatedAveragingOptimizer(object):
 		train_job.session_id = session_id
 		dmlresult_obj = self.runner.run_job(train_job)
 		return self._handle_job_done(dmlresult_obj)
-
-	# def _done_split(self, dmlresult_obj):
-	# 	"""
-	# 	"LEVEL 2" Callback for a split job that just finished.
-	# 	Returns a DML Job of type train unless initialization is not yet done
-	# 	and modifies the current state of the job.
-	# 	"""
-	# 	session_id = dmlresult_obj.job.session_id
-	# 	self.job_data["session_filepath"] = dmlresult_obj.results['session_filepath']
-	# 	self.job_data["datapoint_count"] = dmlresult_obj.results['datapoint_count']
-	# 	if self.job_data["initialization_complete"]:
-	# 		train_job = DMLTrainJob(
-	# 			datapoint_count=self.job_data["datapoint_count"],
-	# 			hyperparams=self.job_data["hyperparams"],
-	# 			label_column_name=self.job_data["label_column_name"],
-	# 			framework_type=self.job_data["framework_type"],
-	# 			serialized_model=self.job_data["serialized_model"],
-	# 			weights=self.job_data["weights"],
-	# 			session_filepath=self.job_data["session_filepath"]
-	# 		)
-	# 		train_job.session_id = session_id
-	# 		return ActionableEventTypes.SCHEDULE_JOBS.name, [train_job]
-	# 	else:
-	# 		self.job_data["initialization_complete"] = True
-	# 		return ActionableEventTypes.NOTHING.name, None
 
 	def _done_training(self, dmlresult_obj):
 		"""
@@ -221,11 +190,12 @@ class FederatedAveragingOptimizer(object):
 		results["success"] = True
 		return results
 
-	def _done_communicating(self, dmlresult_obj):
-		"""
-		"LEVEL 2" Callback for a Communication job.
-		"""
-		return ActionableEventTypes.NOTHING.name, None
+	def clear_session(self):
+		h5_model_folder = self.job_data["h5_model_folder"]
+		if h5_model_folder:
+			h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
+			os.remove(h5_model_filepath)
+			os.rmdir(h5_model_folder)
 
 	def _done_validating(self, dmlresult_obj):
 		self.logger.info("Validation accuracy: {}".format(dmlresult_obj.results['val_stats']))
@@ -246,31 +216,3 @@ class FederatedAveragingOptimizer(object):
 		)
 		return callback(payload)
 
-	def _received_termination(self, payload):
-		"""
-		"LEVEL 2" Callback for a termination message received by the service
-		from the blockchain.
-		"""
-		return ActionableEventTypes.TERMINATE.name, None
-
-	# Helper functions
-
-	def _update_weights(self, weights, session_id):
-		"""
-		Helper function to update the weights in the optimizer's currently
-		stored DML Job, therefore ensuring that any future DML Jobs will operate
-		with the correct weights. Mutates, does not return anything.
-		"""
-		self.job_data["weights"] = weights
-
-	def _update_old_weights(self, session_id):
-		"""
-		Helper function to update the old_weights instance variable.
-		"""
-		self.old_weights = self.job_data["weights"]
-
-	def _do_nothing(self, payload):
-		"""
-		Do nothing in case this optimizer heard a new session.
-		"""
-		return ActionableEventTypes.NOTHING.name, None

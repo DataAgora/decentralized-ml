@@ -1,5 +1,7 @@
 import threading
 import asyncio
+import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from core.configuration import ConfigurationManager
 from core.websocket_utils import WebSocketClient
@@ -12,7 +14,7 @@ logging.basicConfig(format='[%(name)s] %(asctime)s %(levelname)s %(message)s',
                         level=logging.INFO)
 
 
-def bootstrap(repo_id=None):
+def bootstrap(repo_id=None, test=False):
     """
     Bootstraps the data provider unix service.
 
@@ -23,38 +25,13 @@ def bootstrap(repo_id=None):
     config_manager = ConfigurationManager()
     config_manager.bootstrap()
 
-    # # # 2. Set up Dataset Manager.
-    # dataset_manager = DatasetManager(
-    #     config_manager=config_manager
-    # )
-    # dataset_manager.bootstrap()
-
-    # 3. Set up the Communication Manager.
-
     runner = DMLRunner(config_manager)
 
     optimizer = FederatedAveragingOptimizer(runner)
 
-    # blockchain_gateway = BlockchainGateway()
-
-    # # 4. Set up the Execution Pipeline (Scheduler, Runners)
-    # # and run the Scheduler's cron on a new thread.
-    # scheduler = DMLScheduler(
-    #     config_manager=config_manager,
-    # )
-    # scheduler.configure(
-    #     communication_manager=communication_manager
-    # )
-    # t1 = threading.Thread(
-    #     target=scheduler.start_cron,
-    #     args=(0.05,),
-    #     daemon=False,
-    # )
-    # t1.start()
-
     loop = asyncio.get_event_loop()
 
-    websocket_client = WebSocketClient(optimizer, config_manager, repo_id)
+    websocket_client = WebSocketClient(optimizer, config_manager, repo_id, test)
     # mappings = dataset_manager.get_mappings()
 
 

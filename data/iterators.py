@@ -58,7 +58,7 @@ def create_sequential_test_dataset_iterator(dataset_path, count, split=0.2, \
             count*split, "test", batch_size, labeler)
 
 def create_random_train_dataset_iterator(dataset_path,  batch_size=1, \
-    labeler=None, infinite=True):
+    labeler=None, infinite=True, num_epochs=1):
     """
     Returns an random iterator of batches of size B containing all features of
     the data.
@@ -70,8 +70,9 @@ def create_random_train_dataset_iterator(dataset_path,  batch_size=1, \
             yield from _create_randomized_dataset_iterator(dataset_path, 
                 batch_size, labeler)
     else:
-        yield from _create_randomized_dataset_iterator(dataset_path,
-            batch_size, labeler)
+        for _ in range(num_epochs):
+            yield from _create_randomized_dataset_iterator(dataset_path,
+                batch_size, labeler)
 
 def create_random_test_dataset_iterator(dataset_path, batch_size=1, \
     labeler=None, infinite=True):

@@ -21,16 +21,19 @@ def train_keras_model(model, dataset_iterator, data_count,
     hyperparams, config, gradients=False):
     logger.info('Keras training just started.')
     print(data_count, hyperparams['batch_size'])
-    if gradients = True:
+    if gradients:
         accumulated_gradients = None
+        total_loss = 0
         for X, y in dataset_iterator:
             learning_rate = model.optimizer.lr
             loss = model.train_on_batch(X, y)
+            print(loss)
             gradients = calculate_gradients(model, X, y)
             if accumulated_gradients is None:
-                accumulated_gradients = keras.initializers.Zeros()(gradients.shape)
-            accumulated_gradients = accumulated_gradients + (gradients * learning_rate)
-            accumulated_gradients = K.eval(accumulated_gradients).tolist()
+                accumulated_gradients = np.zeros(gradients.shape)
+            accumulated_gradients = np.add(accumulated_gradients, np.multiply(gradients, learning_rate))
+        accumulated_gradients = [K.eval(gradient).tolist() for gradient in accumulated_gradients]
+        print("Total loss: ", loss)
         return model, accumulated_gradients
 
     hist = model.fit_generator(dataset_iterator, epochs=hyperparams['epochs'], \
@@ -43,6 +46,7 @@ def train_keras_model(model, dataset_iterator, data_count,
     # ensure_dir(weights_filepath)
     # model.save_weights(weights_filepath)
     # weights = model.get_weights()
+    print(hist.history)
     logger.info('Keras training complete.')
     return model, {'training_history' : hist.history}
 
@@ -64,7 +68,7 @@ def calculate_gradients(model, X, y):
             0 # learning phase in TEST mode
     ]
 
-    gradients = np.array(get_gradients(inputs)).tolist()
+    gradients = np.array(get_gradients(inputs))
     return gradients
 
 def validate_keras_model(serialized_model, weights, dataset_iterator,

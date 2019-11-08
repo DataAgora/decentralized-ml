@@ -44,7 +44,7 @@ class DMLInitializeJob(DMLJob):
         framework_type,
         use_gradients,
         h5_model=None,
-        h5_model_filepath=None,
+        h5_model_folder=None,
         gradients=None
         ):
         """
@@ -59,7 +59,7 @@ class DMLInitializeJob(DMLJob):
         self.framework_type = framework_type
         self.use_gradients = use_gradients
         self.h5_model = h5_model
-        self.h5_model_filepath = h5_model_filepath
+        self.h5_model_folder = h5_model_folder
         self.gradients = gradients
     
     def serialize_job(self):
