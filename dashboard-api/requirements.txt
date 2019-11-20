@@ -1,0 +1,12 @@
+click==6.7
+Flask==0.12.2
+itsdangerous==0.24
+Jinja2==2.9.6
+MarkupSafe==1.0
+Werkzeug==0.12.2
+PyJWT==1.7.1
+boto3==1.9.145
+simplejson==3.16.0
+requests==2.21.0
+Flask-Cors==3.0.7
+lambda-git==0.1.1
