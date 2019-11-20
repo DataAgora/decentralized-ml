@@ -1,0 +1,17 @@
+.header-logo {
+  height: 80px;
+}
+
+.navbar {
+  background: #1cc4c4;
+  background: linear-gradient(90deg,#1cc4c4 0%,#520ab4 100%);
+  opacity: 0.95;
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: hsla(0,0%,100%,.75) !important;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: hsla(0,0%,100%,.90) !important;
+}
