@@ -46,7 +46,7 @@ termcolor==1.1.0
 toml==0.10.0
 tqdm==4.19.1
 troposphere==2.5.1
-Twisted==18.9.0
+Twisted==19.7.0
 Unidecode==1.1.1
 urllib3==1.24.3
 Werkzeug==0.16.0
