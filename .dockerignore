@@ -1,0 +1,6 @@
+tools/
+temp/
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+.git
+.gitignore
