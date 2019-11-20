@@ -1,0 +1,15 @@
+new-env/
+MNIST-data
+logs
+core/configuration.ini
+*.pyc
+*.egg-info/
+.DS_Store
+.ipynb_checkpoints/
+__pycache__/
+.pytest_cache/
+.cache/
+core/__pycache__/
+datasets/shakespeare
+
+core/utils/weights
