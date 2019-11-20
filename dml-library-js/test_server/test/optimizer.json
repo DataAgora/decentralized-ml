@@ -1,0 +1,15 @@
+{
+    "optimizer_config": {
+      "class_name": "SGD",
+      "config": {
+        "lr": 0.0010000000474974513,
+        "momentum": 0.0,
+        "decay": 0.0,
+        "nesterov": false
+      }
+    },
+   "loss": "sparse_categorical_crossentropy",
+   "metrics": ["accuracy"],
+   "sample_weight_mode": null,
+   "loss_weights": null
+}
