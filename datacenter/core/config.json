@@ -1,0 +1,10 @@
+{
+  "dataset_path": "datasets/mnist",
+  "scheduler_config": {
+    "frequency_in_mins": 1,
+    "num_processes": 4
+  },
+  "runner_config": {
+    "weights_directory": "weights"
+  }
+}
