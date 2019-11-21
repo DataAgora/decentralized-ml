@@ -4,26 +4,28 @@ var tfjs_1 = require("@tensorflow/tfjs-node");
 var PouchDB = require('pouchdb');
 
 class DMLDB {
-    static _open() {
-        DMLDB.db = new PouchDB('DMLDB');
+    constructor() {
+        this.db = new PouchDB('DMLDB');
     }
 
-    static _create(repo, data, callback) {        
+    create(data_manager, data) {        
         var timestamp = new Date().getTime();
+        const repo_id = data_manager.repo_id;
 
-        DMLDB.db.get(repo, function(err, doc) {
+        var db = this.db;
+        this.db.get(repo_id, function(err, doc) {
             if (err) {
                 var myObj = {
-                    _id: repo,
+                    _id: repo_id,
                     data: data,
                     rows: data.length,
                     cols: data[0].length,
                     timestamp: timestamp,
                     sessions: {}
                 }
-                DMLDB.db.put(myObj, function(err, response) {
+                db.put(myObj, function(err, response) {
                     if (err) { return console.log(err); }
-                    callback();
+                    data_manager.connect();
                   });
             } else {
                 doc.data = data;
@@ -31,22 +33,23 @@ class DMLDB {
                 doc.cols = doc.data[0].length;
                 doc.timestamp = timestamp;
                 doc.sessions = {};
-                DMLDB.db.put(doc);
-                callback();
+                db.put(doc);
+                data_manager.connect();
             }
             
             // handle doc
           });
     }
 
-    static _get(dml_request, callback, model) {
-        DMLDB.db.get(dml_request.repo, function(err, doc) {
+    _get(dml_request, callback, model) {
+        var db = this.db;
+        this.db.get(dml_request.repo, function(err, doc) {
             if (err) { return console.log(err); }
             var data = tfjs_1.tensor(doc.data).as2D(doc.rows, doc.cols);
             if (dml_request.action == 'TRAIN') {
                 if (!(dml_request.id in doc.sessions)) {
                     doc.sessions[dml_request.id] = 0;
-                    DMLDB.db.put(doc);
+                    db.put(doc);
                 }
                 var session_round = doc.sessions[dml_request.id];
                 if (session_round+ 1 != dml_request.round) {
@@ -59,23 +62,23 @@ class DMLDB {
         });
     }
 
-    static _put(dml_request, callback, result) {
-        DMLDB.db.get(dml_request.repo, function(err, doc) {
+    _put(dml_request, callback, result) {
+        this.db.get(dml_request.repo, function(err, doc) {
             if (err) { return console.log(err); }
             //console.log("Updating round on session");
             doc.sessions[dml_request.id] = dml_request.round
             //console.log(doc.sessions)
-            DMLDB.db.put(doc);
+            this.put(doc);
             callback(dml_request, result);
         });
     }
 
-    static update_data(repo, new_data, callback) {
-        DMLDB.db.get(repo, function(err, doc) {
+    update_data(repo, new_data, callback) {
+        this.get(repo, function(err, doc) {
             if (err) { return console.log(err); }
             console.log("Updating data");
             doc.data = doc.data.append(new_data);
-            DMLDB.db.put(doc);
+            this.put(doc);
             if (callback != null) {
                 callback()
             }

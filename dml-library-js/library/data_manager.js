@@ -5,85 +5,95 @@ var DMLRequest = require("./message.js").DMLRequest;
 var Runner = require("./runner.js").Runner;
 const WebSocket = require('ws');
 
+
+/** 
+ * @class Brain of the library. Prepares local data for training and waits
+ * for new training messages to pass on to the rest of the library. 
+ * */
 class DataManager {
-    static initialize() {
-        DataManager.bootstrapped = false;
-        DataManager.has_data = false;
-        DataManager.base_url = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
+    /**
+     *  
+     */
+    constructor(db) {
+        /** An instance of DMLDB for storing data. */
+        this.dml_db = db;
+        /** WebSocket used to communicate with server for incoming messages */
+        this.ws = null;
+        /** Repo ID associated with dataset */
+        this.repo_id = null;
+        /** `true` if library has been bootstrapped, `false` otherwise */
+        this.bootstrapped = false;
+        /** Base url of server */
+        this.BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
     }
 
-    static _connect(repo_id, data, callback) {
-        console.log("Connecting to: " + DataManager.cloud_url);
-        DataManager.ws = new WebSocket(DataManager.ws_url);
-        DataManager.ws.addEventListener("open", function (event) {
+    /**
+     * Connect to the server.
+     */
+    connect() {
+        const ws_url = "ws://" + this.repo_id + this.BASE_URL
+        var data_manager = this;
+        data_manager.ws = new WebSocket(ws_url);
+        data_manager.ws.addEventListener("open", function (event) {
             console.log("Connection successful!");
-            DataManager.bootstrapped = true;
+            data_manager.bootstrapped = true;
             var registrationMessage = {
                 "type": "REGISTER",
                 "node_type": "LIBRARY"
             };
-            DataManager.ws.send(JSON.stringify(registrationMessage));
-            if (data == null) {
-                callback();
-            } else {
-                callback(repo_id, data);
-            }
-                
+            this.send(JSON.stringify(registrationMessage));
+            data_manager._listen();
         });
 
-        DataManager.ws.addEventListener("error", function (event) {
+        data_manager.ws.addEventListener("error", function (event) {
             throw new Error("Bootstrap failed due to a failure to connect. Please check the repo id to make sure it is valid!");
         });
 
     }
 
-    static bootstrap(repo_id, data, callback) {
-        if (DataManager.bootstrapped) {
-            DataManager._listen();
-        } else {
-            DMLDB._open();
-            DataManager._connect(repo_id, data, callback);
-            console.log("Bootstrapped!");
+    /**
+     * Bootstrap the library by storing the initial data and connecting to the
+     * server.
+     * 
+     * @param {string} repo_id The repo ID associated with the dataset.
+     * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
+     * https://js.tensorflow.org/api/latest/#tensor2d.
+     */
+    bootstrap(repo_id, data) {
+        if (this.bootstrapped) {
+            return;
         }
+        this.repo_id = repo_id;
+        this.dml_db.create(this, data.arraySync());
     }
 
-    static store(repo, data) {
-        if (!DataManager.bootstrapped)
+    /**
+     * Add more data after bootstrapping.
+     * 
+     * @param {string} repo_id The repo ID associated with the dataset.
+     * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
+     * https://js.tensorflow.org/api/latest/#tensor2d.
+     */
+    add_data(repo_id, data) {
+        if (!this.bootstrapped)
             throw new Error("Library not bootstrapped!");
-        if (DataManager.has_data) {
-            DMLDB.update_store(repo, data, null);
-        } else {
-            DMLDB._create(repo, data.arraySync(), DataManager._listen);
-            DataManager.has_data = true;
-        }
-        console.log("Data stored!");
+        this.dml_db.update_store(repo, data.arraySync(), null);
     }
 
-    static bootstrap_and_store(repo_id, data, test) {
-        if (test) {
-            DataManager.repo_id = repo_id;
-            DataManager.cloud_url = "http://localhost:8999";
-            DataManager.ws_url = "ws://localhost:8999";
-        } else {
-            DataManager.repo_id = repo_id;
-            DataManager.cloud_url = "http://" + repo_id + DataManager.base_url;
-            DataManager.ws_url = "ws://" + repo_id + DataManager.base_url
-        }
-        DataManager.bootstrap(repo_id, data, DataManager.store);
-    }
-
-    static _listen() {
-        DataManager.ws.addEventListener('message', function (event) {
+    /**
+     * Listen for TRAIN or STOP messages from the server.
+     */
+    _listen() {
+        const cloud_url = "ws://" + this.repo_id + this.BASE_URL;
+        this.ws.addEventListener('message', function (event) {
             var receivedMessage = event.data;
-            //console.log("Received message:");
-            //console.log(receivedMessage);
             var request_json = JSON.parse(receivedMessage)
             if ("action" in request_json) {
                 if (request_json["action"] == "TRAIN") {
                     console.log("\nReceived new TRAIN message!")
                     var request = DMLRequest._deserialize(request_json);
-                    request.cloud_url = DataManager.cloud_url
-                    request.ws = DataManager.ws;
+                    request.cloud_url = cloud_url
+                    request.ws = this;
                     Runner._handleMessage(request);
                 } else if (request_json["action"] == "STOP") {
                     console.log("Received STOP message. Stopping...")
@@ -95,13 +105,16 @@ class DataManager {
             }
         });
 
-        DataManager.ws.addEventListener("close", function (event) {
+        var data_manager = this;
+        this.ws.addEventListener("close", function (event) {
             console.log("Connection lost. Reconnecting...")
             //console.log(event);
             if (event.code == 1006) {
-                DataManager._connect(DataManager.repo_id, null, DataManager._listen);
+                data_manager._connect();
             }
         });
+        this.bootstrapped = true;
+        console.log("Bootstrapped!");
     }
 }
 exports.DataManager = DataManager;

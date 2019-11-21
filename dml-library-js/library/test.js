@@ -1,15 +1,17 @@
 "use strict";
 
-var DataManager = require('./data_manager.js').DataManager;
+var DMLDB = require('./dml_db.js').DMLDB
+var dml_db = new DMLDB();
+var DataManager = require('./data_manager.js').DataManager
+var data_manager = new DataManager(dml_db)
 var tf = require("@tensorflow/tfjs-node");
-const repo_id = "c0e533b747a0792b90d388597ea5c79b";
-DataManager.initialize();
-console.log(DataManager)
+const repo_id = "99885f00eefcd4107572eb62a5cb429a";
+console.log(data_manager)
 
 async function run() {
   const data = await getData();
   console.log("Data retrieved!");
-  DataManager.bootstrap_and_store(repo_id, data);  
+  data_manager.bootstrap(repo_id, data);  
 }
 
 async function getData() {
