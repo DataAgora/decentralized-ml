@@ -1,6 +1,8 @@
+# Other
 */node_modules/
 library/tensorf*/new-env/
 */DMLDB/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -12,6 +14,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+*/build/
 develop-eggs/
 dist/
 downloads/
@@ -27,6 +30,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
