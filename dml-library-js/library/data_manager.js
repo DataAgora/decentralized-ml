@@ -10,11 +10,11 @@ class DataManager {
      * Brain of the library. Prepares local data for training, manages
      * communication, and passes train requests to the Runner. 
      * 
-     * @param {DMLDB} db An instance of DMLDB for storing data.
+     * @param {DMLDB} dmlDB An instance of DMLDB for storing data.
      * @param {Runner} runner An instance of the Runner for training.
      * */
-    constructor(db, runner) {
-        this.dmlDB = db;
+    constructor(dmlDB, runner) {
+        this.dmlDB = dmlDB;
         this.runner = runner;
         /** WebSocket used to communicate with server for incoming messages */
         this.ws = null;
@@ -29,28 +29,29 @@ class DataManager {
      * server.
      * 
      * @param {string} repoID The repo ID associated with the dataset.
-     * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
-     * https://js.tensorflow.org/api/latest/#tensor2d.
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints. 
      */
-    bootstrap(repoID, data) {
+    bootstrap(repoID, X, y) {
         if (this.bootstrapped) {
             return;
         }
         this.repoID = repoID;
-        this.dmlDB.create(this, data.arraySync());
+        this.dmlDB.createDataEntry(this, X.arraySync(), y.arraySync());
     }
 
     /**
      * Add more data after bootstrapping.
      * 
      * @param {string} repoID The repo ID associated with the dataset.
-     * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
-     * https://js.tensorflow.org/api/latest/#tensor2d.
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints.
+     * @param {function} [callback=null] The callback function after data is added.
      */
-    addData(repoID, data) {
+    addData(repoID, X, y, callback=null) {
         if (!this.bootstrapped)
             throw new Error("Library not bootstrapped!");
-        this.dmlDB.addData(repoID, data.arraySync(), null);
+        this.dmlDB.addData(repoID, X.arraySync(), y.arraySync());
     }
 
     /**
@@ -87,15 +88,17 @@ class DataManager {
      * Listen for TRAIN or STOP messages from the server.
      */
     _listen() {
+        var dataManager = this;
+
         this.ws.addEventListener('message', function (event) {
             var receivedMessage = event.data;
             var message = JSON.parse(receivedMessage)
             if ("action" in message) {
                 if (message["action"] == "TRAIN") {
                     console.log("\nReceived new TRAIN message!")
-                    var request = DMLRequest._deserialize(message);
+                    var request = DMLRequest.deserialize(dataManager.repoID, message);
                     request.ws = this;
-                    this.runner._handleMessage(request);
+                    dataManager.runner.handleRequest(request);
                 } else if (message["action"] == "STOP") {
                     console.log("Received STOP message. Stopping...")
                 } else {
@@ -106,7 +109,6 @@ class DataManager {
             }
         });
 
-        var dataManager = this;
         this.ws.addEventListener("close", function (event) {
             console.log("Connection lost. Reconnecting...")
             //console.log(event);
@@ -125,7 +127,7 @@ class DataManager {
      * @param {string} results The results from training. 
      */
     finishedTraining(trainRequest, results) {
-        var message = DMLRequest._serialize(trainRequest, results);
+        var message = trainRequest.serialize(trainRequest, results);
         this.ws.send(message);
         this.dmlDB.updateSession(trainRequest, Runner._sendMessage, results);
     }

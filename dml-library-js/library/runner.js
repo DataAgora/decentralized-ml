@@ -3,23 +3,27 @@ exports.__esModule = true;
 var tf = require("@tensorflow/tfjs-node");
 var fetch = require('node-fetch');
 
-var DMLRequest = require("./message.js").DMLRequest;
 var DMLDB = require("./dml_db.js").DMLDB;
-var makeHTTPURL = require('utils').makeHTTPURL
+var makeHTTPURL = require('./utils.js').makeHTTPURL
 
-/**
- * Utility class for training TFJS models.
- * 
- * NOTE: Only `tf.LayersModel` models are supported at this time.
- */
+
 class Runner {
+    /**
+     * Utility class for training TFJS models.
+     * 
+     * NOTE: Only `tf.LayersModel` models are supported at this time.
+     *  
+     * @param {DMLDB} dmlDB An instance of DMLDB for retrieving the data. 
+     */
+    constructor(dmlDB) {
+        this.dmlDB = dmlDB
+    }
 
     /**
      * Configure the Runner with an instance of the Data Manager.
      * 
-     * @param {DataManager} dataManager An instance of the Data Manager.
-     * Upon completion of training, the Data Manager sends the training
-     * results back to the server.
+     * @param {DataManager} dataManager An instance of the Data Manager for
+     * receiving the training results when training is complete.
      */
     configure(dataManager) {
         this.dataManager = dataManager
@@ -48,7 +52,7 @@ class Runner {
         .then((out) => {
             model = runner._compileModel(model, out["modelTopology"]["training_config"]);
             trainRequest.model = model
-            DMLDB.get(this, trainRequest);
+            runner.dmlDB.getData(this, trainRequest);
         }).catch(err => console.error(err));
     }
 
@@ -73,7 +77,7 @@ class Runner {
         }
         model.compile({
             optimizer: optimizer,
-            loss: this._lowerCaseToCamelCase(optimization_data['loss']),
+            loss: this._snakeCaseToCamelCase(optimization_data['loss']),
             metrics: optimization_data['metrics']
         });
         return model;
@@ -86,35 +90,36 @@ class Runner {
      * 
      * @returns {string} String in camelCase 
      */
-    _snakeCaseToCamelCase (str) {
+    _snakeCaseToCamelCase(str) {
         return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); });
     };
 
     /**
      * Callback function for the DMLDB when the data is retrieved.
      * 
-     * @param {Tensor2D} data The data as a `Tensor2D`.
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints.
      * @param {TrainRequest} trainRequest The request for training. 
      */
-    receivedData(data, trainRequest) {
-        this._train(data, trainRequest);
+    receivedData(X, y, trainRequest) {
+        this._train(X, y, trainRequest);
     }
 
     /**
      * Train the model with the given data.
      * 
-     * @param {Tensor2D} data The data as a `Tensor2D`.
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints.
      * @param {TrainRequest} trainRequest The request for training. 
      */
-    async _train(data, trainRequest) {
+    async _train(X, y, trainRequest) {
         console.log("Starting round: " + trainRequest.round)
-        var [dataX, dataY] = this._labelData(data.arraySync(), trainRequest.params.label_index);
-        trainRequest.model.fit(dataX, dataY, {
+        const trainingConfig = {
             batchSize: trainRequest.params["batch_size"],
             epochs: trainRequest.params["epochs"],
             shuffle: trainRequest.params["shuffle"],
-            verbose: 0
-        });
+        };
+        await trainRequest.model.fit(X, y, trainingConfig);
         console.log("Finished training!");
         var weights = await this._getWeights(trainRequest.model)
         var results = {
@@ -133,15 +138,7 @@ class Runner {
      * @returns {list} List of 2 lists. The first list is the
      * datapoints without the labels, and the second list is the labels.
      */
-    _labelData(data, label_index) {
-        if (label_index < 0) {
-            label_index = data[0].length - 1;
-        }
-        var trainXs = data;
-        var trainYs = trainXs.map(function (row) { return row[label_index]; });
-        trainXs.forEach(function (x) { x.splice(label_index, 1); });
-        return [tf.tensor(trainXs), tf.tensor(trainYs)];
-    };
+    
 
     /**
      * Extract the weights from the model.
@@ -163,16 +160,6 @@ class Runner {
         }
         return all_weights;
     };
-
-
-
-
-
-    static async _sendMessage(trainRequest, message) {
-        
-    }
-
-
 }
 
 exports.Runner = Runner;

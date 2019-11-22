@@ -3,8 +3,8 @@ var Runner = require('./runner.js').Runner;
 var DataManager = require('./data_manager.js').DataManager;
 
 
-var dmlDB = DMLDB();
-var runner = Runner();
+var dmlDB = new DMLDB();
+var runner = new Runner(dmlDB);
 var dataManager = new DataManager(dmlDB, runner);
 runner.configure(dataManager)
 

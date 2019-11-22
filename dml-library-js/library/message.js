@@ -42,11 +42,17 @@ class TrainRequest extends DMLRequest {
      * Data Manager. 
      * @param {dict} message The message received from the server. Must 
      * have the following keys: `session_id`, `round` and `hyperparams`.
+     * `hyperparams` must have keys `label_index` and `batch_size`.
      */
     constructor(repoID, message) {
-        assert("session_id" in message, "TrainRequest must have session_id!");
-        assert("round" in message, "TrainRequest must have round!");
-        assert("hyperparams" in message, "TrainRequest must have hyperparams!");
+        var requiredKeys = ["session_id", "round", "hyperparams"]
+        requiredKeys.forEach(key => {
+            assert (key in message, "TrainRequest must have ${key}!");
+        })
+        assert("label_index" in message["hyperparams"], 
+            "Hyperparams must have label_index!")
+
+        super();
 
         /** Associated repo ID for this dataset. */
         this.repoID = repoID;

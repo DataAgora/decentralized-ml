@@ -25,9 +25,10 @@ class DMLDB {
      * @param {DataManager} dataManager An instance of the Data Manager.
      * Upon successful storage of the data, the DataManager connects to
      * the server.
-     * @param {Tensor2D} data The data as a `Tensor2D`. 
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints.
      */
-    create(dataManager, data) {        
+    createDataEntry(dataManager, X, y) {        
         var timestamp = new Date().getTime();
 
         var db = this.db;
@@ -35,24 +36,26 @@ class DMLDB {
             if (err) {
                 var myObj = {
                     _id: dataManager.repoID,
-                    data: data,
-                    rows: data.length,
-                    cols: data[0].length,
+                    X: X,
+                    y: y,
+                    rows: X.length,
+                    cols: X[0].length,
                     timestamp: timestamp,
                     sessions: {}
                 }
                 db.put(myObj, function(err, response) {
                     if (err) { return console.log(err); }
-                    dataManager.connect();
+                    dataManager.finishedNewStore();
                   });
             } else {
-                doc.data = data;
-                doc.rows = doc.data.length;
-                doc.cols = doc.data[0].length;
+                doc.X = X;
+                doc.y = y;
+                doc.rows = doc.X.length;
+                doc.cols = doc.X[0].length;
                 doc.timestamp = timestamp;
                 doc.sessions = {};
                 db.put(doc);
-                dataManager.connect();
+                dataManager.finishedNewStore();
             }
           });
     }
@@ -64,11 +67,12 @@ class DMLDB {
      * retrieval of the data, the runner begins training. 
      * @param {TrainRequest} trainRequest The request for training. 
      */
-    get(runner, trainRequest) {
+    getData(runner, trainRequest) {
         var db = this.db;
         this.db.get(trainRequest.repoID, function(err, doc) {
             if (err) { return console.log(err); }
-            var data = tfjs.tensor(doc.data).as2D(doc.rows, doc.cols);
+            const X = tfjs.tensor(doc.X).as2D(doc.rows, doc.cols);
+            const y = tfjs.tensor(doc.y).as1D()
             if (trainRequest.action == 'TRAIN') {
                 if (!(trainRequest.id in doc.sessions)) {
                     doc.sessions[trainRequest.id] = 0;
@@ -81,7 +85,7 @@ class DMLDB {
                     return;
                 }
             }
-            runner.receivedData(data, trainRequest);
+            runner.receivedData(X, y, trainRequest);
         });
     }
 
@@ -103,15 +107,17 @@ class DMLDB {
      * Add more data to the current entry.
      * 
      * @param {string} repoID The repo ID associated with the dataset.
-     * @param {tf.Tensor2D} newData The data as a `Tensor2D`.
+     * @param {tf.Tensor2D} X The new datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the new datapoints.
      * @param {function} callback The callback function after data is added.
      */
-    addData(repoID, newData, callback=null) {
+    addData(repoID, X, y, callback=null) {
         var db = this.db
         this.db.get(repoID, function(err, doc) {
             if (err) { return console.log(err); }
             console.log("Updating data");
-            doc.data = doc.data.append(newData);
+            doc.X = doc.X.append(X);
+            doc.y = doc.y.append(y);
             db.put(doc);
             if (callback != null) {
                 callback()
