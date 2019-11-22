@@ -124,7 +124,7 @@ class Runner {
         var weights = await this._getWeights(trainRequest.model)
         var results = {
             "weights": weights,
-            "omega": data.arraySync().length
+            "omega": X.arraySync().length
         }
         this.dataManager.finishedTraining(trainRequest, results) 
     }

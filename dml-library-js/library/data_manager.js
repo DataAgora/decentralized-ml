@@ -127,9 +127,9 @@ class DataManager {
      * @param {string} results The results from training. 
      */
     finishedTraining(trainRequest, results) {
-        var message = trainRequest.serialize(trainRequest, results);
+        var message = trainRequest.serialize(results);
         this.ws.send(message);
-        this.dmlDB.updateSession(trainRequest, Runner._sendMessage, results);
+        this.dmlDB.updateSession(trainRequest);
     }
 }
 exports.DataManager = DataManager;
