@@ -28,5 +28,5 @@ requests-oauthlib==0.8.0
 simplejson==3.13.2
 six==1.9.0
 uritemplate==3.0.0
-urllib3==1.22
+urllib3==1.24.2
 boto3==1.9.145
