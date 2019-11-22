@@ -115,9 +115,9 @@ class Runner {
     async _train(X, y, trainRequest) {
         console.log("Starting round: " + trainRequest.round)
         const trainingConfig = {
-            batchSize: trainRequest.params["batch_size"],
-            epochs: trainRequest.params["epochs"],
-            shuffle: trainRequest.params["shuffle"],
+            batchSize: trainRequest.hyperarams["batch_size"],
+            epochs: trainRequest.hyperparams["epochs"],
+            shuffle: trainRequest.hyperparams["shuffle"],
         };
         await trainRequest.model.fit(X, y, trainingConfig);
         console.log("Finished training!");
