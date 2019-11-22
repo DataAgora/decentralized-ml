@@ -1,6 +1,6 @@
 API
 ===========
 
-.. js:autofunction:: bootstrap_library
-.. js:autofunction:: add_more_data
-.. js:autofunction:: is_bootstrapped
+.. js:autofunction:: bootstrapLibrary
+.. js:autofunction:: addMoreData
+.. js:autofunction:: isBootstrapped

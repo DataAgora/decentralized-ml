@@ -18,24 +18,23 @@ class DMLDB {
     /**
      * Create a new entry in PouchDB for this dataset. 
      * 
-     * An entry keeps track of the associated repo_id, the data and its 
+     * An entry keeps track of the associated repoID, the data and its 
      * dimensions, the timestamp of creation and associated training
      * sessions.
      * 
-     * @param {DataManager} data_manager An instance of the Data Manager.
+     * @param {DataManager} dataManager An instance of the Data Manager.
      * Upon successful storage of the data, the DataManager connects to
      * the server.
      * @param {Tensor2D} data The data as a `Tensor2D`. 
      */
-    create(data_manager, data) {        
+    create(dataManager, data) {        
         var timestamp = new Date().getTime();
-        const repo_id = data_manager.repo_id;
 
         var db = this.db;
-        this.db.get(repo_id, function(err, doc) {
+        this.db.get(dataManager.repoID, function(err, doc) {
             if (err) {
                 var myObj = {
-                    _id: repo_id,
+                    _id: dataManager.repoID,
                     data: data,
                     rows: data.length,
                     cols: data[0].length,
@@ -44,7 +43,7 @@ class DMLDB {
                 }
                 db.put(myObj, function(err, response) {
                     if (err) { return console.log(err); }
-                    data_manager.connect();
+                    dataManager.connect();
                   });
             } else {
                 doc.data = data;
@@ -53,56 +52,67 @@ class DMLDB {
                 doc.timestamp = timestamp;
                 doc.sessions = {};
                 db.put(doc);
-                data_manager.connect();
+                dataManager.connect();
             }
           });
     }
 
     /**
+     * Retrieve the data.
      * 
-     * @param {DMLRequest} dml_request The request for training, which holds
-     * information needed to retrieve the entry for a dataset 
-     * @param {*} callback The callback function upon successful retrieval of data.
-     * @param {*} model The model to train with.
+     * @param {Runner} runner An instance of the Runner. Upon successful
+     * retrieval of the data, the runner begins training. 
+     * @param {TrainRequest} trainRequest The request for training. 
      */
-    get(dml_request, callback, model) {
+    get(runner, trainRequest) {
         var db = this.db;
-        this.db.get(dml_request.repo, function(err, doc) {
+        this.db.get(trainRequest.repoID, function(err, doc) {
             if (err) { return console.log(err); }
             var data = tfjs.tensor(doc.data).as2D(doc.rows, doc.cols);
-            if (dml_request.action == 'TRAIN') {
-                if (!(dml_request.id in doc.sessions)) {
-                    doc.sessions[dml_request.id] = 0;
+            if (trainRequest.action == 'TRAIN') {
+                if (!(trainRequest.id in doc.sessions)) {
+                    doc.sessions[trainRequest.id] = 0;
                     db.put(doc);
                 }
-                var session_round = doc.sessions[dml_request.id];
-                if (session_round+ 1 != dml_request.round) {
+                var session_round = doc.sessions[trainRequest.id];
+                if (session_round+ 1 != trainRequest.round) {
                     console.log("Ignoring server's message...");
-                    console.log("Request's round was " + dml_request.round + " and current round is " + session_round);
+                    console.log("Request's round was " + trainRequest.round + " and current round is " + session_round);
                     return;
                 }
             }
-            callback(data, dml_request, model);
+            runner.receivedData(data, trainRequest);
         });
     }
 
-    _put(dml_request, callback, result) {
-        this.db.get(dml_request.repo, function(err, doc) {
+    /**
+     * Update current entry to reflect the number of rounds completed in this
+     * session.
+     * 
+     * @param {TrainRequest} trainRequest The request to train with.
+     */
+    updateSession(trainRequest) {
+        this.db.get(trainRequest.repoID, function(err, doc) {
             if (err) { return console.log(err); }
-            //console.log("Updating round on session");
-            doc.sessions[dml_request.id] = dml_request.round
-            //console.log(doc.sessions)
+            doc.sessions[trainRequest.id] = trainRequest.round
             this.put(doc);
-            callback(dml_request, result);
         });
     }
 
-    update_data(repo, new_data, callback) {
-        this.get(repo, function(err, doc) {
+    /**
+     * Add more data to the current entry.
+     * 
+     * @param {string} repoID The repo ID associated with the dataset.
+     * @param {tf.Tensor2D} newData The data as a `Tensor2D`.
+     * @param {function} callback The callback function after data is added.
+     */
+    addData(repoID, newData, callback=null) {
+        var db = this.db
+        this.db.get(repoID, function(err, doc) {
             if (err) { return console.log(err); }
             console.log("Updating data");
-            doc.data = doc.data.append(new_data);
-            this.put(doc);
+            doc.data = doc.data.append(newData);
+            db.put(doc);
             if (callback != null) {
                 callback()
             }

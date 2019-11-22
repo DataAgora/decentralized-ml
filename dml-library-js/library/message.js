@@ -13,15 +13,15 @@ class DMLRequest {
      * @param {dict} message JSON message received from server. Must
      * have key `action` of either TRAIN or STOP.
      * 
-     * @returns {DMLRequest} Returns a DML Request object.
+     * @returns {DMLRequest} DML Request object.
      */
-    static deserialize(repo_id, message) {
+    static deserialize(repoID, message) {
         assert("action" in message, "No action found in message!")
         var action = message["action"];
         var request;
         switch (action) {
             case ("TRAIN"):
-                request = new TrainRequest(repo_id, message);
+                request = new TrainRequest(repoID, message);
                 break;
             case ("STOP"):
                 request = new StopRequest();
@@ -38,39 +38,44 @@ class TrainRequest extends DMLRequest {
     /**
      * A type of `DMLRequest` used for facilitating training. 
      * 
-     * @param {string} repo_id The library's repo ID, passed in from the
+     * @param {string} repoID The library's repo ID, passed in from the
      * Data Manager. 
      * @param {dict} message The message received from the server. Must 
      * have the following keys: `session_id`, `round` and `hyperparams`.
      */
-    constructor(repo_id, message) {
-        assert("session_id" in message, "TrainRequest must have repo_id!");
+    constructor(repoID, message) {
+        assert("session_id" in message, "TrainRequest must have session_id!");
         assert("round" in message, "TrainRequest must have round!");
         assert("hyperparams" in message, "TrainRequest must have hyperparams!");
 
         /** Associated repo ID for this dataset. */
-        this.repo_id = repo_id;
+        this.repoID = repoID;
 
         /** Session ID for the current training session. */
-        this.session_id = message["session_id"];
+        this.sessionID = message["session_id"];
         
         /** Current round. */
         this.round = message["round"];
 
         /** Hyperparams for training. */
         this.hyperparams = message["hyperparams"]
+
+        /** Model to train with, to be retrieved later. */
+        this.model = null;
     }
 
     /**
      * Serialize this `TrainRequest` object for transmission to the server.
      * 
+     * @param {dict} results The results from training.
+     * 
      * @returns {string} Serialized `TrainRequest` string.
      */
-    serialize() {
+    serialize(results) {
         var socketMessage = {
-            "session_id": this.session_id,
+            "session_id": this.sessionID,
             "action": "TRAIN",
-            "results": message,
+            "results": results,
             "round": this.round,
             "type": "NEW_WEIGHTS",
         };
