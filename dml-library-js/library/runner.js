@@ -1,46 +1,153 @@
 exports.__esModule = true;
-var DMLRequest = require("./message.js").DMLRequest;
-var DMLDB = require("./dml_db.js").DMLDB;
-var DataManager = require("./data_manager.js").DataManager;
-var tfjs_1 = require("@tensorflow/tfjs-node");
+
+var tf = require("@tensorflow/tfjs-node");
 var fetch = require('node-fetch');
 
+var DMLDB = require("./dml_db.js").DMLDB;
+var makeHTTPURL = require('./utils.js').makeHTTPURL
+
+
 class Runner {
-    static _lowerCaseToCamelCase = function (str) {
-        return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); });
-    };
-    static _compileModel(model, optimization_data) {
+    /**
+     * Utility class for training TFJS models.
+     * 
+     * NOTE: Only `tf.LayersModel` models are supported at this time.
+     *  
+     * @param {DMLDB} dmlDB An instance of DMLDB for retrieving the data. 
+     */
+    constructor(dmlDB) {
+        this.dmlDB = dmlDB
+    }
+
+    /**
+     * Configure the Runner with an instance of the Data Manager.
+     * 
+     * @param {DataManager} dataManager An instance of the Data Manager for
+     * receiving the training results when training is complete.
+     */
+    configure(dataManager) {
+        this.dataManager = dataManager
+    }
+
+    /**
+     * Handle a received message from the Data Manager
+     * 
+     * @param {TrainRequest} request The request for training.
+     */
+    async handleRequest(trainRequest) {
+        await this._prepareTraining(trainRequest); 
+    }
+
+    /**
+     * Get the model, compile it and retrieve the data.
+     * 
+     * @param {TrainRequest} trainRequest The request for training. 
+     */
+    async _prepareTraining(trainRequest) {
+        const model_url = makeHTTPURL(trainRequest.repoID) + "/model/model.json";
+        var model = await tf.loadLayersModel(model_url);
+        var runner = this;
+        fetch(model_url)
+        .then(res => res.json())
+        .then((out) => {
+            model = runner._compileModel(model, out["modelTopology"]["training_config"]);
+            trainRequest.model = model
+            runner.dmlDB.getData(this, trainRequest);
+        }).catch(err => console.error(err));
+    }
+
+    /**
+     * Compile a TFJS `LayersModel`.
+     * 
+     * @param {tf.LayersModel} model LayersModel to be compiled.
+     * @param {dict} optimization_data Optimization data from the model.json
+     * 
+     * @returns {tf.LayersModel} The compiled LayersModel.
+     */
+    _compileModel(model, optimization_data) {
         var optimizer;
-        var optimizer_config = optimization_data['optimizer_config']
-        if (optimizer_config['class_name'] == 'SGD') {
-            // SGD
-            optimizer = tfjs_1.train.sgd(optimizer_config['config']['learning_rate']);
-        } else if (optimizer_config['class_name'] == 'Adam') {
-            optimizer = tfjs_1.train.adam(optimizer_config['config']['learning_rate'], optimizer_config['config']['beta1'], optimizer_config['config']['beta2'])
+        var optimizerConfig = optimization_data['optimizer_config']
+        if (optimizerConfig['class_name'] == 'SGD') {
+            optimizer = tf.train.sgd(optimizerConfig['config']['learning_rate']);
+        } else if (optimizerConfig['class_name'] == 'Adam') {
+            optimizer = tf.train.adam(optimizerConfig['config']['learning_rate'], optimizerConfig['config']['beta1'], optimizerConfig['config']['beta2'])
         } else {
             // Not supported!
-            throw "Optimizer not supported!";
+            throw new Error("Optimizer not supported!");
         }
         model.compile({
             optimizer: optimizer,
-            loss: Runner._lowerCaseToCamelCase(optimization_data['loss']),
+            loss: this._snakeCaseToCamelCase(optimization_data['loss']),
             metrics: optimization_data['metrics']
         });
         return model;
     }
 
-    static async _getModel(request, callback) {
-        const model_url = request.cloud_url + "/model/model.json";
-        var model = await tfjs_1.loadLayersModel(model_url);
-        fetch(model_url)
-        .then(res => res.json())
-        .then((out) => {
-            model = Runner._compileModel(model, out["modelTopology"]["training_config"]);
-            DMLDB._get(request, callback, model);
-        }).catch(err => console.error(err));
+    /**
+     * Helper function to convert string from snake_case to camelCase
+     * 
+     * @param {string} str String in snake_case
+     * 
+     * @returns {string} String in camelCase 
+     */
+    _snakeCaseToCamelCase(str) {
+        return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); });
+    };
+
+    /**
+     * Callback function for the DMLDB when the data is retrieved.
+     * 
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints.
+     * @param {TrainRequest} trainRequest The request for training. 
+     */
+    receivedData(X, y, trainRequest) {
+        this._train(X, y, trainRequest);
     }
 
-    static async _getWeights(model) {
+    /**
+     * Train the model with the given data.
+     * 
+     * @param {tf.Tensor2D} X The datapoints to train on.
+     * @param {tf.Tensor1D} y The labels for the datapoints.
+     * @param {TrainRequest} trainRequest The request for training. 
+     */
+    async _train(X, y, trainRequest) {
+        console.log("Starting round: " + trainRequest.round)
+        const trainingConfig = {
+            batchSize: trainRequest.hyperparams["batch_size"],
+            epochs: trainRequest.hyperparams["epochs"],
+            shuffle: trainRequest.hyperparams["shuffle"],
+        };
+        await trainRequest.model.fit(X, y, trainingConfig);
+        console.log("Finished training!");
+        var weights = await this._getWeights(trainRequest.model)
+        var results = {
+            "weights": weights,
+            "omega": X.arraySync().length
+        }
+        this.dataManager.finishedTraining(trainRequest, results) 
+    }
+
+    /**
+     * Assign the labels in the dataset.
+     * 
+     * @param {Tensor2D} data The data as a `Tensor2D`.
+     * @param {int} label_index The index of the column that has the labels.
+     * 
+     * @returns {list} List of 2 lists. The first list is the
+     * datapoints without the labels, and the second list is the labels.
+     */
+    
+
+    /**
+     * Extract the weights from the model.
+     * 
+     * @param {tf.LayersModel} model The model after training.
+     * 
+     * @returns {list} List of weights.
+     */
+    async _getWeights(model) {
         var all_weights = [];
         for (var i = 0; i < model.layers.length * 2; i++) {
         // Time 2 so we can get the bias too.
@@ -53,50 +160,6 @@ class Runner {
         }
         return all_weights;
     };
-
-    static _labelData(data, label_index) {
-        if (label_index < 0) {
-            label_index = data[0].length - 1;
-        }
-        var trainXs = data;
-        var trainYs = trainXs.map(function (row) { return row[label_index]; });
-        trainXs.forEach(function (x) { x.splice(label_index, 1); });
-        return [tfjs_1.tensor(trainXs), tfjs_1.tensor(trainYs)];
-    };
-
-    static async _train(data, request, model) {
-        console.log("Starting round: " + request.round)
-        var [data_x, data_y] = Runner._labelData(data.arraySync(), request.params.label_index);
-        model.fit(data_x, data_y, {
-            batchSize: request.params["batch_size"],
-            epochs: request.params["epochs"],
-            shuffle: request.params["shuffle"],
-            verbose: 0
-        });
-        console.log("Finished training!");
-        var weights = await Runner._getWeights(model)
-        var results = {
-            "weights": weights,
-            "omega": data.arraySync().length
-        }
-        DMLDB._put(request, Runner._sendMessage, results); 
-    }
-
-    static async _evaluate(data, request, model) {
-        var [data_x, data_y] = Runner._labelData(data.arraySync(), request.params.label_index);
-        var result = model.evaluate(data_x, data_y).toString();
-        DMLDB._put(request, Runner._sendMessage, result);
-    }
-
-    static async _sendMessage(request, message) {
-        var result = DMLRequest._serialize(request, message);
-        request.ws.send(result);
-    }
-
-    static async _handleMessage(request) {
-        var callback = (request.action == 'TRAIN') ? Runner._train : Runner._evaluate;
-        await Runner._getModel(request, callback); 
-    }
 }
 
 exports.Runner = Runner;

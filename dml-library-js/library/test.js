@@ -1,18 +1,25 @@
 "use strict";
-
-var DataManager = require('./data_manager.js').DataManager;
 var tf = require("@tensorflow/tfjs-node");
-const repo_id = "c0e533b747a0792b90d388597ea5c79b";
-DataManager.initialize();
-console.log(DataManager)
+
+var DMLDB = require('./dml_db.js').DMLDB
+var Runner = require('./runner.js').Runner;
+var DataManager = require('./data_manager.js').DataManager;
+
+
+var dmlDB = new DMLDB();
+var runner = new Runner(dmlDB);
+var dataManager = new DataManager(dmlDB, runner);
+runner.configure(dataManager)
+
+const repo_id = "99885f00eefcd4107572eb62a5cb429a";
 
 async function run() {
-  const data = await getData();
+  const [X, y] = await getData();
   console.log("Data retrieved!");
-  DataManager.bootstrap_and_store(repo_id, data);  
+  dataManager.bootstrap(repo_id, X, y);  
 }
 
-async function getData() {
+async function getData(label_index=0) {
   var mnist = require('mnist'); // this line is not needed in the browser
 
   var set = mnist.set(8000, 0);
@@ -24,7 +31,14 @@ async function getData() {
     data.push(trainingSet[i].input);
     data[i].push(trainingSet[i].output.indexOf(1));
   }
-  return tf.tensor(data).as2D(8000, 785);
+
+  if (label_index < 0) {
+    label_index = data[0].length - 1;
+  }
+  var trainXs = data;
+  var trainYs = trainXs.map(function (row) { return row[label_index]; });
+  trainXs.forEach(function (x) { x.splice(label_index, 1); });
+  return [tf.tensor(trainXs).as2D(8000, 784), tf.tensor(trainYs).as1D()];
 }
   
 run()
