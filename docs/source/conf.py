@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.abspath('../../explora'))
 sys.path.insert(0, os.path.abspath('../../dml-library-js/library'))
 
 # -- Project information -----------------------------------------------------
-js_source_path = '../dml-library-js/library'
+js_source_path = '../../dml-library-js/library'
 project = 'decentralized-ml'
 copyright = '2019, Neelesh Dodda'
 author = 'Neelesh Dodda'
