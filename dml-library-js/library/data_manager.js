@@ -6,14 +6,11 @@ var Runner = require("./runner.js").Runner;
 const WebSocket = require('ws');
 
 
-/** 
- * @class Brain of the library. Prepares local data for training and waits
- * for new training messages to pass on to the rest of the library. 
- * */
 class DataManager {
-    /**
-     *  
-     */
+    /** 
+     * Brain of the library. Prepares local data for training, manages
+     * communication, and passes train requests to the Runner. 
+     * */
     constructor(db) {
         /** An instance of DMLDB for storing data. */
         this.dml_db = db;

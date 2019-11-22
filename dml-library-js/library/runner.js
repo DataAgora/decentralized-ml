@@ -36,7 +36,7 @@ class Runner {
         .then(res => res.json())
         .then((out) => {
             model = Runner._compileModel(model, out["modelTopology"]["training_config"]);
-            DMLDB._get(request, callback, model);
+            DMLDB.get(request, callback, model);
         }).catch(err => console.error(err));
     }
 

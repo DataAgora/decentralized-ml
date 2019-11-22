@@ -15,8 +15,9 @@ function is_bootstrapped() {
  * Bootstrap the library by storing the initial data and connecting to the
  * server.
  * 
- * @param {string} repo_id 
- * @param {Tensor2D} data 
+ * @param {string} repo_id The repo ID associated with the dataset.
+ * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
+ * https://js.tensorflow.org/api/latest/#tensor2d.
  */
 function bootstrap_library(repo_id, data) {
     data_manager.bootstrap(repo_id, data);
@@ -25,8 +26,9 @@ function bootstrap_library(repo_id, data) {
 /**
  * Add more data after bootstrapping.
  * 
- * @param {string} repo_id 
- * @param {Tensor2D} data 
+ * @param {string} repo_id The repo ID associated with the dataset.
+ * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
+ * https://js.tensorflow.org/api/latest/#tensor2d. 
  */
 function add_more_data(repo_id, data) {
     data_manager.add_data(repo_id, data)

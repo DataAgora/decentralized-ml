@@ -1,5 +1,7 @@
 # Other
 new-env/
+test.rst
+*/test.rst
 *.pyc
 *.egg-info/
 .DS_Store
