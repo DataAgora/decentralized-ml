@@ -20,8 +20,8 @@ function isBootstrapped() {
  * server.
  * 
  * @param {string} repoID The repo ID associated with the dataset.
- * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
- * https://js.tensorflow.org/api/latest/#tensor2d.
+ * @param {tf.Tensor2D} X The datapoints to train on.
+ * @param {tf.Tensor1D} y The labels for the datapoints.
  */
 function bootstrapLibrary(repoID, data) {
     dataManager.bootstrap(repoID, data);
@@ -30,14 +30,14 @@ function bootstrapLibrary(repoID, data) {
 /**
  * Add more data after bootstrapping.
  * 
- * @param {string} repo_id The repo ID associated with the dataset.
- * @param {Tensor2D} data The data as a `Tensor2D`. Refer to the TFJS API for more:
- * https://js.tensorflow.org/api/latest/#tensor2d. 
+ * @param {string} repoID The repo ID associated with the dataset.
+ * @param {tf.Tensor2D} X The datapoints to train on.
+ * @param {tf.Tensor1D} y The labels for the datapoints.
  */
 function addMoreData(repoID, data) {
     dataManager.addData(repoID, data)
 }
 
-exports.bootstrap = dataManager.bootstrap;
-exports.store = dataManager.store;
-exports.is_bootstrapped = dataManager.bootstrapped;
+exports.bootstrapLibrary = bootstrapLibrary;
+exports.addMoreData = addMoreData;
+exports.isBootstrapped = isBootstrapped;
