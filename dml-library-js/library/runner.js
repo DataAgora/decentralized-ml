@@ -115,7 +115,7 @@ class Runner {
     async _train(X, y, trainRequest) {
         console.log("Starting round: " + trainRequest.round)
         const trainingConfig = {
-            batchSize: trainRequest.hyperarams["batch_size"],
+            batchSize: trainRequest.hyperparams["batch_size"],
             epochs: trainRequest.hyperparams["epochs"],
             shuffle: trainRequest.hyperparams["shuffle"],
         };
