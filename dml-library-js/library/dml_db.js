@@ -96,10 +96,11 @@ class DMLDB {
      * @param {TrainRequest} trainRequest The request to train with.
      */
     updateSession(trainRequest) {
+        var db = this.db
         this.db.get(trainRequest.repoID, function(err, doc) {
             if (err) { return console.log(err); }
             doc.sessions[trainRequest.id] = trainRequest.round
-            this.put(doc);
+            db.put(doc);
         });
     }
 
