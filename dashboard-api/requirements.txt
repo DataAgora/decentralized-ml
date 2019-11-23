@@ -3,7 +3,7 @@ Flask==0.12.2
 itsdangerous==0.24
 Jinja2==2.9.6
 MarkupSafe==1.0
-Werkzeug==0.12.2
+Werkzeug==0.15.3
 PyJWT==1.7.1
 boto3==1.9.145
 simplejson==3.16.0
