@@ -140,6 +140,16 @@ def deploy_new_version(env_name, version_label):
                     'OptionName': 'ListenerProtocol' ,
                     'Value': 'TCP'
                 },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:application:environment',
+                    'OptionName': 'ACCESS_KEY_ID',
+                    'Value': os.environ['ACCESS_KEY_ID'],
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:application:environment',
+                    'OptionName': 'SECRET_ACCESS_KEY',
+                    'Value': os.environ['SECRET_ACCESS_KEY'],
+                }
             ],
         )
     except ClientError as err:

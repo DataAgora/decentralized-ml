@@ -10,15 +10,12 @@ class DB(object):
     'jupyterhub-users' (users_table) maps usernames to whether they are in use or not
     'Repos' (repos_table) maps repo_ids to usernames (N/A if no username mapping exists yet) 
     """
-    def __init__(self):
+    def __init__(self, users_table, repos_table):
         """
         Set up DB and tables.
         """
-        access_key = os.environ["AWS_ACCESS_KEY_ID"]
-        secret_key = os.environ["AWS_SECRET_ACCESS_KEY"]
-        self.dynamodb = boto3.resource('dynamodb', aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name='us-west-1')
-        self.users_table = self.dynamodb.Table('jupyterhub-users')
-        self.repos_table = self.dynamodb.Table('Repos')
+        self.users_table = users_table
+        self.repos_table = repos_table
     
     def create_table(self):
         """

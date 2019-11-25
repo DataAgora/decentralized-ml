@@ -20,7 +20,6 @@ JWT_ALGO = "HS256"
 
 APPLICATION_NAME = "cloud-node"
 app = Flask(__name__)
-db = DB()
 CORS(app)
 
 @app.route("/")
@@ -51,6 +50,9 @@ def get_username(repo_id):
     if claims is None: return jsonify(make_unauthorized_error()), 400
     user_id = claims["pk"]
     try:
+        users_table = _get_dynamodb_table("jupyterhub-users")
+        repos_table = _get_dynamodb_table("Repos")
+        db = DB(users_table, repos_table)
         username = db.get_username(user_id, repo_id)
     except Exception as e:
         print("Error: " + str(e))
@@ -106,15 +108,15 @@ def create_new_repo():
     """
     # Check authorization
     claims = authorize_user(request)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
 
     # Get parameters
     # TODO: Sanitize inputs.
     params = request.get_json()
     if "RepoName" not in params:
-        return jsonify(make_error("Missing repo name from request.")), 400
+        return jsonify(make_error("Missing repo name from request.")), 200
     if "RepoDescription" not in params:
-        return jsonify(make_error("Missing repo description from request.")), 400
+        return jsonify(make_error("Missing repo description from request.")), 200
     repo_name = params["RepoName"][:20]
     repo_description = params["RepoDescription"][:80]
 
@@ -669,6 +671,13 @@ def make_error(msg):
     Helper function to create an error message to return on failed requests.
     """
     return {'Error': True, 'Message': msg}
+
+def make_success(msg):
+    """
+    Helper function to create a success message to return on successful
+    requests.
+    """
+    return {'Error': False, 'Message': msg}
 
 
 if __name__ == "__main__":
