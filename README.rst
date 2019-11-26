@@ -10,4 +10,4 @@ Check out the documentation `here <https://dml.readthedocs.io/en/latest/>`_!
 .. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
-    :target: https://decentralized-ml.readthedocs.io/en/latest/?badge=latest
+    :target: https://dml.readthedocs.io/en/latest/?badge=latest
