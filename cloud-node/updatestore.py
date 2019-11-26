@@ -1,11 +1,10 @@
 import time
 import uuid
 import os
-
 import boto3
 
 import state
-from model import TEMP_FOLDER
+from model import TEMP_FOLDER, get_current_h5_model_path
 
 
 def store_update(type, message, with_weights=True):
@@ -25,7 +24,9 @@ def store_update(type, message, with_weights=True):
             s3 = boto3.resource('s3', aws_access_key_id=access_key, aws_secret_access_key=secret_key)
             weights_s3_key = '{0}/{1}/{2}/model.h5'.format(repo_id, session_id, round)
             object = s3.Object('updatestore', weights_s3_key)
-            h5_filepath = TEMP_FOLDER + "/{0}/model{1}.h5".format(session_id, round)
+            h5_filepath = state.state['h5_model_path']
+            print(h5_filepath)
+            print(os.listdir())
             object.put(Body=open(h5_filepath, 'rb'))
         except Exception as e:
             print("S3 Error: {0}".format(e))
@@ -41,6 +42,7 @@ def store_update(type, message, with_weights=True):
             'SessionId': state.state["session_id"],
             'Content': repr(message),
         }
+        print(item)
         if with_weights:
             item['WeightsS3Key'] = "s3://updatestore/" + weights_s3_key
         table.put_item(Item=item)

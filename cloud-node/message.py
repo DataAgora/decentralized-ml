@@ -16,6 +16,10 @@ class MessageType(Enum):
     NEW_SESSION = "NEW_SESSION"
     NEW_WEIGHTS = "NEW_WEIGHTS"
 
+class LibraryType(Enum):
+    PYTHON = "Python"
+    JS = "Javascript"
+
 
 class Message:
     """
@@ -73,6 +77,9 @@ class NewSessionMessage(Message):
         self.selection_criteria = serialized_message["selection_criteria"]
         self.continuation_criteria = serialized_message["continuation_criteria"]
         self.termination_criteria = serialized_message["termination_criteria"]
+        self.library_type = serialized_message.get("library_type", LibraryType.PYTHON.value)
+        self.use_gradients = serialized_message.get("use_gradients", False)
+        self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
 
     def __repr__(self):
         return json.dumps({
@@ -99,10 +106,24 @@ class NewWeightsMessage(Message):
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         self.action = serialized_message["action"]
-        self.weights = np.array(
-            serialized_message["results"]["weights"],
-            dtype=np.dtype(float),
-        )
+        if "gradients" in serialized_message["results"]:
+            gradients = serialized_message["results"]["gradients"]
+            self.gradients = [np.array(gradient) for gradient in gradients]
+        elif "weights" in serialized_message["results"]:
+            self.weights = np.array(
+                serialized_message["results"]["weights"],
+                dtype=np.dtype(float),
+            )
+        else:
+            temp_path = "temp.h5"
+            h5_model = serialized_message["results"]["h5_model"]
+            base64_h5_model = h5_model.encode('ascii')
+            h5_model_bytes = base64.b64decode(base64_h5_model)
+            with open(temp_path, 'wb') as fp:
+                fp.write(h5_model_bytes)
+            from keras.models import load_model
+            model = load_model(temp_path)
+            self.weights = model.get_weights()
         self.omega = serialized_message["results"]["omega"]
 
     def __repr__(self):

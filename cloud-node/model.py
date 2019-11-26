@@ -3,13 +3,19 @@ import uuid
 import json
 import base64
 from functools import reduce
+import shutil
 
 import keras
 import numpy as np
 import tensorflowjs as tfjs
+import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 from keras import backend as K
 
 import state
+from message import LibraryType
+
+
 
 
 TEMP_FOLDER = 'temp'
@@ -25,6 +31,14 @@ def convert_and_save_b64model(base64_h5_model):
 
     base64_h5_model: base64 string of an h5 keras model
     """
+    print(keras.__version__, 'keras')
+    print(tf.__version__, "tf")
+    print(tfjs.__version__, "tfjs")
+    h5_model_path = save_h5_model(base64_h5_model)
+    # Convert and save model for serving
+    return _convert_and_save_model(h5_model_path)
+
+def save_h5_model(base64_h5_model):
     session_id = state.state["session_id"]
     model_path = os.path.join(TEMP_FOLDER, session_id)
 
@@ -34,13 +48,28 @@ def convert_and_save_b64model(base64_h5_model):
 
     # Save model on disk
     h5_model_path = model_path + '/model.h5'
+    base64_h5_model = base64_h5_model.encode('ascii')
     h5_model_bytes = base64.b64decode(base64_h5_model)
     with open(h5_model_path, 'wb') as fp:
         fp.write(h5_model_bytes)
 
-    # Convert and save model for serving
-    return _convert_and_save_model(h5_model_path)
+    state.state['h5_model_path'] = h5_model_path
+    
+    return h5_model_path
 
+def get_encoded_h5_model(h5_model_path):
+    with open(h5_model_path, mode='rb') as file:
+        file_content = file.read()
+        encoded_content = base64.encodebytes(file_content)
+        h5_model = encoded_content.decode('ascii')
+        return h5_model
+
+def get_current_h5_model_path(round):
+    session_id = state.state["session_id"]
+    round = state.state["current_round"]
+    model_path = os.path.join(TEMP_FOLDER, session_id)
+    h5_model_path = model_path + '/model{}.h5'.format(round)
+    return h5_model_path
 
 def convert_and_save_model(round):
     """
@@ -50,11 +79,8 @@ def convert_and_save_model(round):
     stored, then it calls the helper function `_convert_and_save_model()` to
     convert the model into a tf.js model which will be served to library nodes.
     """
-    session_id = state.state["session_id"]
-    round = state.state["current_round"]
-    model_path = os.path.join(TEMP_FOLDER, session_id)
-    h5_model_path = model_path + '/model{}.h5'.format(round)
-    return _convert_and_save_model(h5_model_path)
+    h5_model_path = get_current_h5_model_path(round)
+    _convert_and_save_model(h5_model_path)
 
 
 def _convert_and_save_model(h5_model_path):
@@ -75,25 +101,22 @@ def _convert_and_save_model(h5_model_path):
     """
     session_id = state.state["session_id"]
     round = state.state["current_round"]
-    converted_model_path = os.path.join(TEMP_FOLDER, session_id, str(round))
+    state.state["tfjs_model_path"] = os.path.join(TEMP_FOLDER, session_id, str(round))
 
-    _keras_2_tfjs(h5_model_path, converted_model_path)
+    _keras_2_tfjs()
 
-    model_json_path = converted_model_path + "/model.json"
+    model_json_path = state.state["tfjs_model_path"] + "/model.json"
     with open(model_json_path, 'r') as fp:
         model_json = json.loads(fp.read())
         state.state["weights_shape"] = model_json["weightsManifest"][0]["weights"]
 
-    metadata_path = converted_model_path + '/metadata.json'
+    metadata_path = state.state["tfjs_model_path"] + '/metadata.json'
     metadata = {
         "session_id": session_id,
         "current_round": round,
     }
     with open(metadata_path, 'w') as fp:
         json.dump(metadata, fp, sort_keys=True, indent=4)
-
-    return converted_model_path
-
 
 def swap_weights():
     """
@@ -108,29 +131,59 @@ def swap_weights():
     h5_model_path = model_path + '/model.h5'
     model = keras.models.load_model(h5_model_path)
 
-    weights_flat = state.state["current_weights"]
-    weights_shape = state.state["weights_shape"]
-    weights, start = [], 0
-    for shape_data in weights_shape:
-        shape = shape_data["shape"]
-        size = reduce(lambda x, y: x*y, shape)
-        weights_np = np.array(weights_flat[start:start+size])
-        weights_np.resize(tuple(shape))
-        weights.append(weights_np)
-        start += size
-    model.set_weights(weights)
+    if state.state["library_type"] == LibraryType.PYTHON.value:
+        if state.state["use_gradients"]:
+            gradients = state.state["current_gradients"]
+            learning_rate = model.optimizer.lr
+            weights = model.get_weights()
+            for weight in weights:
+                print(weight.shape)
+            new_weights = np.subtract(weights, gradients)
+            for weight in new_weights:
+                print(weight.shape)
+        else:
+            new_weights = state.state["current_weights"]
+        print(new_weights)
+        model.set_weights(new_weights)
+    else:
+        weights_flat = state.state["current_weights"]
+        weights_shape = state.state["weights_shape"]
+        weights, start = [], 0
+        for shape_data in weights_shape:
+            shape = shape_data["shape"]
+            size = reduce(lambda x, y: x*y, shape)
+            weights_np = np.array(weights_flat[start:start+size])
+            weights_np.resize(tuple(shape))
+            weights.append(weights_np)
+            start += size
+        model.set_weights(weights)
 
     round = state.state["current_round"]
     new_h5_model_path = model_path + '/model{0}.h5'.format(round)
+    state.state['h5_model_path'] = new_h5_model_path
     model.save(new_h5_model_path)
     K.clear_session()
 
-def _keras_2_tfjs(h5_model_path, path_to_save):
+def clear_checkpoint():
+    """
+    Remove model after conversion and swap weights, while meeting checkpoint frequency constraint.
+
+    NOTE: Only call when model no longer needed!
+    """
+    os.remove(state.state["h5_model_path"])
+    if state.state["library_type"] == LibraryType.JS.value:
+        shutil.rmtree(state.state['tfjs_model_path'])
+
+
+    
+
+def _keras_2_tfjs():
     """
     Converts a Keras h5 model into a tf.js model and saves it on disk.
     """
-    model = keras.models.load_model(h5_model_path)
-    tfjs.converters.save_keras_model(model, path_to_save, np.uint16)
+    print(state.state["h5_model_path"])
+    model = keras.models.load_model(state.state["h5_model_path"])
+    tfjs.converters.save_keras_model(model, state.state["tfjs_model_path"], np.uint16)
     K.clear_session()
 
 def _test():

@@ -3,14 +3,20 @@ phases:
   install:
     runtime-versions:
       python: 3.7
-    commands:
-      - pip install -r requirements.txt
 artifacts:
   files:
-    - '**/*'
-  # build:
-  #   commands:
-  #   - python server.py
+    - server.py
+    - .ebextensions/*
+    - .elasticbeanstalk/*
+    - tools/*
+    - aggregator.py
+    - coordinator.py
+    - message.py
+    - Dockerfile
+    - README.md
+    - server.py
+    - state.py
+    - updatestore.py
 
 
   

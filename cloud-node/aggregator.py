@@ -6,6 +6,7 @@ import numpy as np
 import state
 from updatestore import store_update
 from coordinator import start_next_round
+from model import swap_weights, clear_checkpoint
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -14,7 +15,18 @@ def handle_new_weights(message, clients_dict):
     """
     Handle new weights from a Library.
     """
-    results = {"error": False, "message": "Success."}
+    new_message = {
+        "action": "STOP",
+        "session_id": state.state["session_id"],
+        "repo_id": state.state["repo_id"]
+    }
+    
+    results = {
+        "error": False,
+        "action": "BROADCAST",
+        "client_list": clients_dict["LIBRARY"] + clients_dict["DASHBOARD"],
+        "message": new_message,
+    }
 
     # 1. Check things match.
     if state.state["session_id"] != message.session_id:
@@ -40,9 +52,15 @@ def handle_new_weights(message, clients_dict):
     # 4. Update the number of nodes averaged (+1)
     state.state["num_nodes_averaged"] += 1
 
+    if state.state["current_round"] > 1:
+        clear_checkpoint()
+
     # 5. Log this update.
     # NOTE: Disabled until we actually need it. Could be useful for a progress bar.
     # store_update("UPDATE_RECEIVED", message, with_weights=False)
+    swap_weights()
+    if state.state["current_round"] % state.state["checkpoint_frequency"] == 0:
+        store_update("ROUND_COMPLETED", message)
 
     # 6. If 'Continuation Criteria' is met...
     if check_continuation_criteria(state.state["initial_message"].continuation_criteria):
@@ -57,7 +75,7 @@ def handle_new_weights(message, clients_dict):
             results = kickstart_new_round(clients_dict["LIBRARY"])
 
             # 6.c. Log the resulting weights for the user (for this round)
-            store_update("ROUND_COMPLETED", message)
+            # store_update("ROUND_COMPLETED", message)
 
     # 7. If 'Termination Criteria' is met...
     # (NOTE: can't and won't happen with step 6.c.)
@@ -83,34 +101,33 @@ def kickstart_new_round(clients_list):
     # Start a new round
     return start_next_round(new_message, clients_list)
 
-
 def do_running_weighted_average(message):
     """
     Runs running weighted average with the new weights and the current weights
     and changes the global state with the result.
     """
-    # If this is the first weights we're averaging, just update them and return
-    if state.state["current_weights"] is None or state.state["sigma_omega"] is None:
-        state.state["current_weights"] = message.weights
+    key = "current_gradients" if state.state["use_gradients"] else "current_weights"    
+    new_values = message.gradients if key == 'current_gradients' else message.weights
+
+    if state.state[key] is None or state.state["sigma_omega"] is None:
+        state.state[key] = new_values
         state.state["sigma_omega"] = message.omega
         return
 
     # Get the variables ready
-    current_weights = state.state["current_weights"]
+    current_values = state.state[key]
     sigma_omega = state.state["sigma_omega"]
-    new_weights = message.weights
     new_omega = message.omega
 
     # Run the math
-    temp = np.multiply(current_weights, float(sigma_omega))
-    temp = np.add(temp, np.multiply(new_weights, float(new_omega)))
+    temp = np.multiply(current_values, float(sigma_omega))
+    temp = np.add(temp, np.multiply(new_values, float(new_omega)))
     new_sigma_omega = sigma_omega + new_omega
     new_weighted_avg = np.divide(temp, float(new_sigma_omega))
 
     # Update state
-    state.state["current_weights"] = new_weighted_avg
+    state.state[key] = new_weighted_avg
     state.state["sigma_omega"] = new_sigma_omega
-
 
 def check_continuation_criteria(continuation_criteria):
     """

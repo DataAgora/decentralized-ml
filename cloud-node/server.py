@@ -22,13 +22,22 @@ from autobahn.twisted.websocket import WebSocketServerFactory
 from autobahn.twisted.resource import WebSocketResource, WSGIRootResource
 
 import state
-from message import MessageType, Message
-from coordinator import start_new_session
+from message import MessageType, Message, LibraryType
+from coordinator import start_new_session, add_model_to_new_message
 from aggregator import handle_new_weights
 import os
 
+import keras
+
+import tensorflowjs as tfjs
+
+
 from tensorflow.keras import backend as K
 import tensorflow as tf
+
+tf.compat.v1.disable_eager_execution()
+
+print(tf.__version__)
 
 class CloudNodeProtocol(WebSocketServerProtocol):
     """
@@ -68,7 +77,8 @@ class CloudNodeProtocol(WebSocketServerProtocol):
 
         """
         print("Got payload!")
-        print(os.environ)
+        if os.path.isfile("creds.py"):
+            import creds
         if isBinary:
             print("Binary message not supported.")
             return
@@ -102,14 +112,16 @@ class CloudNodeProtocol(WebSocketServerProtocol):
                     # added node into the session!
                     print("Adding the new library node to this round!")
                     last_message = state.state["last_message_sent_to_library"]
+                    if state.state["library_type"] == LibraryType.PYTHON.value:
+                        last_message = add_model_to_new_message(last_message)
                     message_json = json.dumps(last_message)
                     self.sendMessage(message_json.encode(), isBinary)
+                    # print("Session active. Registering, but not adding to this round.")
             else:
                 print("WARNING: Incorrect node type ({}) -- ignoring!".format(message.node_type))
         elif message.type == MessageType.NEW_SESSION.value:
             # Verify this node has been registered
             if not self._nodeHasBeenRegistered(client_type="DASHBOARD"): return
-
             # Start new DML Session
             results = start_new_session(message, self.factory.clients)
 
@@ -129,6 +141,11 @@ class CloudNodeProtocol(WebSocketServerProtocol):
         elif message.type == MessageType.NEW_WEIGHTS.value:
             # Verify this node has been registered
             if not self._nodeHasBeenRegistered(client_type="LIBRARY"): return
+
+            if not self.factory.clients["DASHBOARD"]: 
+                state.state.reset()
+                print("Disconnected from dashboard client, stopping session.")
+                return
 
             # Handle new weights (average, move to next round, terminate session)
     
@@ -202,8 +219,11 @@ class CloudNodeFactory(WebSocketServerFactory):
             if client in clients:
                 client_already_exists = True
         if not client_already_exists:
-            print("Registered client {}".format(client.peer))
-            self.clients[type].append(client)
+            if type == "LIBRARY" or len(self.clients[type]) == 0:
+                print("Registered client {}".format(client.peer))
+                self.clients[type].append(client)
+            else:
+                print("Only one dashboard client allowed at a time!")
 
     def unregister(self, client):
         for node_type, clients in self.clients.items():
@@ -238,10 +258,8 @@ def serve_model(filename):
     TODO: Should do this through ngnix for a boost in performance. Should also
     have some auth token -> session id mapping (security fix in the future).
     """
-    session_id = state.state["session_id"]
-    round = state.state["current_round"]
     return send_from_directory(
-        app.root_path + '/temp/' + session_id + "/" + str(round),
+        os.path.join(app.root_path, state.state['tfjs_model_path']),
         filename,
     )
 
@@ -294,6 +312,3 @@ if __name__ == '__main__':
 
     reactor.listenTCP(8999, site)
     reactor.run()
-
-    print("Starting cloud node...")
-    print(os.environ)
