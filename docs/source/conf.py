@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../../dml-library-js/library'))
 
 # -- Project information -----------------------------------------------------
 js_source_path = '../../dml-library-js/library'
-project = 'DiscreetAI'
+project = 'DML'
 copyright = '2019, Neelesh Dodda'
 author = 'Neelesh Dodda'
 
