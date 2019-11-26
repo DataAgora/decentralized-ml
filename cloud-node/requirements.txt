@@ -72,9 +72,9 @@ Pygments==2.4.2
 PyHamcrest==1.9.0
 PyInquirer==1.0.3
 python-dateutil==2.8.0
-python-engineio==3.5.0
+python-engineio==3.10.0
 python-socketio==3.1.2
-PyYAML==3.13
+PyYAML==5.1
 pyzmq==18.0.1
 regex==2019.11.1
 requests==2.20.1
@@ -95,9 +95,9 @@ termcolor==1.1.0
 texttable==0.9.1
 tornado==6.0.2
 traitlets==4.3.2
-Twisted==18.9.0
+Twisted==19.7.0
 txaio==18.8.1
-urllib3==1.24.1
+urllib3==1.25.7
 uWSGI==2.0.18
 wcwidth==0.1.7
 websocket-client==0.56.0
