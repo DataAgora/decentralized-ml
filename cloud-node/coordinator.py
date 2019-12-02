@@ -4,6 +4,7 @@ import logging
 import state
 import copy
 from model import keras_to_tfjs, save_h5_model
+from updatestore import add_initial_model
 from message.LibraryType import PYTHON, JS
 
 
@@ -72,6 +73,7 @@ def start_new_session(message, clients):
         # 4a. Save the model locally as an .h5 file, and add the model to
         #     the message.
         new_message = add_model_to_new_message(message.h5_model)
+        add_initial_model()
     else:
         # 4b. Convert the model to a TFJS model.
         _ = keras_to_tfjs()       
@@ -136,19 +138,3 @@ def _choose_clients(selection_criteria, client_list):
     Right now it just chooses all clients.
     """
     return client_list
-
-def _get_current_model():
-    """
-    Get current model (encoded)
-    """
-    h5_model_path = state.state["h5_model_path"]
-    h5_model = get_encoded_h5_model(h5_model_path)
-    return h5_model
-
-def add_model_to_new_message():
-    """
-    Add model to Python message. Need to do a deep copy so that logs don't get flooded with h5_model.
-    """
-    copied_message = copy.deepcopy(state.state["last_message_sent_to_library"])
-    copied_message["h5_model"] = _get_current_model()
-    return copied_message

@@ -66,12 +66,25 @@ def save_h5_model(base64_h5_model):
 def get_encoded_h5_model():
     """
     Get the encoded string of the h5 Keras model.
+
+    Returns:
+        str: Returns a base64 string of the h5 Keras model
     """
     with open(state.state["h5_model_path"], mode='rb') as file:
         file_content = file.read()
         encoded_content = base64.encodebytes(file_content)
         h5_model = encoded_content.decode('ascii')
         return h5_model
+
+def get_keras_model():
+    """
+    Load the Keras model from the `.h5` file.
+
+    Returns:
+        keras.engine.Model: Returns the loaded Keras model.
+    """
+    return keras.models.load_model(state.state["h5_model_path"])
+
 
 def convert_keras_model():
     """
@@ -115,7 +128,7 @@ def swap_weights():
     For Javascript libraries, this function also reconverts the Keras model
     to a TFJS model.
     """
-    model = keras.models.load_model(state.state["h5_model_path"])
+    model = get_keras_model()
 
     base_model_path = os.path.join(TEMP_FOLDER, state.state["session_id"])
     round = state.state["current_round"]
@@ -160,7 +173,7 @@ def _keras_2_tfjs():
     """
     Converts a Keras h5 model into a tf.js model and saves it on disk.
     """
-    model = keras.models.load_model(state.state["h5_model_path"])
+    model = get_keras_model()
     tfjs.converters.save_keras_model(model, state.state["tfjs_model_path"], np.uint16)
     K.clear_session()
 

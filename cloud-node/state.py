@@ -25,6 +25,7 @@ def init():
             "initial_message": None,
             "last_message_time": None,
             "last_message_sent_to_library": None,
+            "test": False
         }
         if os.path.isdir(TEMP_FOLDER):
             shutil.rmtree(TEMP_FOLDER)

@@ -58,6 +58,7 @@ def handle_new_weights(message, clients_dict):
     # 5. Log this update.
     # NOTE: Disabled until we actually need it. Could be useful for a progress bar.
     # store_update("UPDATE_RECEIVED", message, with_weights=False)
+    
     swap_weights()
     if state.state["current_round"] % state.state["checkpoint_frequency"] == 0:
         store_update("ROUND_COMPLETED", message)
