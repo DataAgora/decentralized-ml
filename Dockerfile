@@ -1,5 +1,5 @@
 FROM python:3.6
-COPY cloud-node /app
+COPY ./cloud-node /app
 WORKDIR /app
 
 # This is a weird fix for the dependencies. Be careful when modifying.
