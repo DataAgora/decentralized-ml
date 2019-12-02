@@ -1,0 +1,1 @@
+python manage.py collectstatic --settings=core.settings --noinput && python manage.py makemigrations && python manage.py migrate enterprise_users --noinput && python manage.py migrate --noinput && python manage.py create_superuser

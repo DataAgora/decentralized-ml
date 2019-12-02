@@ -4,10 +4,5 @@ temp/
 .elasticbeanstalk/*
 .git
 .gitignore
+
 dashboard-auth/*
-datacenter/*
-dml-library-js/*
-explora/*
-docs/*
-dashboard-ui/*
-dashboard-api/*
