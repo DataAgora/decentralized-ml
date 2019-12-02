@@ -4,5 +4,3 @@ temp/
 .elasticbeanstalk/*
 .git
 .gitignore
-
-dashboard-auth/*
