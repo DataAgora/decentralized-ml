@@ -11,14 +11,13 @@ class MessageType(Enum):
     Message Types that the service can work with.
 
     """
-
     REGISTER = "REGISTER"
     NEW_SESSION = "NEW_SESSION"
     NEW_WEIGHTS = "NEW_WEIGHTS"
 
 class LibraryType(Enum):
-    PYTHON = "Python"
-    JS = "Javascript"
+    PYTHON = "PYTHON"
+    JS = "JAVASCRIPT"
 
 
 class Message:
@@ -77,8 +76,7 @@ class NewSessionMessage(Message):
         self.selection_criteria = serialized_message["selection_criteria"]
         self.continuation_criteria = serialized_message["continuation_criteria"]
         self.termination_criteria = serialized_message["termination_criteria"]
-        self.library_type = serialized_message.get("library_type", LibraryType.PYTHON.value)
-        self.use_gradients = serialized_message.get("use_gradients", False)
+        self.library_type = serialized_message["library_type"]
         self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
 
     def __repr__(self):

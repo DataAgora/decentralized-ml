@@ -3,32 +3,45 @@ import logging
 
 import state
 import copy
-from model import convert_and_save_b64model, convert_and_save_model, \
-    swap_weights, save_h5_model, get_encoded_h5_model, \
-    get_current_h5_model_path, clear_checkpoint
-from message import LibraryType
+from model import keras_to_tfjs, save_h5_model
+from message.LibraryType import PYTHON, JS
 
 
 logging.basicConfig(level=logging.DEBUG)
 
-def start_new_session(message, clients_dict):
+def start_new_session(message, clients):
     """
     Starts a new DML session.
+
+    Args:
+        message (dict): The `NEW_SESSION` message sent to the server.
+        clients (list): List of `LIBRARY` clients.
+
+    Returns:
+        dict: Returns a dictionary detailing whether an error occurred and
+            if there was no error, what the next action is.
     """
     print("Starting new session...")
 
-    # // 1. If server is BUSY, error. Otherwise, mark the service as BUSY.
+    # 1. If server is BUSY or library type is not recognized, error. 
+    #    Otherwise, mark the service as BUSY.
     if state.state["busy"]:
         print("Aborting because the server is busy.")
         return {
             "error": True,
             "message": "Server is already busy working."
         }
+    elif message.library_type not in (PYTHON.value, JS.value):
+        return {
+            "error": True,
+            "message": "Invalid library type!"
+        }
+
     state.state_lock.acquire()
     state.state["busy"] = True
 
-    # // 2. Set the internal round variable to 1, reset the number of nodes
-    # //    averaged to 0, update the initial message.
+    # 2. Set the internal round variable to 1, reset the number of nodes
+    #    averaged to 0, update the initial message.
     state.state["current_round"] = 1
     state.state["num_nodes_averaged"] = 0
     state.state["initial_message"] = message
@@ -36,8 +49,8 @@ def start_new_session(message, clients_dict):
     state.state["session_id"] = str(uuid.uuid4())
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
 
-    # // 3. According to the 'Selection Criteria', choose clients to forward
-    # //    training messages to.
+    # 3. According to the 'Selection Criteria', choose clients to forward
+    #    training messages to.
     chosen_clients = _choose_clients(
         message.selection_criteria,
         clients_dict["LIBRARY"]
@@ -52,20 +65,18 @@ def start_new_session(message, clients_dict):
         "hyperparams": message.hyperparams,
     }
     state.state["last_message_sent_to_library"] = new_message
-    # // 4. Convert .h5 model into TFJS model
-    if message.library_type == LibraryType.PYTHON.value:
-        h5_model = message.h5_model
-        state.state["library_type"] = LibraryType.PYTHON.value
-        save_h5_model(h5_model)            
-        new_message = add_model_to_new_message(new_message)
-        state.state["use_gradients"] = message.use_gradients
-        new_message["use_gradients"] = message.use_gradients
+    state.state["library_type"] = message.library_type
+    save_h5_model(message.h5_model)
+    # 4. Prepare message for sending.
+    if state.state["library_type"] == PYTHON.value:
+        # 4a. Save the model locally as an .h5 file, and add the model to
+        #     the message.
+        new_message = add_model_to_new_message(message.h5_model)
     else:
-        state.state["library_type"] = LibraryType.JS.value
-        state.state["use_gradients"] = False
-        _ = convert_and_save_b64model(message.h5_model)
+        # 4b. Convert the model to a TFJS model.
+        _ = keras_to_tfjs()       
 
-    # // 5. Kickstart a DML Session with the TFJS model and round # 1
+    # 5. Kickstart a DML Session with the model and round # 1
     state.state_lock.release()
     return {
         "error": False,
@@ -134,10 +145,10 @@ def _get_current_model():
     h5_model = get_encoded_h5_model(h5_model_path)
     return h5_model
 
-def add_model_to_new_message(new_message):
+def add_model_to_new_message():
     """
-    Need to do a deep copy so that logs don't get flooded with h5_model.
+    Add model to Python message. Need to do a deep copy so that logs don't get flooded with h5_model.
     """
-    copied_message = copy.deepcopy(new_message)
+    copied_message = copy.deepcopy(state.state["last_message_sent_to_library"])
     copied_message["h5_model"] = _get_current_model()
     return copied_message

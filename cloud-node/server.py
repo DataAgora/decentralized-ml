@@ -16,6 +16,7 @@ from autobahn.twisted.resource import WebSocketResource, WSGIRootResource
 
 from protocol import CloudNodeProtocol
 from factory import CloudNodeFactory
+from message.LibraryType import PYTHON, JS
 import state
 
 
@@ -33,13 +34,22 @@ def get_status():
     return jsonify({"Busy": state.state["busy"]})
 
 @app.route('/model/<path:filename>')
-def serve_model(filename):
+def serve_tfjs_model(filename):
     """
-    Serves the models to the user.
+    Serves the TFJS model to the user.
 
     TODO: Should do this through ngnix for a boost in performance. Should also
     have some auth token -> session id mapping (security fix in the future).
+
+    Args:
+        filename (str): The filename to serve.
     """
+    if not state.state["busy"]:
+        return "No active session!\n"
+
+    if state.state["library_type"] != JS.value:
+        return "Current session is not for JAVASCRIPT!"
+
     return send_from_directory(
         os.path.join(app.root_path, state.state['tfjs_model_path']),
         filename,
@@ -55,7 +65,7 @@ def reset_state():
     state.state_lock.acquire()
     state.reset_state()
     state.state_lock.release()
-    return "State reset successfully!"
+    return "State reset successfully!\n"
 
 @app.route('/secret/get_state')
 def get_state():
