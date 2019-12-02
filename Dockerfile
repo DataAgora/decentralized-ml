@@ -1,5 +1,5 @@
 FROM python:3.6
-COPY . /app
+COPY cloud-node /app
 WORKDIR /app
 
 # This is a weird fix for the dependencies. Be careful when modifying.
@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # RUN pip install 'numpy==1.16.3'
 
 EXPOSE 8999
-CMD ["python", "cloud-node/server.py"]
+CMD ["python", "server.py"]
