@@ -5,6 +5,7 @@ import boto3
 
 import state
 
+print("STARTO")
 s3_file = "Dockerfile"
 s3 = boto3.resource("s3")
 object = s3.Object("cloud-node-deployment", s3_file)
