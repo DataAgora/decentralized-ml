@@ -15,7 +15,7 @@ class Explora(object):
         self.CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
     async def start_new_session(self, repo_id, library_type, checkpoint_frequency=1):
-        self.CLOUD_NODE_HOST = 'ws://localhost:8999'
+        self.CLOUD_NODE_HOST = 'ws://99885f00eefcd4107572eb62a5cb429a.au4c4pd2ch.us-west-1.elasticbeanstalk.com/'
 
         hyperparams = {
             "batch_size": 100,
