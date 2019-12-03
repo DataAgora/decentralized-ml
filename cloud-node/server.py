@@ -37,7 +37,7 @@ def get_status():
     s3_file = "Dockerfile"
     s3 = boto3.resource("s3")
     object = s3.Object("cloud-node-deployment", s3_file)
-    result = obj.get()['Body'].read().decode('utf-8') 
+    result = object.get()['Body'].read().decode('utf-8') 
     print(result)
     return jsonify({"Busy": state.state["busy"]})
 
