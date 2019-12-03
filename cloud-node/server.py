@@ -4,6 +4,7 @@ import json
 import io
 import os
 
+import boto3
 import tensorflow as tf
 from flask_cors import CORS, cross_origin
 from twisted.python import log
@@ -32,6 +33,12 @@ def get_status():
     The dashboard-api is the only hitting this endpoint, so it should be
     secured.
     """
+    print("STARTO")
+    s3_file = "Dockerfile"
+    s3 = boto3.resource("s3")
+    object = s3.Object("cloud-node-deployment", s3_file)
+    result = obj.get()['Body'].read().decode('utf-8') 
+    print(result)
     return jsonify({"Busy": state.state["busy"]})
 
 @app.route('/model/<path:filename>')
