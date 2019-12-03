@@ -4,22 +4,17 @@ from autobahn.twisted.websocket import WebSocketServerProtocol
 
 import state
 from message import Message
-from message.MessageType import REGISTER, NEW_SESSION, NEW_WEIGHTS
-from message.LibraryType import PYTHON, JS
-from coordinator import start_new_session, add_model_to_new_message
-from aggregator import handle_new_weights
+from message import MessageType
+from coordinator import start_new_session
+from aggregator import handle_new_update
 
 
 class CloudNodeProtocol(WebSocketServerProtocol):
     """
-    Cloud Node Protocol
-
     Class that implements part of the Cloud Node networking logic (what happens
-    when a new node connects, sends a message, disconnects). The networking here
-    happens through Websockets using the autobahn library.
-
+    when a new node connects, sends a message, disconnects). The networking 
+    here happens through Websockets using the autobahn library.
     """
-
     def onConnect(self, request):
         """
         Logs that a node has successfully connected.
@@ -70,7 +65,7 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             return
 
         # Process message
-        if message.type == REGISTER.value:
+        if message.type == MessageType.REGISTER.value:
             # Register the node
             if message.node_type in ["DASHBOARD", "LIBRARY"]:
                 self.factory.register(self, message.node_type)
@@ -81,14 +76,12 @@ class CloudNodeProtocol(WebSocketServerProtocol):
                     # added node into the session!
                     print("Adding the new library node to this round!")
                     last_message = state.state["last_message_sent_to_library"]
-                    if state.state["library_type"] == PYTHON.value:
-                        last_message = add_model_to_new_message(last_message)
                     message_json = json.dumps(last_message)
                     self.sendMessage(message_json.encode(), isBinary)
                     # print("Session active. Registering, but not adding to this round.")
             else:
                 print("WARNING: Incorrect node type ({}) -- ignoring!".format(message.node_type))
-        elif message.type == NEW_SESSION.value:
+        elif message.type == MessageType.NEW_SESSION.value:
             # Verify this node has been registered
             if not self._nodeHasBeenRegistered(client_type="DASHBOARD"): return
             # Start new DML Session
@@ -107,7 +100,7 @@ class CloudNodeProtocol(WebSocketServerProtocol):
                     isBinary=isBinary,
                 )
 
-        elif message.type == NEW_WEIGHTS.value:
+        elif message.type == MessageType.NEW_UPDATE.value:
             # Verify this node has been registered
             if not self._nodeHasBeenRegistered(client_type="LIBRARY"): return
 
@@ -118,7 +111,7 @@ class CloudNodeProtocol(WebSocketServerProtocol):
 
             # Handle new weights (average, move to next round, terminate session)
     
-            results = handle_new_weights(message, self.factory.clients)
+            results = handle_new_update(message, self.factory.clients)
 
             # Error check
             if results["error"]:

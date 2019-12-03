@@ -1,33 +1,29 @@
 import json
 import base64
+import numpy as np
 from enum import Enum
 
-import numpy as np
 
 class MessageType(Enum):
     """
-    Message Type
-
     Message Types that the service can work with.
-
     """
     REGISTER = "REGISTER"
     NEW_SESSION = "NEW_SESSION"
-    NEW_WEIGHTS = "NEW_WEIGHTS"
+    NEW_UPDATE = "NEW_UPDATE"
 
 class LibraryType(Enum):
+    """
+    Library Types that the service can work with.
+    """
     PYTHON = "PYTHON"
     JS = "JAVASCRIPT"
 
 
 class Message:
     """
-    Message
-
     Base class for messages received by the service.
-
     """
-
     @staticmethod
     def make(serialized_message):
         type, data = serialized_message["type"], serialized_message
@@ -39,15 +35,15 @@ class Message:
 
 class RegistrationMessage(Message):
     """
-    Registration Message
-
     The type of message initially sent by a node with information of what type
     of node they are.
 
     `node_type` should be one of DASHBOARD or LIBRARY.
 
+    Args:
+        serialized_message (dict): The serialized message to register a new
+            node.
     """
-
     type = MessageType.REGISTER.value
 
     def __init__(self, serialized_message):
@@ -61,17 +57,18 @@ class RegistrationMessage(Message):
 
 class NewSessionMessage(Message):
     """
-    New Session Message
-
     The type of message sent by Explora to start a new session.
 
+    Args:
+        serialized_message (dict): The serialized message to start a new
+            session.
     """
 
     type = MessageType.NEW_SESSION.value
 
     def __init__(self, serialized_message):
         self.repo_id = serialized_message["repo_id"]
-        self.h5_model = serialized_message["h5_model"]
+        self.session_id = serialized_message["session_id"]
         self.hyperparams = serialized_message["hyperparams"]
         self.selection_criteria = serialized_message["selection_criteria"]
         self.continuation_criteria = serialized_message["continuation_criteria"]
@@ -90,15 +87,15 @@ class NewSessionMessage(Message):
         })
 
 
-class NewWeightsMessage(Message):
+class NewUpdateMessage(Message):
     """
-    New Weights Message
-
     The type of message sent by the Library. This is an update.
 
+    Args:
+        serialized_message (dict): The serialized message to provide the new
+            update.
     """
-
-    type = MessageType.NEW_WEIGHTS.value
+    type = MessageType.NEW_UPDATE.value
 
     def __init__(self, serialized_message):
         self.session_id = serialized_message["session_id"]

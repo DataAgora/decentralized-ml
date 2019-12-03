@@ -6,14 +6,23 @@ import numpy as np
 import state
 from updatestore import store_update
 from coordinator import start_next_round
-from model import swap_weights, clear_checkpoint
+from model import swap_weights
 
 
 logging.basicConfig(level=logging.DEBUG)
 
-def handle_new_weights(message, clients_dict):
+def handle_new_update(message, clients_dict):
     """
     Handle new weights from a Library.
+
+    Args:
+        message (NewUpdateMessage): The `NEW_UPDATE` message sent to the server.
+        clients_dict (dict): Dictionary of clients, keyed by type of client
+            (either `LIBRARY` or `DASHBOARD`).
+
+    Returns:
+        dict: Returns a dictionary detailing whether an error occurred and
+            if there was no error, what the next action is.
     """
     new_message = {
         "action": "STOP",
@@ -47,71 +56,55 @@ def handle_new_weights(message, clients_dict):
     state.state["last_message_time"] = time.time()
 
     # 3. Do running weighted average on the new weights.
-    do_running_weighted_average(message)
+    _do_running_weighted_average(message)
 
     # 4. Update the number of nodes averaged (+1)
     state.state["num_nodes_averaged"] += 1
-
-    if state.state["current_round"] > 1:
-        clear_checkpoint()
 
     # 5. Log this update.
     # NOTE: Disabled until we actually need it. Could be useful for a progress bar.
     # store_update("UPDATE_RECEIVED", message, with_weights=False)
     
+    # 6. Swap in the newly averaged weights for this model.
     swap_weights()
+
+    # 7. Store the model in S3, following checkpoint frequency constraints.
     if state.state["current_round"] % state.state["checkpoint_frequency"] == 0:
         store_update("ROUND_COMPLETED", message)
 
-    # 6. If 'Continuation Criteria' is met...
-    if check_continuation_criteria(state.state["initial_message"].continuation_criteria):
-        # 6.a. Update round number (+1)
+    # 8. If 'Continuation Criteria' is met...
+    if check_continuation_criteria():
+        # 8.a. Update round number (+1)
         state.state["current_round"] += 1
 
-        # 6.b. If 'Termination Criteria' isn't met, then kickstart a new FL round
+        # 8.b. If 'Termination Criteria' isn't met, then kickstart a new FL round
         # NOTE: We need a way to swap the weights from the initial message
         # in node............
-        if not check_termination_criteria(state.state["initial_message"].termination_criteria):
+        if not check_termination_criteria():
             print("Going to the next round...")
-            results = kickstart_new_round(clients_dict["LIBRARY"])
+            results = start_next_round(clients_dict["LIBRARY"])
 
-            # 6.c. Log the resulting weights for the user (for this round)
+            # 8.c. Log the resulting weights for the user (for this round)
             # store_update("ROUND_COMPLETED", message)
 
-    # 7. If 'Termination Criteria' is met...
+    # 9. If 'Termination Criteria' is met...
     # (NOTE: can't and won't happen with step 6.c.)
-    if check_termination_criteria(state.state["initial_message"].termination_criteria):
-        # 7.a. Reset all state in the service and mark BUSY as false
+    if check_termination_criteria():
+        # 9.a. Reset all state in the service and mark BUSY as false
         state.reset_state()
 
-    # 8. Release section/variables that were changed...
+    # 10. Release section/variables that were changed...
     state.state_lock.release()
 
     return results
 
-
-def kickstart_new_round(clients_list):
-    """
-    Selects new nodes to run federated averaging with, and passes them the new
-    averaged model.
-
-    Args:
-        clients_list (list): List of clients to start new round with.
-
-    Returns:
-        dict: New message to broadcast.
-    """
-    # Make the new message with new round (weights are swapped in the coordinator)
-    new_message = state.state["initial_message"]
-    new_message.round = state.state["current_round"]
-
-    # Start a new round
-    return start_next_round(new_message, clients_list)
-
-def do_running_weighted_average(message):
+def _do_running_weighted_average(message):
     """
     Runs running weighted average with the new weights and the current weights
     and changes the global state with the result.
+
+    Args:
+        message (NewUpdateMessage): The `NEW_UPDATE` message sent to the server.
     """
     key = "current_gradients" if state.state["use_gradients"] else "current_weights"    
     new_values = message.gradients if key == 'current_gradients' else message.weights
@@ -136,12 +129,20 @@ def do_running_weighted_average(message):
     state.state[key] = new_weighted_avg
     state.state["sigma_omega"] = new_sigma_omega
 
-def check_continuation_criteria(continuation_criteria):
+def check_continuation_criteria():
     """
+    Check the continuation criteria to determine whether we should start the
+    next round.
+
     Right now only implements percentage of nodes averaged.
 
     TODO: Implement an absolute number of nodes to average (NUM_NODES_AVERAGED).
+
+    Returns:
+        bool: Returns `True` if criteria is met, `False` otherwise.
     """
+    continuation_criteria = state.state["initial_message"].continuation_criteria
+
     if "type" not in continuation_criteria:
         raise Exception("Continuation criteria is not well defined.")
 
@@ -163,10 +164,17 @@ def check_continuation_criteria(continuation_criteria):
         raise Exception("Continuation criteria is not well defined.")
 
 
-def check_termination_criteria(termination_criteria):
+def check_termination_criteria():
     """
+    Check the termination criteria to determine whether training is complete.
+
     Right now only implements a maximum amount of rounds.
+
+    Returns:
+        bool: Returns `True` if criteria is met, `False` otherwise.
     """
+    termination_criteria = state.state["initial_message"].termination_criteria
+
     if "type" not in termination_criteria:
         raise Exception("Termination criteria is not well defined.")
 

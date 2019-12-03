@@ -3,9 +3,8 @@ import logging
 
 import state
 import copy
-from model import keras_to_tfjs, save_h5_model
-from updatestore import add_initial_model
-from message.LibraryType import PYTHON, JS
+from model import convert_keras_model, fetch_keras_model
+from message import LibraryType
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -15,8 +14,8 @@ def start_new_session(message, clients):
     Starts a new DML session.
 
     Args:
-        message (dict): The `NEW_SESSION` message sent to the server.
-        clients (list): List of `LIBRARY` clients.
+        message (NEW_SESSION): The `NEW_SESSION` message sent to the server.
+        clients (list): List of `LIBRARY` clients to train with.
 
     Returns:
         dict: Returns a dictionary detailing whether an error occurred and
@@ -32,7 +31,8 @@ def start_new_session(message, clients):
             "error": True,
             "message": "Server is already busy working."
         }
-    elif message.library_type not in (PYTHON.value, JS.value):
+    elif message.library_type not in \
+            (LibraryType.PYTHON.value, LibraryType.JS.value):
         return {
             "error": True,
             "message": "Invalid library type!"
@@ -47,7 +47,7 @@ def start_new_session(message, clients):
     state.state["num_nodes_averaged"] = 0
     state.state["initial_message"] = message
     state.state["repo_id"] = message.repo_id
-    state.state["session_id"] = str(uuid.uuid4())
+    state.state["session_id"] = message.session_id
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
 
     # 3. According to the 'Selection Criteria', choose clients to forward
@@ -65,20 +65,23 @@ def start_new_session(message, clients):
         "action": "TRAIN",
         "hyperparams": message.hyperparams,
     }
+
+    # 4. Record the message to be sent and the library type we are training
+    #    with. By default, we use gradients for transmission.
     state.state["last_message_sent_to_library"] = new_message
     state.state["library_type"] = message.library_type
-    save_h5_model(message.h5_model)
-    # 4. Prepare message for sending.
-    if state.state["library_type"] == PYTHON.value:
-        # 4a. Save the model locally as an .h5 file, and add the model to
-        #     the message.
-        new_message = add_model_to_new_message(message.h5_model)
-        add_initial_model()
-    else:
-        # 4b. Convert the model to a TFJS model.
-        _ = keras_to_tfjs()       
+    state.state["use_gradients"] = True
 
-    # 5. Kickstart a DML Session with the model and round # 1
+    # 5. Retrieve the initial model we are training with.
+    fetch_keras_model()
+
+    # 6. If we are training with a JAVASCRIPT library, convert the model to 
+    #    TFJS and host it on the server.
+    if state.state["library_type"] == LibraryType.JS.value:
+        _ = convert_keras_model()    
+        state.state["use_gradients"] = False
+
+    # 7. Kickstart a DML Session with the model and round # 1
     state.state_lock.release()
     return {
         "error": False,
@@ -88,16 +91,26 @@ def start_new_session(message, clients):
     }
 
 
-def start_next_round(message, clients_list):
+def start_next_round(clients):
     """
     Starts a new round in the current DML Session.
+
+    Args:
+        message (dict): The `NEW_SESSION` message sent to the server.
+        clients (list): List of `LIBRARY` clients to train with.
+
+    Returns:
+        dict: Returns a dictionary detailing whether an error occurred and
+            if there was no error, what the next action is.
     """
     print("Starting next round...")
     state.state["num_nodes_averaged"] = 0
 
+    message = state.state["initial_message"]
+
     # According to the 'Selection Criteria', choose clients to forward
     # training messages to.
-    chosen_clients = _choose_clients(message.selection_criteria, clients_list)
+    chosen_clients = _choose_clients(message.selection_criteria, clients)
     state.state["num_nodes_chosen"] = len(chosen_clients)
 
     new_message = {
@@ -112,11 +125,7 @@ def start_next_round(message, clients_list):
     assert state.state["current_round"] > 0
 
     if state.state['library_type'] == LibraryType.PYTHON.value:
-        if state.state["use_gradients"]:
-            new_message['gradients'] = [gradient.tolist() for gradient in state.state['current_gradients']]
-        else:
-            new_message = add_model_to_new_message(new_message)
-        new_message['use_gradients'] = state.state['use_gradients']
+        new_message['gradients'] = [gradient.tolist() for gradient in state.state['current_gradients']]
     else:
         _ = convert_and_save_model(state.state["current_round"] - 1)
 

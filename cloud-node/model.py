@@ -35,15 +35,11 @@ def convert_and_save_b64model(base64_h5_model):
     # Convert and save model for serving
     _convert_and_save_model(h5_model_path)
 
-def save_h5_model(base64_h5_model):
+def fetch_keras_model():
     """
-    Saves the given encoded model as an `.h5` file. 
+    Download the initial Keras model.
 
-    This function is to be called at the beginning of a DML Session with
-    Python libraries.
-
-    Args:
-        base64_h5_model (str): base64 string of an h5 Keras model
+    This function is to be called at the beginning of a DML Session.
     """
     session_id = state.state["session_id"]
     model_path = os.path.join(TEMP_FOLDER, session_id)
@@ -54,14 +50,28 @@ def save_h5_model(base64_h5_model):
 
     # Save model on disk
     h5_model_path = model_path + '/model.h5'
-    base64_h5_model = base64_h5_model.encode('ascii')
-    h5_model_bytes = base64.b64decode(base64_h5_model)
-    with open(h5_model_path, 'wb') as fp:
-        fp.write(h5_model_bytes)
+    try:
+        repo_id = state.state["repo_id"]
+        session_id = state.state["session_id"]
+        round = 0
+        s3 = boto3.resource("s3", aws_access_key_id=access_key, 
+            aws_secret_access_key=secret_key)
+        model_s3_key = "{0}/{1}/{2}/model.h5"
+        model_s3_key = model_s3_key.format(repo_id, session_id, round)
+        object = s3.Object("updatestore", model_s3_key)
+        object.download_file(h5_model_path)
+    except Exception as e:
+        print("S3 Error: {0}".format(e))
 
     state.state['h5_model_path'] = h5_model_path
     
     return h5_model_path
+
+def _fetch_initial_model():
+    """
+    Fetch the initial Keras model in S3 and save it locally.
+    """
+    
 
 def get_encoded_h5_model():
     """
@@ -129,11 +139,11 @@ def swap_weights():
     to a TFJS model.
     """
     model = get_keras_model()
+    _clear_checkpoint()
 
     base_model_path = os.path.join(TEMP_FOLDER, state.state["session_id"])
     round = state.state["current_round"]
     new_h5_model_path = base_model_path + '/model{0}.h5'.format(round)
-    state.state['h5_model_path'] = new_h5_model_path
 
     if state.state["library_type"] == LibraryType.PYTHON.value:
         gradients = state.state["current_gradients"]
@@ -157,11 +167,13 @@ def swap_weights():
         model.save(new_h5_model_path)
         convert_keras_model()
 
+    state.state['h5_model_path'] = new_h5_model_path
+
     K.clear_session()
 
-def clear_checkpoint():
+def _clear_checkpoint():
     """
-    Remove model after conversion and swap weights, while meeting checkpoint frequency constraint.
+    Removes the current model.
 
     NOTE: Only call when model no longer needed!
     """

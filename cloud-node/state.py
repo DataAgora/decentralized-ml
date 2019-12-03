@@ -1,9 +1,10 @@
 from model import TEMP_FOLDER
 import os
 import shutil
-"""Global state for the service."""
+
 
 def init():
+    """Global state for the service."""
     import threading
     global state_lock
     state_lock = threading.Lock()

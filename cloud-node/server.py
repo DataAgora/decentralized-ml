@@ -16,7 +16,7 @@ from autobahn.twisted.resource import WebSocketResource, WSGIRootResource
 
 from protocol import CloudNodeProtocol
 from factory import CloudNodeFactory
-from message.LibraryType import PYTHON, JS
+from message import LibraryType
 import state
 
 
@@ -29,7 +29,8 @@ def get_status():
     """
     Returns the status of the Cloud Node.
 
-    The dashboard-api is the only hitting this endpoint, so it should be secured.
+    The dashboard-api is the only hitting this endpoint, so it should be
+    secured.
     """
     return jsonify({"Busy": state.state["busy"]})
 
@@ -47,7 +48,7 @@ def serve_tfjs_model(filename):
     if not state.state["busy"]:
         return "No active session!\n"
 
-    if state.state["library_type"] != JS.value:
+    if state.state["library_type"] != LibraryType.JS.value:
         return "Current session is not for JAVASCRIPT!"
 
     return send_from_directory(

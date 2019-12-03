@@ -1,6 +1,6 @@
 FROM python:3.6
-COPY . /app
+COPY cloud-node/* /app/
 WORKDIR /app
-RUN pip install --no-cache-dir -r cloud-node/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8999
-CMD ["python", "cloud-node/server.py"]
+CMD ["python", "server.py"]
