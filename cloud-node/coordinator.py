@@ -31,12 +31,6 @@ def start_new_session(message, clients):
             "error": True,
             "message": "Server is already busy working."
         }
-    elif message.library_type not in \
-            (LibraryType.PYTHON.value, LibraryType.JS.value):
-        return {
-            "error": True,
-            "message": "Invalid library type!"
-        }
 
     state.state_lock.acquire()
     state.state["busy"] = True

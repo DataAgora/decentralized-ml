@@ -77,7 +77,7 @@ def good_python_session_message(sample_good_session_message):
 def good_js_session_message(sample_good_session_message):
     js_message = deepcopy(sample_good_session_message)
     js_message["library_type"] = "JAVASCRIPT"
-    return json.dumps(js_message)
+    return Message.make(js_message)
 
 @pytest.fixture
 def train_message(session_id, repo_id, hyperparams):
@@ -97,6 +97,10 @@ def broadcast_message(dummy_clients, train_message):
         "client_list": dummy_clients,
         "message": train_message,
     }
+@pytest.fixture(autouse=True)
+def reset_state():
+    state.reset_state()
+
 @pytest.fixture(autouse=True, scope="session")
 def manage_test_object(s3_object, h5_model_path):
     s3_object.put(Body=open(h5_model_path, "rb"))
@@ -110,6 +114,29 @@ def test_new_python_session(good_python_session_message, dummy_clients, \
 
     assert state.state["h5_model_path"], "h5 model path not set!"
     assert os.path.isfile(state.state["h5_model_path"]), "Model not saved!"
+
     assert results == broadcast_message, "Broadcast message is incorrect!"
+    
+
+def test_new_js_session(good_js_session_message, dummy_clients, \
+        broadcast_message):
+    results = start_new_session(good_js_session_message, dummy_clients)
+
+    assert state.state["h5_model_path"], "h5 model path not set!"
+    assert os.path.isfile(state.state["h5_model_path"]), "Model not saved!"
+    
+    assert state.state["tfjs_model_path"], "TFJS model path not set."
+    assert os.path.isdir(state.state["tfjs_model_path"]) \
+        and len(os.listdir(state.state["tfjs_model_path"])) > 0, \
+        "TFJS model conversion failed!"
+
+    assert results == broadcast_message, "Broadcast message is incorrect!"
+
+def test_session_while_busy():
+    state.state["busy"] = True
+
+    results = start_new_session(None, None)
+    assert results["error"], "Error should have occurred!"
+    assert results["message"] = "Server is already busy working."
 
     
