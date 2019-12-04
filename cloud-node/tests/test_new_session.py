@@ -137,6 +137,6 @@ def test_session_while_busy():
 
     results = start_new_session(None, None)
     assert results["error"], "Error should have occurred!"
-    assert results["message"] = "Server is already busy working."
+    assert results["message"] == "Server is already busy working."
 
     
