@@ -7,7 +7,7 @@ from model import convert_keras_model, fetch_keras_model
 from message import LibraryType
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 
 def start_new_session(message, clients):
     """
@@ -54,7 +54,7 @@ def start_new_session(message, clients):
     #    training messages to.
     chosen_clients = _choose_clients(
         message.selection_criteria,
-        clients_dict["LIBRARY"]
+        clients,
     )
     state.state["num_nodes_chosen"] = len(chosen_clients)
 

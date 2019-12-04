@@ -5,6 +5,7 @@ import base64
 from functools import reduce
 import shutil
 
+import boto3
 import keras
 import numpy as np
 import tensorflowjs as tfjs
@@ -54,8 +55,7 @@ def fetch_keras_model():
         repo_id = state.state["repo_id"]
         session_id = state.state["session_id"]
         round = 0
-        s3 = boto3.resource("s3", aws_access_key_id=access_key, 
-            aws_secret_access_key=secret_key)
+        s3 = boto3.resource("s3")
         model_s3_key = "{0}/{1}/{2}/model.h5"
         model_s3_key = model_s3_key.format(repo_id, session_id, round)
         object = s3.Object("updatestore", model_s3_key)
@@ -66,11 +66,6 @@ def fetch_keras_model():
     state.state['h5_model_path'] = h5_model_path
     
     return h5_model_path
-
-def _fetch_initial_model():
-    """
-    Fetch the initial Keras model in S3 and save it locally.
-    """
     
 
 def get_encoded_h5_model():

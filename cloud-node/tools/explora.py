@@ -51,7 +51,7 @@ class Explora(object):
                 "value": 5
             },
             "library_type": library_type,
-            "use_gradients": True
+            "model_s3_key": True
         }
 
         NEW_CONNECTION_MESSAGE = {

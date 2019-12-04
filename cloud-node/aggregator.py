@@ -9,7 +9,7 @@ from coordinator import start_next_round
 from model import swap_weights
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 
 def handle_new_update(message, clients_dict):
     """
