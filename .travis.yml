@@ -1,0 +1,10 @@
+language: python
+python:
+  - "3.6"
+cache:
+  - pip
+  - npm
+install:
+  - pip install -r cloud-node/requirements.txt
+script:
+  - pytest cloud-node/tests
