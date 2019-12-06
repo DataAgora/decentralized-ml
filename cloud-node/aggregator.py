@@ -5,7 +5,7 @@ import numpy as np
 
 import state
 from updatestore import store_update
-from coordinator import start_next_round
+from coordinator import start_next_round, stop_session
 from model import swap_weights
 
 
@@ -24,18 +24,7 @@ def handle_new_update(message, clients_dict):
         dict: Returns a dictionary detailing whether an error occurred and
             if there was no error, what the next action is.
     """
-    new_message = {
-        "action": "STOP",
-        "session_id": state.state["session_id"],
-        "repo_id": state.state["repo_id"]
-    }
-    
-    results = {
-        "error": False,
-        "action": "BROADCAST",
-        "client_list": clients_dict["LIBRARY"] + clients_dict["DASHBOARD"],
-        "message": new_message,
-    }
+    results = {"action": None, "error": False}
 
     # 1. Check things match.
     if state.state["session_id"] != message.session_id:
@@ -84,14 +73,11 @@ def handle_new_update(message, clients_dict):
             print("Going to the next round...")
             results = start_next_round(clients_dict["LIBRARY"])
 
-            # 8.c. Log the resulting weights for the user (for this round)
-            # store_update("ROUND_COMPLETED", message)
-
     # 9. If 'Termination Criteria' is met...
-    # (NOTE: can't and won't happen with step 6.c.)
+    # (NOTE: can't and won't happen with step 8.b.)
     if check_termination_criteria():
         # 9.a. Reset all state in the service and mark BUSY as false
-        state.reset_state()
+        return stop_session(clients_dict)
 
     # 10. Release section/variables that were changed...
     state.state_lock.release()

@@ -75,6 +75,7 @@ class NewSessionMessage(Message):
         self.termination_criteria = serialized_message["termination_criteria"]
         self.library_type = serialized_message["library_type"]
         self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
+        self.node_type = "DASHBOARD"
 
     def __repr__(self):
         return json.dumps({
@@ -110,16 +111,9 @@ class NewUpdateMessage(Message):
                 dtype=np.dtype(float),
             )
         else:
-            temp_path = "temp.h5"
-            h5_model = serialized_message["results"]["h5_model"]
-            base64_h5_model = h5_model.encode('ascii')
-            h5_model_bytes = base64.b64decode(base64_h5_model)
-            with open(temp_path, 'wb') as fp:
-                fp.write(h5_model_bytes)
-            from keras.models import load_model
-            model = load_model(temp_path)
-            self.weights = model.get_weights()
+            raise Exception(("No update received!"))
         self.omega = serialized_message["results"]["omega"]
+        self.node_type = "LIBRARY"
 
     def __repr__(self):
         return json.dumps({

@@ -29,19 +29,18 @@ class CloudNodeFactory(WebSocketServerFactory):
         assert client_type in ('DASHBOARD', 'LIBRARY'), \
             "Type must be DASHBOARD or LIBRARY!"
         client_already_exists = False
-        success = False
         for _, clients in self.clients.items():
             if client in clients:
                 client_already_exists = True
-        if not client_already_exists:
-            if client_type == "LIBRARY" or len(self.clients[type]) == 0:
-                print("Registered client {}".format(client.peer))
-                self.clients[type].append(client)
-                success = True
-            else:
-                print("Only one DASHBOARD client allowed at a time!")
 
-        return success
+        if client_type == "DASHBOARD" and len(self.clients[client_type]) == 1:
+            return False, "Only one DASHBOARD client allowed at a time!"
+
+        if client_already_exists:
+            return False, "Client already exists!"
+        
+        self.clients[client_type].append(client)
+        return True, ""
 
     def unregister(self, client):
         """

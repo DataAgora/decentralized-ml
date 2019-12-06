@@ -132,6 +132,35 @@ def start_next_round(clients):
         "message": new_message,
     }
 
+def stop_session(clients_dict):
+    """
+    Stop the current session. Reset state and return broadcast `STOP` message
+    to all clients.
+
+    Args:
+        clients_dict (dict): Dictionary of clients, keyed by type of client
+            (either `LIBRARY` or `DASHBOARD`).
+
+    Returns:
+        dict: Returns the broadcast message with action `STOP`.
+    """
+    state.reset_state()
+
+    new_message = {
+        "action": "STOP",
+        "session_id": state.state["session_id"],
+        "repo_id": state.state["repo_id"]
+    }
+    
+    results = {
+        "error": False,
+        "action": "BROADCAST",
+        "client_list": clients_dict["LIBRARY"] + clients_dict["DASHBOARD"],
+        "message": new_message,
+    }
+
+    return results
+
 def _choose_clients(selection_criteria, client_list):
     """
     TO BE FINISHED.
