@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+import context
 import state
 from new_message import process_new_message
 
