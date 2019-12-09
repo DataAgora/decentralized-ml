@@ -5,9 +5,9 @@ Decentralized Machine Learning
 
 Full stack service enabling decentralized machine learning on private data.
 
-Check out the documentation `here <https://dml.readthedocs.io/en/latest/>`_!
+Check out the documentation `here <https://discreetai.readthedocs.io/en/latest/>`_!
 
 .. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
-    :target: https://dml.readthedocs.io/en/latest/?badge=latest
+    :target: https://discreetai.readthedocs.io/en/latest/?badge=latest
