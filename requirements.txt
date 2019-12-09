@@ -84,6 +84,7 @@ scipy==1.2.1
 semantic-version==2.5.0
 SimpleWebSocketServer==0.1.1
 six==1.12.0
+sphinx==2.2.2
 sphinx-js==2.8
 sphinx-rtd-theme==0.4.3
 tb-nightly==1.14.0a20190319
