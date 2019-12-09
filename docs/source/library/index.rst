@@ -1,7 +1,7 @@
 JS Library
 ===================================
 
-DataAgora's custom JS library for setting up datasets on the client side for training.
+DiscreetAI's custom JS library for setting up datasets on the client side for training.
 
 
 .. toctree::
