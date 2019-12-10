@@ -1,6 +1,6 @@
 {
   "name": "discreet-dml",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Interoperable and decentralized machine learning in JavaScript.",
   "main": "index.js",
   "dependencies": {
