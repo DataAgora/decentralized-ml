@@ -1,8 +1,8 @@
 var Endpoints = {
-  'eauthLogin': 'https://eauth.dataagora.com/auth/login/',
-  'eauthUser': 'https://eauth.dataagora.com/auth/user/',
-  'eauthRegistration': 'https://eauth.dataagora.com/auth/registration/',
-  'eauthLogout': 'https://eauth.dataagora.com/auth/logout/', // Not used with JWT.
+  'eauthLogin': 'https://eauth.discreetai.com/auth/login/',
+  'eauthUser': 'https://eauth.discreetai.com/auth/user/',
+  'eauthRegistration': 'https://eauth.discreetai.com/auth/registration/',
+  'eauthLogout': 'https://eauth.discreetai.com/auth/logout/', // Not used with JWT.
 
   'dashboardFetchReposRemaining': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/userdata',
   'dashboardCreateNewRepo': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/repo',
