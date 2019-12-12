@@ -4,7 +4,6 @@ from utils.validation import validate_repo_id, validate_model, \
     validate_and_prepare_hyperparameters, validate_percentage_averaged, \
     validate_max_rounds, validate_library_type, \
     validate_checkpoint_frequency
-from utils.keras_utils import get_h5_model
 from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import connect
 
