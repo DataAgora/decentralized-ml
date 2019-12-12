@@ -80,7 +80,6 @@ class NewSessionMessage(Message):
     def __repr__(self):
         return json.dumps({
             "repo_id": self.repo_id,
-            "h5_model": self.h5_model[:20],
             "hyperparams": self.hyperparams,
             "selection_criteria": self.selection_criteria,
             "continuation_criteria": self.continuation_criteria,
@@ -102,6 +101,7 @@ class NewUpdateMessage(Message):
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         self.action = serialized_message["action"]
+        print(serialized_message["results"].keys())
         if "gradients" in serialized_message["results"]:
             gradients = serialized_message["results"]["gradients"]
             self.gradients = [np.array(gradient) for gradient in gradients]

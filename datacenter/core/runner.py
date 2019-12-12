@@ -124,12 +124,6 @@ class DMLRunner(object):
             else:
                 h5_model_folder = os.path.join('sessions', job.session_id)
                 h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
-                h5_model = job.h5_model.encode('ascii')
-                h5_model_bytes = base64.b64decode(h5_model)
-                if not os.path.isdir(h5_model_folder):
-                    os.makedirs(h5_model_folder)
-                with open(h5_model_filepath, 'wb') as fp:
-                    fp.write(h5_model_bytes)
                 model = load_model(h5_model_filepath)
                 print("Loaded model!")
                 if not job.use_gradients:
@@ -178,7 +172,6 @@ class DMLRunner(object):
             dataset_iterator = create_random_train_dataset_iterator(
                 train_dataset_path,
                 batch_size=batch_size,
-                labeler=job.label_column_name,
                 infinite=False,
                 num_epochs=job.hyperparams.get('epochs')
             )
@@ -186,12 +179,10 @@ class DMLRunner(object):
             dataset_iterator = create_random_train_dataset_iterator(
                 train_dataset_path,
                 batch_size=batch_size,
-                labeler=job.label_column_name,
             )
             test_dataset_iterator = create_random_test_dataset_iterator(
                 test_dataset_path,
                 batch_size=batch_size,
-                labeler=job.label_column_name,
             )
 
         # Train the model the right way based on the model type.

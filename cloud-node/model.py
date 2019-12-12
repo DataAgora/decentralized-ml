@@ -10,7 +10,7 @@ import keras
 import numpy as np
 import tensorflowjs as tfjs
 import tensorflow as tf
-tf.compat.v1.disable_eager_execution()
+tf.compat.v1.disable_v2_behavior()
 from keras import backend as K
 
 import state
@@ -54,10 +54,9 @@ def fetch_keras_model():
     try:
         repo_id = state.state["repo_id"]
         session_id = state.state["session_id"]
-        round = 0
         s3 = boto3.resource("s3")
         model_s3_key = "{0}/{1}/{2}/model.h5"
-        model_s3_key = model_s3_key.format(repo_id, session_id, round)
+        model_s3_key = model_s3_key.format(repo_id, session_id, 0)
         object = s3.Object("updatestore", model_s3_key)
         object.download_file(h5_model_path)
     except Exception as e:

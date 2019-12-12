@@ -52,7 +52,9 @@ def process_new_message(message, factory, client):
                 # added node into the session!
                 print("Adding the new library node to this round!")
                 last_message = state.state["last_message_sent_to_library"]
-                results = last_message
+                results["error"] = False
+                results["message"] = last_message
+                results["action"] = "UNICAST"
         else:
             warning_message = "WARNING: Incorrect node type ({}) -- ignoring!"
             print(warning_message.format(message.node_type))

@@ -1,8 +1,10 @@
+import uuid
+
 from utils.validation import validate_repo_id, validate_model, \
     validate_and_prepare_hyperparameters, validate_percentage_averaged, \
     validate_max_rounds, validate_library_type, \
     validate_checkpoint_frequency
-from utils.keras_utils import get_h5_model
+from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import connect
 
 
@@ -42,7 +44,8 @@ async def start_new_session(self, repo_id, model, hyperparameters, \
         Waiting...
         Session complete! Check dashboard for final model!
     """
-    cloud_node_host = 'ws://' + repo_id + self.CLOUD_BASE_URL
+    cloud_node_host = "ws://" + repo_id + self.CLOUD_BASE_URL
+    session_id = str(uuid.uuid4())
 
     if not validate_repo_id(repo_id):
         print("Repo ID is not in a valid format!")
@@ -71,11 +74,15 @@ async def start_new_session(self, repo_id, model, hyperparameters, \
     if not validate_checkpoint_frequency(checkpoint_frequency):
         print("Checkpoint frequency must be int and between 0 and max rounds!")
         return
- 
+
+    if not upload_keras_model(repo_id, session_id. h5_model_path):
+        print("Model upload failed!")
+        return
+
     new_message = {
         "type": "NEW_SESSION",
+        "session_id": session_id,
         "repo_id": repo_id,
-        "h5_model": h5_model,
         "hyperparams": hyperparams,
         "checkpoint_frequency": checkpoint_frequency,
         "selection_criteria": {

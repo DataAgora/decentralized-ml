@@ -84,7 +84,6 @@ class DMLTrainJob(DMLJob):
     def __init__(
         self,
         hyperparams,
-        label_column_name,
         framework_type,
         model,
         use_gradients,
@@ -98,9 +97,6 @@ class DMLTrainJob(DMLJob):
             framework_type (str): the type of framework the model is in [keras].
             weights (list): list of np.arrays representing the weights of a model.
             hyperparams (dict): hyperparameters for training/validating a model.
-            label_column_name (str): string that represents which column of the
-                                     transformed dataset contains the labels for
-                                     supervised training.
             datapoint_count (int): Number of datapoints after applying
                                    transform function.
             session_filepath (str): the filepath to the folder that contains
@@ -110,7 +106,6 @@ class DMLTrainJob(DMLJob):
         """
         self.job_type = JobTypes.JOB_TRAIN.name
         self.hyperparams = hyperparams
-        self.label_column_name = label_column_name
         self.framework_type = framework_type
         self.model = model
         self.use_gradients = use_gradients
@@ -125,7 +120,6 @@ class DMLValidateJob(DMLJob):
         self,
         datapoint_count,
         hyperparams,
-        label_column_name,
         framework_type,
         serialized_model,
         weights,
@@ -153,7 +147,6 @@ class DMLValidateJob(DMLJob):
         self.job_type = JobTypes.JOB_VAL.name
         self.datapoint_count = datapoint_count
         self.hyperparams = hyperparams
-        self.label_column_name = label_column_name
         self.framework_type = framework_type
         self.serialized_model = serialized_model
         self.weights = weights

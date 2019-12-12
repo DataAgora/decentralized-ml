@@ -11,6 +11,9 @@ __pycache__/
 .pytest_cache/
 .cache/
 */__pycache__/
+*/node_modules/
+cloud-node/temp/
+datacenter/sessions
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

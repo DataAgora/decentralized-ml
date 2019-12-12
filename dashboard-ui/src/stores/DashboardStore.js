@@ -37,6 +37,7 @@ class DashboardStore extends Reflux.Store {
           },
         }
       ).then(response => {
+        console.log(response)
         this._handleFetchAllReposResponse(response);
       });
     }
@@ -54,6 +55,7 @@ class DashboardStore extends Reflux.Store {
   }
 
   onFetchAllReposCompleted (repoList) {
+    console.log(repoList)
     this.state.repos = repoList;
     this.state.repos.sort((a,b) =>{
       if (a.Name < b.Name) return -1;

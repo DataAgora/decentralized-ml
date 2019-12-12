@@ -206,9 +206,13 @@ def _create_randomized_dataset_iterator(dataset_path, batch_size, labeler):
     Yields:
         tuple(X,y) where X is batch of features, y is batch of labels
     """
+    if not labeler:
+        labeler = "label"
+
     assert os.path.isfile(dataset_path), "Dataset path is invalid."
     assert batch_size > 0, "Invalid batch size provided."
     dataset = pd.read_csv(dataset_path).sample(frac=1) #Loads data and shuffles
+    print(labeler)
     assert labeler in dataset.columns, 'Labeler is invalid.'
 
     # Calculate number of batches so that each batch is at most size

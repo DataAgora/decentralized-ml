@@ -33,9 +33,18 @@ class Repo extends Reflux.Component {
 
   }
 
+  setUsername(username) {
+    try {
+      document.getElementById("username").innerHTML = username
+    } catch (e) {
+      setTimeout(this.setUsername(username), 100)
+    }
+  }
+
   async componentDidMount() {
     const { match: { params } } = this.props;
     const repoId = params.repoId;
+    var setUsername = this.setUsername;
 
     if (AuthStore.state.isAuthenticated) {
       let jwtString = AuthStore.state.jwt;
@@ -56,10 +65,9 @@ class Repo extends Reflux.Component {
       .then(r => r.json())
       .then(r => {
         console.log(r)
-        username = r["message"];
-        console.log(username);
-        var count = 100;
-        document.getElementById("username").innerHTML = username
+        username = r["Message"];
+        console.log(username)
+        setUsername(username);
       });
     }
     RepoDataActions.fetchRepoData(repoId);

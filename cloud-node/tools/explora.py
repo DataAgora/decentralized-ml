@@ -3,7 +3,10 @@ import asyncio
 
 import json
 import base64
+import boto3
+import keras
 
+from s3_utils import upload_keras_model
 import websockets
 
 class Explora(object):
@@ -15,7 +18,7 @@ class Explora(object):
         self.CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
     async def start_new_session(self, repo_id, library_type, checkpoint_frequency=1):
-        self.CLOUD_NODE_HOST = 'ws://99885f00eefcd4107572eb62a5cb429a.au4c4pd2ch.us-west-1.elasticbeanstalk.com/'
+        self.CLOUD_NODE_HOST = 'ws://localhost:8999'
 
         hyperparams = {
             "batch_size": 100,
@@ -23,21 +26,15 @@ class Explora(object):
             "shuffle": True,
         }
 
-        if library_type == 'Python':
-            hyperparams["label_column_name"] = "label"
-        else:
-            hyperparams["label_index"] = 0
+        h5_model_path = "assets/my_model.h5"
 
-        with open("assets/my_model.h5", mode='rb') as file:
-            file_content = file.read()
-            encoded_content = base64.b64encode(file_content)
-            h5_model = encoded_content.decode('ascii')
+        upload_keras_model(repo_id, "test-session", h5_model_path)
 
         NEW_MESSAGE = {
             "type": "NEW_SESSION",
             "repo_id": repo_id,
-            "h5_model": h5_model,
             "hyperparams": hyperparams,
+            "session_id": "test-session",
             "checkpoint_frequency": checkpoint_frequency,
             "selection_criteria": {
                 "type": "ALL_NODES",
@@ -51,7 +48,6 @@ class Explora(object):
                 "value": 5
             },
             "library_type": library_type,
-            "model_s3_key": True
         }
 
         NEW_CONNECTION_MESSAGE = {
@@ -78,7 +74,8 @@ class Explora(object):
                         print(json_response)
                         print("Stopping...")
                     return
-            except:
+            except Exception as e:
+                print(e)
                 num_reconnections -= 1
                 if not num_reconnections:
                     print("Failed to connect!")

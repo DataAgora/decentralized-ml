@@ -12,7 +12,7 @@ import werkzeug.formparser
 from twisted.web.server import Site
 from twisted.web.wsgi import WSGIResource
 from twisted.internet import task, reactor
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, send_file
 from autobahn.twisted.resource import WebSocketResource, WSGIRootResource
 
 from protocol import CloudNodeProtocol
@@ -62,6 +62,17 @@ def serve_tfjs_model(filename):
         os.path.join(app.root_path, state.state['tfjs_model_path']),
         filename,
     )
+
+@app.route('/model.h5', methods=['POST', 'GET'])
+def serve_keras_model():
+    if not state.state["busy"]:
+        return "No active session!\n"
+
+    if state.state["library_type"] != LibraryType.PYTHON.value:
+        return "Current session is not for PYTHON!"
+
+    app_path = os.path.join(app.root_path, state.state['h5_model_path'])
+    return send_file(app_path)
 
 @app.route('/secret/reset_state')
 def reset_state():

@@ -27,7 +27,7 @@ def bootstrap(repo_id=None, test=False):
 
     runner = DMLRunner(config_manager)
 
-    optimizer = FederatedAveragingOptimizer(runner)
+    optimizer = FederatedAveragingOptimizer(runner, repo_id)
 
     loop = asyncio.get_event_loop()
 

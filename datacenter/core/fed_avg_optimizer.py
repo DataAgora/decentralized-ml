@@ -33,32 +33,12 @@ class FederatedAveragingOptimizer(object):
 
 	"""
 
-	def __init__(self, runner):
-		"""
-		Initializes the basic optimizer, which does not communicate with
-		the status_server or with Explora.
-
-		Expects the `initialization_payload` dict to contain two dicts:
-
-			- data-provider specific information, incl. dataset_uuid etc.
-
-			- job specific information
-
-				- `serialized_job`: the serialized DML Job
-
-				- `optimizer_params`: the optimizer parameters (dict) needed to
-				initialize this optimizer (should contain the max_rounds and
-				num_averages_per_round)
-		
-		num_averages_per_round(int): how many weights this optimizer needs to incorporate
-		into its weighted running average before it's "heard enough" 
-		and can move on to training
-		max_rounds(int): how many rounds of fed learning this optimizer wants to do
-		"""
+	def __init__(self, runner, repo_id):
 		self.logger = logging.getLogger("FedAvgOptimizer")
 		self.logger.info("Setting up Optimizer...")
 		self.job_data = {}
 		self.runner = runner
+		self.repo_id = repo_id
 		
 		self.LEVEL1_CALLBACKS = {
 			RawEventTypes.JOB_DONE.name: self._handle_job_done,
@@ -105,7 +85,7 @@ class FederatedAveragingOptimizer(object):
 		self.job_data["sigma_omega"] = 0
 		# self.num_averages_per_round = optimizer_params.get('num_averages_per_round')
 		self.job_data["curr_round"] = 1
-		self.job_data["use_gradients"] = serialized_job.get("use_gradients")
+		self.job_data["use_gradients"] = True
 		if self.job_data["use_gradients"]:
 			self.logger.info("We are communicating with gradients!")
 		else:
@@ -168,7 +148,6 @@ class FederatedAveragingOptimizer(object):
 		self.job_data['h5_model_folder'] = dmlresult_obj.results.get('h5_model_folder')
 		train_job = DMLTrainJob(
 			hyperparams=self.job_data["hyperparams"],
-			label_column_name=self.job_data["label_column_name"],
 			framework_type=self.job_data["framework_type"],
 			model= dmlresult_obj.results.get('model'),
 			use_gradients=self.job_data["use_gradients"],
