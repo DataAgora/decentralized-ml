@@ -23,12 +23,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/DiscreetAI/dml-library-js.git"
+    "url": "https://github.com/DiscreetAI/decentralized-ml.git"
   },
-  "author": "Neelesh Dodda <neelesh.dodda@dataagora.com>",
+  "author": "DiscreetAI <neelesh.dodda@discreetai.com>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/DiscreetAI/decentralized-ml/issues"
   },
-  "homepage": "https://github.com/DiscreetAI/dml-library-js/blob/master/README.md"
+  "homepage": "https://discreetai.readthedocs.io/en/latest/library/index.html"
 }

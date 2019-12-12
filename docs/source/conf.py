@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('../../dml-library-js/library'))
 # -- Project information -----------------------------------------------------
 js_source_path = '../../dml-library-js/library'
 project = 'DiscreetAI'
-copyright = '2019, Neelesh Dodda'
-author = 'Neelesh Dodda'
+copyright = '2019, DiscreetAI'
+author = 'DiscreetAI'
 
 # The full version, including alpha/beta/rc tags
 release = '1.0.0'
