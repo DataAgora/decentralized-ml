@@ -59,7 +59,7 @@ def hyperparams():
     }
 
 @pytest.fixture(scope="session")
-def session_message(repo_id, session_id, hyperparams, model_s3_key):
+def session_message(repo_id, session_id, hyperparams):
     return {
         "type": "NEW_SESSION",
         "repo_id": repo_id,
@@ -77,7 +77,6 @@ def session_message(repo_id, session_id, hyperparams, model_s3_key):
             "type": "MAX_ROUND",
             "value": 5
         },
-        "model_s3_key": model_s3_key
     }
 
 @pytest.fixture(scope="session")

@@ -24,8 +24,8 @@ def store_update(type, message, with_weights=True):
             weights_s3_key = "{0}/{1}/{2}/model.h5"
             weights_s3_key = weights_s3_key.format(repo_id, session_id, round)
             object = s3.Object("updatestore", weights_s3_key)
-            h5_filepath = state.state["h5_model_path"]
-            object.put(Body=open(h5_filepath, "rb"))
+            h5_model_path = state.state["h5_model_path"]
+            object.put(Body=open(h5_model_path, "rb"))
         except Exception as e:
             print("S3 Error: {0}".format(e))
 
