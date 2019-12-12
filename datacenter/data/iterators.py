@@ -187,7 +187,7 @@ def _create_sequential_dataset_iterator(dataset_path, max_count, iter_type, \
             batch.append(line)
             count += 1
 
-def _create_randomized_dataset_iterator(dataset_path, batch_size, labeler):
+def _create_randomized_dataset_iterator(dataset_path, batch_size, labeler="label"):
     """
     Returns a randomized iterator of batches of size B containing all features
     of the data. If batch_size > max_count, then the datapoints for the 

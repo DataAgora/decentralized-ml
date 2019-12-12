@@ -168,7 +168,6 @@ class FederatedAveragingOptimizer(object):
 		self.job_data['h5_model_folder'] = dmlresult_obj.results.get('h5_model_folder')
 		train_job = DMLTrainJob(
 			hyperparams=self.job_data["hyperparams"],
-			label_column_name=self.job_data["label_column_name"],
 			framework_type=self.job_data["framework_type"],
 			model= dmlresult_obj.results.get('model'),
 			use_gradients=self.job_data["use_gradients"],
