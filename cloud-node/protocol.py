@@ -70,10 +70,6 @@ class CloudNodeProtocol(WebSocketServerProtocol):
                 client_list=results["client_list"],
                 isBinary=isBinary,
             )
-
-        new_message = json.dumps(last_message)
-        self.sendMessage(message_json.encode(), isBinary)
-
         print("[[DEBUG] State: {}".format(state.state))
 
     def _broadcastMessage(self, payload, client_list, isBinary):
