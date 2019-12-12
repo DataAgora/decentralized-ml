@@ -4,7 +4,7 @@ import asyncio
 explora = Explora()
 
 repo_id = "99885f00eefcd4107572eb62a5cb429a"
-library_type = "PYTHON"
+library_type = "JAVASCRIPT"
 
 loop = asyncio.get_event_loop()
 

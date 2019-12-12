@@ -138,6 +138,7 @@ def swap_weights():
     base_model_path = os.path.join(TEMP_FOLDER, state.state["session_id"])
     round = state.state["current_round"]
     new_h5_model_path = base_model_path + '/model{0}.h5'.format(round)
+    state.state['h5_model_path'] = new_h5_model_path
 
     if state.state["library_type"] == LibraryType.PYTHON.value:
         gradients = state.state["current_gradients"]
@@ -161,7 +162,7 @@ def swap_weights():
         model.save(new_h5_model_path)
         convert_keras_model()
 
-    state.state['h5_model_path'] = new_h5_model_path
+    
 
     K.clear_session()
 

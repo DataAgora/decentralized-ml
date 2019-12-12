@@ -121,7 +121,7 @@ def start_next_round(clients):
     if state.state['library_type'] == LibraryType.PYTHON.value:
         new_message['gradients'] = [gradient.tolist() for gradient in state.state['current_gradients']]
     else:
-        _ = convert_and_save_model(state.state["current_round"] - 1)
+        _ = convert_keras_model()
 
     # Kickstart a DML Session with the TFJS model
     

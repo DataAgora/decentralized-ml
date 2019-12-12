@@ -49,8 +49,6 @@ class TrainRequest extends DMLRequest {
         requiredKeys.forEach(key => {
             assert (key in message, "TrainRequest must have ${key}!");
         })
-        assert("label_index" in message["hyperparams"], 
-            "Hyperparams must have label_index!")
 
         super();
 
@@ -83,7 +81,7 @@ class TrainRequest extends DMLRequest {
             "action": "TRAIN",
             "results": results,
             "round": this.round,
-            "type": "NEW_WEIGHTS",
+            "type": "NEW_UPDATE",
         };
         return JSON.stringify(socketMessage);
     }
