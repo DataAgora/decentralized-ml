@@ -80,7 +80,6 @@ class NewSessionMessage(Message):
     def __repr__(self):
         return json.dumps({
             "repo_id": self.repo_id,
-            "h5_model": self.h5_model[:20],
             "hyperparams": self.hyperparams,
             "selection_criteria": self.selection_criteria,
             "continuation_criteria": self.continuation_criteria,
