@@ -5,7 +5,7 @@ import AuthStore from './../../stores/AuthStore';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 
 
-import logo from './white-logo.png';
+import logo from './white-logo2.png';
 import './header.css';
 
 class Header extends Reflux.Component {
