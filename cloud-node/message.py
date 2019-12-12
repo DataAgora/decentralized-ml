@@ -101,6 +101,7 @@ class NewUpdateMessage(Message):
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         self.action = serialized_message["action"]
+        print(serialized_message["results"].keys())
         if "gradients" in serialized_message["results"]:
             gradients = serialized_message["results"]["gradients"]
             self.gradients = [np.array(gradient) for gradient in gradients]

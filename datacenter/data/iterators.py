@@ -187,7 +187,7 @@ def _create_sequential_dataset_iterator(dataset_path, max_count, iter_type, \
             batch.append(line)
             count += 1
 
-def _create_randomized_dataset_iterator(dataset_path, batch_size, labeler="label"):
+def _create_randomized_dataset_iterator(dataset_path, batch_size, labeler):
     """
     Returns a randomized iterator of batches of size B containing all features
     of the data. If batch_size > max_count, then the datapoints for the 
@@ -206,9 +206,13 @@ def _create_randomized_dataset_iterator(dataset_path, batch_size, labeler="label
     Yields:
         tuple(X,y) where X is batch of features, y is batch of labels
     """
+    if not labeler:
+        labeler = "label"
+
     assert os.path.isfile(dataset_path), "Dataset path is invalid."
     assert batch_size > 0, "Invalid batch size provided."
     dataset = pd.read_csv(dataset_path).sample(frac=1) #Loads data and shuffles
+    print(labeler)
     assert labeler in dataset.columns, 'Labeler is invalid.'
 
     # Calculate number of batches so that each batch is at most size
