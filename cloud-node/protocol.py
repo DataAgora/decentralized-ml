@@ -73,7 +73,6 @@ class CloudNodeProtocol(WebSocketServerProtocol):
         elif results["action"] == "UNICAST":
             message = json.dumps(results["message"]).encode()
             self.sendMessage(message, isBinary)
-        print("[[DEBUG] State: {}".format(state.state))
 
     def _broadcastMessage(self, payload, client_list, isBinary):
         """
