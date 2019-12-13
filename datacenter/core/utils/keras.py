@@ -27,7 +27,7 @@ def train_keras_model(model, dataset_iterator, data_count,
         for X, y in dataset_iterator:
             learning_rate = model.optimizer.lr
             loss, accuracy = model.train_on_batch(X, y)
-            print("Finished training on batch {0} with loss {1} and accuracy {2}")
+            print("Finished training on batch {0} with loss {1} and accuracy {2}").format(batch, loss, accuracy)
             gradients = calculate_gradients(model, X, y)
             if accumulated_gradients is None:
                 accumulated_gradients = np.zeros(gradients.shape)
