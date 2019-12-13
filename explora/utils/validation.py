@@ -1,5 +1,8 @@
 import uuid
 
+import keras
+
+
 def validate_repo_id(repo_id):
     """
     Check that repo ID is in the uuid4 format.
@@ -13,7 +16,7 @@ def validate_repo_id(repo_id):
     except ValueError:
         return False
 
-    return str(uuid_obj) == repo_id
+    return True
 
 def validate_model(model):
     """
@@ -43,14 +46,15 @@ def validate_and_prepare_hyperparameters(hyperparams):
 
 def validate_percentage_averaged(percentage_averaged):
     """
-    Check that percentage averaged is float and between 0 and 1.
+    Check that percentage averaged is 1 OR is float and between 0 and 1.
     Args:
         percentage_averaged (float): Percentage of nodes to be averaged before
             moving on to the next round.
     """
-    return isinstance(percentage_averaged, float) \
-        and percentage_averaged > 0 \
-        and percentage_averaged < 1
+    return percentage_averaged == 1 \
+        or (isinstance(percentage_averaged, float) \
+            and percentage_averaged > 0 \
+            and percentage_averaged < 1)
 
 def validate_max_rounds(max_rounds):
     """
@@ -69,7 +73,7 @@ def validate_library_type(library_type):
     """
     return library_type in ("PYTHON", "JAVASCRIPT")
 
-def validate_checkpoint_frequency(checkpoint_frequency):
+def validate_checkpoint_frequency(checkpoint_frequency, max_rounds):
     """
     Check that checkpoint frequency is int and between 0 and max rounds.
     Args:

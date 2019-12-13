@@ -1,5 +1,8 @@
 import uuid
 
+import tensorflow as tf
+tf.compat.v1.disable_v2_behavior()
+
 from utils.validation import validate_repo_id, validate_model, \
     validate_and_prepare_hyperparameters, validate_percentage_averaged, \
     validate_max_rounds, validate_library_type, \
@@ -73,7 +76,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
         print("Library type must be either PYTHON or JAVASCRIPT")
         return
 
-    if not validate_checkpoint_frequency(checkpoint_frequency):
+    if not validate_checkpoint_frequency(checkpoint_frequency, max_rounds):
         print("Checkpoint frequency must be int and between 0 and max rounds!")
         return
 

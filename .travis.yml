@@ -8,6 +8,7 @@ install:
   - pip install -r cloud-node/requirements.txt
 script:
   - pytest cloud-node/tests
+  - pytest explora/tests
 branches:
   only:
     - "master"
