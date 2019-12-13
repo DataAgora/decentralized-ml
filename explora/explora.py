@@ -104,4 +104,4 @@ async def start_new_session(repo_id, model, hyperparameters, \
         "library_type": library_type
     }
 
-    await self._connect(new_message)
+    await connect(new_message)
