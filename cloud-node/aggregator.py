@@ -110,6 +110,7 @@ def _do_running_weighted_average(message):
     temp = np.add(temp, np.multiply(new_values, float(new_omega)))
     new_sigma_omega = sigma_omega + new_omega
     new_weighted_avg = np.divide(temp, float(new_sigma_omega))
+    new_weighted_avg = [np.array(avg) for avg in new_weighted_avg]
 
     # Update state
     state.state[key] = new_weighted_avg
