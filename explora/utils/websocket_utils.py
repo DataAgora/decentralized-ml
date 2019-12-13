@@ -11,7 +11,7 @@ NEW_CONNECTION_MESSAGE = {
     "node_type": "dashboard",
 }
 
-async def connect(self, cloud_node_host, new_message, max_size=2**22, \
+async def websocket_connect(cloud_node_host, new_message, max_size=2**22, \
         num_reconnections=3):
     """
     Connect to server, register and start new session.
@@ -20,7 +20,7 @@ async def connect(self, cloud_node_host, new_message, max_size=2**22, \
         new_message (dict): New session message to be sent to server.
         max_size (int): Maximum size in bytes for websocket transmission.
         num_reconnections (int): Number of consecutive reconnections allowed
-            for some arbitrary failure to connect. 
+            for some arbitrary failure to connect.
     """
     while True:
         try:

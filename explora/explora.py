@@ -8,7 +8,7 @@ from utils.validation import validate_repo_id, validate_model, \
     validate_max_rounds, validate_library_type, \
     validate_checkpoint_frequency
 from utils.s3_utils import upload_keras_model
-from utils.websocket_utils import connect
+from utils.websocket_utils import websocket_connect
 
 
 CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
@@ -17,22 +17,22 @@ async def start_new_session(repo_id, model, hyperparameters, \
         percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
         checkpoint_frequency=1):
     """
-    Validate arguments and then start a new session by sending a message to 
-    the server with the given configuration. Designed to be called in 
+    Validate arguments and then start a new session by sending a message to
+    the server with the given configuration. Designed to be called in
     `Explora.ipynb`.
 
     Args:
         repo_id (str): The repo ID associated with the current dataset.
         model (keras.engine.Model): The initial Keras model to train with. The
             model must be compiled!
-        hyperparams (dict): The hyperparameters to be used during training. 
+        hyperparams (dict): The hyperparameters to be used during training.
             Must include `batch_size`!
         percentage_averaged (float): Percentage of nodes to be averaged before
             moving on to the next round.
         max_rounds (int): Maximum number of rounds to train for.
         library_type (str): The type of library to train with. Must be either
             `PYTHON` or `JAVASCRIPT`.
-        checkpoint_frequency (int): Save the model in S3 every 
+        checkpoint_frequency (int): Save the model in S3 every
             `checkpoint_frequency` rounds.
 
     Examples:
@@ -43,7 +43,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
         ...     percentage_averaged=0.75,
         ...     max_rounds=5,
         ...     library_type="PYTHON",
-        ...     checkpoint_frequency=1,     
+        ...     checkpoint_frequency=1,
         ... )
         Starting session!
         Waiting...
@@ -71,7 +71,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
     if not validate_max_rounds(max_rounds):
         print("Max rounds must be int and at least 1!")
         return
-    
+
     if not validate_library_type(library_type):
         print("Library type must be either PYTHON or JAVASCRIPT")
         return
@@ -80,7 +80,9 @@ async def start_new_session(repo_id, model, hyperparameters, \
         print("Checkpoint frequency must be int and between 0 and max rounds!")
         return
 
-    if not upload_keras_model(repo_id, session_id. h5_model_path):
+    h5_model_path = "model/model.h5"
+    model.save(h5_model_path)
+    if not upload_keras_model(repo_id, session_id, h5_model_path):
         print("Model upload failed!")
         return
 
@@ -88,7 +90,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
         "type": "NEW_SESSION",
         "session_id": session_id,
         "repo_id": repo_id,
-        "hyperparams": hyperparams,
+        "hyperparams": hyperparameters,
         "checkpoint_frequency": checkpoint_frequency,
         "selection_criteria": {
             "type": "ALL_NODES",
@@ -104,4 +106,4 @@ async def start_new_session(repo_id, model, hyperparameters, \
         "library_type": library_type
     }
 
-    await connect(new_message)
+    await websocket_connect(cloud_node_host, new_message)
