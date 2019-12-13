@@ -12,10 +12,7 @@ from core.utils.filesys import ensure_dir
 import logging 
 
 logger = logging.getLogger('Utils/Keras')
-# import logging as utils_logging
 
-# utils_logging.basicConfig(level=utils_logging.INFO,
-#                     format='[Utils/Keras] %(asctime)s %(levelname)s %(message)s')
 
 def train_keras_model(model, dataset_iterator, data_count,
     hyperparams, config, gradients=False):
@@ -27,7 +24,7 @@ def train_keras_model(model, dataset_iterator, data_count,
         for X, y in dataset_iterator:
             learning_rate = model.optimizer.lr
             loss, accuracy = model.train_on_batch(X, y)
-            print("Finished training on batch {0} with loss {1} and accuracy {2}").format(batch, loss, accuracy)
+            print("Finished training on batch {0} with loss {1} and accuracy {2}".format(batch, loss, accuracy))
             gradients = calculate_gradients(model, X, y)
             if accumulated_gradients is None:
                 accumulated_gradients = np.zeros(gradients.shape)
@@ -38,14 +35,6 @@ def train_keras_model(model, dataset_iterator, data_count,
     else:
         hist = model.fit_generator(dataset_iterator, epochs=hyperparams['epochs'], \
             steps_per_epoch=data_count//hyperparams['batch_size'])
-    # weights_filepath = os.path.join(
-    #     os.path.dirname(os.path.realpath(__file__)),
-    #     config["weights_directory"],
-    #     uuid.uuid4().hex[:8] + ".h5"
-    # )
-    # ensure_dir(weights_filepath)
-    # model.save_weights(weights_filepath)
-    # weights = model.get_weights()
     logger.info('Keras training complete.')
     return model, {'training_history' : hist.history}
 

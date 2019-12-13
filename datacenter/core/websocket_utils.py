@@ -86,7 +86,12 @@ class WebSocketClient(object):
             "round": round,
         }
         self.logger.info("Sending new weights for {}".format(self.repo_id))
-        await websocket.send(json.dumps(new_weights_message, default=to_serializable))
+        try:
+            await websocket.send(json.dumps(new_weights_message, default=to_serializable))
+        except Exception as e:
+            print("Error sending weights!")
+            print(str(e))
+            print(new_weights_message)
             
 
     async def listen(self, websocket):
