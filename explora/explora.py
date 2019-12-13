@@ -7,6 +7,7 @@ from utils.validation import validate_repo_id, validate_model, \
 from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import connect
 
+
 CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
 async def start_new_session(repo_id, model, hyperparameters, \
