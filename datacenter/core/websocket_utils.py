@@ -50,6 +50,7 @@ class WebSocketClient(object):
                     assert 'action' in json_response, 'No action found: {}'.format(str(json_response))
                     if json_response['action'] == 'TRAIN':
                         if self.message_to_send:
+                            self.logger.info("Found old weights!")
                             await self.send_new_weights(websocket, self.message_to_send, json_response['session_id'], json_response['round'])
                             self.message_to_send = None
                         else:

@@ -117,7 +117,6 @@ class DMLRunner(object):
                 model = load_model(h5_model_filepath)
                 gradients = job.gradients
                 learning_rate = model.optimizer.lr
-                weights = np.array(model.get_weights())
                 new_weights = np.subtract(weights, gradients)
                 model.set_weights(new_weights)
                 model.save(h5_model_filepath)
@@ -126,8 +125,6 @@ class DMLRunner(object):
                 h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
                 model = load_model(h5_model_filepath)
                 print("Loaded model!")
-        print(h5_model_folder)
-        print(h5_model_filepath)
         results = DMLResult(
             status='successful',
             job=job,
