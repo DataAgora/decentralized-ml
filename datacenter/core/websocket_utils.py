@@ -8,6 +8,7 @@ import urllib.request
 import os
 
 from core.utils.enums import RawEventTypes, MessageEventTypes
+from websockets.client import WebSocketClientProtocol
 
 from functools import singledispatch
 
@@ -18,6 +19,12 @@ def to_serializable(val):
     return str(val)
 
 busy = False
+
+class ClientWebSocketProtocol(WebSocketClientProtocol):
+    def onPing():
+        print("Ping received from {}".format(self.peer))
+        self.sendPong(payload)
+        print("Pong sent to {}".format(self.peer))
 
 class WebSocketClient(object):
     def __init__(self, optimizer, config_manager, repo_id, test):
@@ -41,7 +48,8 @@ class WebSocketClient(object):
                 return
             async with websockets.connect(self._websocket_url, ping_interval=None, \
                     ping_timeout=None, close_timeout=None, max_size=None, \
-                    max_queue=None, read_limit=100000, write_limit=10000) as websocket:
+                    max_queue=None, read_limit=100000, write_limit=10000, \
+                    create_protocol=ClientWebSocketProtocol) as websocket:
                 await self.send_register_message(websocket)
                 while True:
                     json_response = await self.listen(websocket)
@@ -98,6 +106,7 @@ class WebSocketClient(object):
         except Exception as e:
             print("Error sending weights!: " + str(e))
             self.message_to_send = results
+            
             return {"success": False}          
 
     async def listen(self, websocket):

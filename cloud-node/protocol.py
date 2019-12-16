@@ -1,6 +1,7 @@
 import json
 
 from autobahn.twisted.websocket import WebSocketServerProtocol
+from twisted.internet import reactor
 
 import state
 from new_message import validate_new_message, process_new_message
@@ -12,6 +13,16 @@ class CloudNodeProtocol(WebSocketServerProtocol):
     when a new node connects, sends a message, disconnects). The networking 
     here happens through Websockets using the autobahn library.
     """
+
+    def doPing(self):
+        if self.run:
+            self.sendPing()
+            print("Ping sent to {}".format(self.peer))
+            reactor.callLater(10, self.doPing)
+
+    def onPong(self, payload):
+        print("Pong received from {}".format(self.peer))
+
     def onConnect(self, request):
         """
         Logs that a node has successfully connected.
@@ -22,12 +33,15 @@ class CloudNodeProtocol(WebSocketServerProtocol):
         """
         Logs that a connection was opened.
         """
+        self.run = True
+        self.doPing()
         print("WebSocket connection open.")
 
     def onClose(self, wasClean, code, reason):
         """
         Deregisters a node upon websocket closure and logs it.
         """
+        self.run = False
         print("WebSocket connection closed: {}".format(reason))
         self.factory.unregister(self)
 
