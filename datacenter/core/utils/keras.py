@@ -17,26 +17,21 @@ logger = logging.getLogger('Utils/Keras')
 def train_keras_model(model, dataset_iterator, data_count,
     hyperparams, config, gradients=False):
     logger.info('Keras training just started.')
-    if gradients:
-        accumulated_gradients = None
-        total_loss = 0
-        batch = 1
-        for X, y in dataset_iterator:
-            learning_rate = model.optimizer.lr
-            loss, accuracy = model.train_on_batch(X, y)
-            print("Finished training on batch {0} with loss {1} and accuracy {2}".format(batch, loss, accuracy))
-            gradients = calculate_gradients(model, X, y)
-            if accumulated_gradients is None:
-                accumulated_gradients = np.zeros(gradients.shape)
-            accumulated_gradients = np.add(accumulated_gradients, np.multiply(gradients, learning_rate))
-            batch += 1
-        accumulated_gradients = [K.eval(gradient).tolist() for gradient in accumulated_gradients]
-        return model, accumulated_gradients
-    else:
-        hist = model.fit_generator(dataset_iterator, epochs=hyperparams['epochs'], \
-            steps_per_epoch=data_count//hyperparams['batch_size'])
+    accumulated_gradients = None
+    total_loss = 0
+    batch = 1
+    for X, y in dataset_iterator:
+        learning_rate = model.optimizer.lr
+        loss, accuracy = model.train_on_batch(X, y)
+        print("Finished training on batch {0} with loss {1} and accuracy {2}".format(batch, loss, accuracy))
+        gradients = calculate_gradients(model, X, y)
+        if accumulated_gradients is None:
+            accumulated_gradients = np.zeros(gradients.shape)
+        accumulated_gradients = np.add(accumulated_gradients, np.multiply(gradients, learning_rate))
+        batch += 1
+    accumulated_gradients = [K.eval(gradient).tolist() for gradient in accumulated_gradients]
     logger.info('Keras training complete.')
-    return model, {'training_history' : hist.history}
+    return model, accumulated_gradients
 
 def calculate_gradients(model, X, y):
     weights = model.trainable_weights # weight tensors

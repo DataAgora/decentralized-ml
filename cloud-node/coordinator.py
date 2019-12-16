@@ -114,14 +114,17 @@ def start_next_round(clients):
         "action": "TRAIN",
         "hyperparams": message.hyperparams,
     }
-    state.state["last_message_sent_to_library"] = new_message
-    # Swap weights and convert (NEW) .h5 model into TFJS model
-    assert state.state["current_round"] > 0
 
     if state.state['library_type'] == LibraryType.PYTHON.value:
         new_message['gradients'] = [gradient.tolist() for gradient in state.state['current_gradients']]
     else:
         _ = convert_keras_model()
+        
+    state.state["last_message_sent_to_library"] = new_message
+    # Swap weights and convert (NEW) .h5 model into TFJS model
+    assert state.state["current_round"] > 0
+
+    
 
     # Kickstart a DML Session with the TFJS model
     

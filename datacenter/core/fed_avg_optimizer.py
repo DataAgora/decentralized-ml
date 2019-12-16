@@ -69,12 +69,8 @@ class FederatedAveragingOptimizer(object):
 			return self.new_job(serialized_job, session_id)
 
 	def _continue_training(self, serialized_job, session_id):
-		if self.job_data["use_gradients"]:
-			self.job_data["gradients"] = serialized_job.get("gradients")
-			return self.kickoff(session_id)
-		else:
-			h5_model = serialized_job.get("h5_model") 
-			return self.kickoff(session_id, h5_model=h5_model)
+		self.job_data["gradients"] = serialized_job.get("gradients")
+		return self.kickoff(session_id)
 
 	def new_job(self, serialized_job, session_id):
 		self.job_data["session_id"] = serialized_job.get("session_id")
@@ -85,15 +81,10 @@ class FederatedAveragingOptimizer(object):
 		self.job_data["sigma_omega"] = 0
 		# self.num_averages_per_round = optimizer_params.get('num_averages_per_round')
 		self.job_data["curr_round"] = 1
-		self.job_data["use_gradients"] = True
-		if self.job_data["use_gradients"]:
-			self.logger.info("We are communicating with gradients!")
-		else:
-			self.logger.info("We are communicating with weights!")
+		self.logger.info("We are communicating with gradients!")
 		self.job_data["h5_model_folder"] = None
 		self.job_data["gradients"] = None
-		h5_model = serialized_job.get("h5_model")
-		return self.kickoff(session_id, h5_model=h5_model)
+		return self.kickoff(session_id)
 		
 
 	def kickoff(self, session_id, h5_model=None):
@@ -104,8 +95,6 @@ class FederatedAveragingOptimizer(object):
 		randomly initializes the model.
 		"""
 		init_job = DMLInitializeJob(framework_type=self.job_data["framework_type"],
-									use_gradients=self.job_data["use_gradients"],
-									h5_model=h5_model,
 									h5_model_folder=self.job_data["h5_model_folder"],
 									gradients=self.job_data["gradients"])
 		init_job.session_id = session_id
@@ -150,7 +139,6 @@ class FederatedAveragingOptimizer(object):
 			hyperparams=self.job_data["hyperparams"],
 			framework_type=self.job_data["framework_type"],
 			model= dmlresult_obj.results.get('model'),
-			use_gradients=self.job_data["use_gradients"],
 		)
 		train_job.session_id = session_id
 		dmlresult_obj = self.runner.run_job(train_job)

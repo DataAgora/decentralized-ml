@@ -42,8 +42,6 @@ class DMLInitializeJob(DMLJob):
     def __init__(
         self,
         framework_type,
-        use_gradients,
-        h5_model=None,
         h5_model_folder=None,
         gradients=None
         ):
@@ -57,8 +55,6 @@ class DMLInitializeJob(DMLJob):
         """
         self.job_type = JobTypes.JOB_INIT.name
         self.framework_type = framework_type
-        self.use_gradients = use_gradients
-        self.h5_model = h5_model
         self.h5_model_folder = h5_model_folder
         self.gradients = gradients
     
@@ -86,7 +82,6 @@ class DMLTrainJob(DMLJob):
         hyperparams,
         framework_type,
         model,
-        use_gradients,
         ):
         """
         Initializes a DML Train Job object.
@@ -108,7 +103,6 @@ class DMLTrainJob(DMLJob):
         self.hyperparams = hyperparams
         self.framework_type = framework_type
         self.model = model
-        self.use_gradients = use_gradients
 
 class DMLValidateJob(DMLJob):
     """
