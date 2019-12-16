@@ -57,24 +57,19 @@ class WebSocketClient(object):
                         break
                     assert 'action' in json_response, 'No action found: {}'.format(str(json_response))
                     if json_response['action'] == 'TRAIN':
-                        if self.message_to_send:
-                            self.logger.info("Found old weights!")
-                            await self.send_new_weights(websocket, self.message_to_send, json_response['session_id'], json_response['round'])
-                            self.message_to_send = None
-                        else:
-                            self.logger.info('Received TRAIN message, beginning training...')
-                            url = self._cloud_url + "/model.h5"
-                            if json_response["round"] == 1:
-                                h5_model_folder = os.path.join('sessions', json_response['session_id'])
-                                h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
-                                if not os.path.isdir(h5_model_folder):
-                                    os.makedirs(h5_model_folder)
-                                urllib.request.urlretrieve(url, h5_model_filepath)
-                            results = self._optimizer.received_new_message(json_response)
-                            if not results["success"]:
-                                break
-                            await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
-                            self.reconnections_remaining = 3
+                        self.logger.info('Received TRAIN message, beginning training...')
+                        url = self._cloud_url + "/model.h5"
+                        if json_response["round"] == 1:
+                            h5_model_folder = os.path.join('sessions', json_response['session_id'])
+                            h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
+                            if not os.path.isdir(h5_model_folder):
+                                os.makedirs(h5_model_folder)
+                            urllib.request.urlretrieve(url, h5_model_filepath)
+                        results = self._optimizer.received_new_message(json_response)
+                        if not results["success"]:
+                            break
+                        await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
+                        self.reconnections_remaining = 3
                     elif json_response['action'] == 'STOP':
                         self.logger.info('Received STOP message, terminating...')
                         stop_received = True
@@ -104,9 +99,7 @@ class WebSocketClient(object):
         try:
             await websocket.send(json.dumps(new_weights_message, default=to_serializable))
         except Exception as e:
-            print("Error sending weights!: " + str(e))
-            self.message_to_send = results
-            
+            print("Error sending weights!: " + str(e))            
             return {"success": False}          
 
     async def listen(self, websocket):
