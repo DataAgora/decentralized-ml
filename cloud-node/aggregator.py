@@ -77,7 +77,7 @@ def handle_new_update(message, clients_dict):
     # (NOTE: can't and won't happen with step 8.b.)
     if check_termination_criteria():
         # 9.a. Reset all state in the service and mark BUSY as false
-        return stop_session(clients_dict)
+        resuts = stop_session(clients_dict)
 
     # 10. Release section/variables that were changed...
     state.state_lock.release()
