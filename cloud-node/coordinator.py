@@ -32,7 +32,6 @@ def start_new_session(message, clients):
             "message": "Server is already busy working."
         }
 
-    state.state_lock.acquire()
     state.state["busy"] = True
 
     # 2. Set the internal round variable to 1, reset the number of nodes
@@ -76,7 +75,6 @@ def start_new_session(message, clients):
         state.state["use_gradients"] = False
 
     # 7. Kickstart a DML Session with the model and round # 1
-    state.state_lock.release()
     return {
         "error": False,
         "action": "BROADCAST",

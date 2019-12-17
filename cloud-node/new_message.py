@@ -37,6 +37,7 @@ def process_new_message(message, factory, client):
         dict: Returns a dictionary detailing whether an error occurred and
             if there was no error, what the next action is.
     """
+    state.state_lock.acquire()
     results = {"action": None, "error": False}
 
     if message.type == MessageType.REGISTER.value:
@@ -82,4 +83,5 @@ def process_new_message(message, factory, client):
         print("Unknown message type!")
         results = {"error": True, "message": "Unknown message type!"}
 
+    state.state_lock.release()
     return results

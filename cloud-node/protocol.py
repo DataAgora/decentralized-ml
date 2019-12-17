@@ -72,7 +72,13 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             return
 
         # Process message
-        results = process_new_message(received_message, self.factory, self)
+        try:
+            results = process_new_message(received_message, self.factory, self)
+        except Exception as e:
+            state.reset_state()
+            state.state_lock.release()
+            error_message = "Exception processing new message: " + str(e)
+            raise Exception(error_message)
 
         if results["error"]:
             # If there was an error, just send the results.
