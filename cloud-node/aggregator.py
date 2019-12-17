@@ -39,48 +39,42 @@ def handle_new_update(message, clients_dict):
             "message": "The round in the message doesn't match the current round."
         }
 
-    # 2 Lock section/variables that will be changed...
-    state.state_lock.acquire()
-
     state.state["last_message_time"] = time.time()
 
-    # 3. Do running weighted average on the new weights.
+    # 2. Do running weighted average on the new weights.
     _do_running_weighted_average(message)
 
-    # 4. Update the number of nodes averaged (+1)
+    # 3. Update the number of nodes averaged (+1)
     state.state["num_nodes_averaged"] += 1
 
-    # 5. Log this update.
+    # 4. Log this update.
     # NOTE: Disabled until we actually need it. Could be useful for a progress bar.
     # store_update("UPDATE_RECEIVED", message, with_weights=False)
     
-    # 6. Swap in the newly averaged weights for this model.
+    # 5. Swap in the newly averaged weights for this model.
     swap_weights()
 
-    # 7. Store the model in S3, following checkpoint frequency constraints.
+    # 6. Store the model in S3, following checkpoint frequency constraints.
     if state.state["current_round"] % state.state["checkpoint_frequency"] == 0:
         store_update("ROUND_COMPLETED", message)
 
-    # 8. If 'Continuation Criteria' is met...
+    # 7. If 'Continuation Criteria' is met...
     if check_continuation_criteria():
-        # 8.a. Update round number (+1)
+        # 7.a. Update round number (+1)
         state.state["current_round"] += 1
 
-        # 8.b. If 'Termination Criteria' isn't met, then kickstart a new FL round
+        # 7.b. If 'Termination Criteria' isn't met, then kickstart a new FL round
         # NOTE: We need a way to swap the weights from the initial message
         # in node............
         if not check_termination_criteria():
             print("Going to the next round...")
             results = start_next_round(clients_dict["LIBRARY"])
 
-    # 9. If 'Termination Criteria' is met...
-    # (NOTE: can't and won't happen with step 8.b.)
+    # 8. If 'Termination Criteria' is met...
+    # (NOTE: can't and won't happen with step 7.b.)
     if check_termination_criteria():
-        # 9.a. Reset all state in the service and mark BUSY as false
-        resuts = stop_session(clients_dict)
-
-    # 10. Release section/variables that were changed...
-    state.state_lock.release()
+        # 8.a. Reset all state in the service and mark BUSY as false
+        results = stop_session(clients_dict)
 
     return results
 
