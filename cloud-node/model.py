@@ -7,8 +7,14 @@ import shutil
 
 import boto3
 import keras
+from keras.losses import categorical_crossentropy, mean_squared_error
 import numpy as np
 import tensorflowjs as tfjs
+import coremltools
+from coremltools.converters import keras as keras_converter
+from coremltools.proto import FeatureTypes_pb2 as _FeatureTypes_pb2
+from coremltools.models.neural_network import SgdParams
+from coremltools.models import MLModel
 import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
 from keras import backend as K
@@ -90,7 +96,7 @@ def get_keras_model():
     return keras.models.load_model(state.state["h5_model_path"])
 
 
-def convert_keras_model():
+def convert_keras_model_to_tfjs():
     """
     Retrieves the current Keras model, converts it (from the path) into a
     tf.js model, extracts metadata from the model, and prepares the temp 
@@ -106,7 +112,8 @@ def convert_keras_model():
     """
     session_id = state.state["session_id"]
     round = state.state["current_round"]
-    state.state["tfjs_model_path"] = os.path.join(TEMP_FOLDER, session_id, str(round))
+    tfjs_model_path = os.path.join(TEMP_FOLDER, session_id, str(round))
+    state.state["tfjs_model_path"] = tfjs_model_path
 
     _keras_2_tfjs()
 
@@ -122,6 +129,26 @@ def convert_keras_model():
     }
     with open(metadata_path, 'w') as fp:
         json.dump(metadata, fp, sort_keys=True, indent=4)
+
+def convert_keras_model_to_mlmodel():
+    session_id = state.state["session_id"]
+    round = state.state["current_round"]
+    mlmodel_path = os.path.join(TEMP_FOLDER, session_id, str(round))
+    state.state["mlmodel_path"] = mlmodel_path
+
+    _keras_2_mlmodel_image()
+
+    if state.state["weights_shape"]:
+        return
+
+    model = get_keras_model()
+    layer_weight_shapes = {}
+    for i, layer in enumerate(model.layers):
+        layer_weight_shapes[i] = []
+        weights = model.get_weights()
+        layer_weight_shapes[i] = [weight.shape for weight in weights]
+    
+    state.state["weights_shape"] = layer_weight_shapes
 
 def swap_weights():
     """
@@ -147,6 +174,30 @@ def swap_weights():
         new_weights = np.subtract(weights, gradients)
         model.set_weights(new_weights)
         model.save(new_h5_model_path)
+    elif state.state["library_type"] == LibraryType.IOS.value:
+        ios_gradients = state.state["current_gradients"]
+        learning_rate = model.optimizer.lr
+        gradients = []
+        weights_shape = state.state["weights_shape"]
+        for i, layer_grad in enumerate(ios_gradients):
+            if not weights_shape[i]:
+                gradients.append([])
+                continue
+            layer_gradients = []
+            for j, grad in enumerate(layer_grad):
+                num_params = np.prod(weights_shape[i][j])
+                if len(grad) > num_params:
+                    grad = grad[:num_params]
+                grad = np.array(grad)
+                grad = np.reshape(grad, weights_shape[i][j])
+                if len(weights_shape[i][j]) > 1:
+                    grad = np.transpose(grad)
+                layer_gradients.append(grad)
+            gradients.append(layer_gradients)
+        weights = model.get_weights()
+        new_weights = np.subtract(weights, gradients)
+        model.set_weights(new_weights)
+        model.save(new_h5_model_path)
     else:
         weights_flat = state.state["current_weights"]
         weights_shape = state.state["weights_shape"]
@@ -161,8 +212,6 @@ def swap_weights():
         model.set_weights(weights)
         model.save(new_h5_model_path)
         convert_keras_model()
-
-    
 
     K.clear_session()
 
@@ -182,6 +231,49 @@ def _keras_2_tfjs():
     """
     model = get_keras_model()
     tfjs.converters.save_keras_model(model, state.state["tfjs_model_path"], np.uint16)
+    K.clear_session()
+
+def _keras_2_mlmodel_image():
+    model = get_keras_model()
+    ios_config = state.state["ios_config"]
+    class_labels = ios_config["class_labels"]
+    mlmodel = keras_converter.convert(keras_model, input_names=['image'],
+                                output_names=['output'],
+                                class_labels=class_labels,
+                                predicted_feature_name='label')
+    mlmodel.save(state.state["mlmodel_path"])
+
+    image_config = ios_config["image_config"]
+    spec = coremltools.utils.load_spec(coreml_model_path)
+    builder = coremltools.models.neural_network.NeuralNetworkBuilder(spec=spec)
+    builder.inspect_layers()
+
+    neuralnetwork_spec = builder.spec
+
+    dims = image_config["dims"]
+    neuralnetwork_spec.description.input[0].type.imageType.width = dims[0]
+    neuralnetwork_spec.description.input[0].type.imageType.height = dims[1]
+
+    cs = _FeatureTypes_pb2.ImageFeatureType.ColorSpace.Value(image_config["color_space"])
+    neuralnetwork_spec.description.input[0].type.imageType.colorSpace = cs
+
+    trainable_layer_names = [layer.name for layer in model.layers if layer.get_weights()]
+    builder.make_updatable(trainable_layer_names)
+
+    if model.optimizer.loss == categorical_crossentropy:
+        builder.set_categorical_cross_entropy_loss(name='loss', input='output')
+    else:
+        raise Exception("iOS loss function must be categorical cross entropy!")
+
+    batch_size = state.state["hyperparams"]["batch_size"]
+    epochs = state.state["hyperparams"]["epochs"]
+    lr = K.eval(model.optimizer.lr)
+    builder.set_sgd_optimizer(SgdParams(lr=lr, batch=batch_size))
+    builder.set_epochs(epochs)
+
+    mlmodel_updatable = MLModel(model_spec)
+    mlmodel_updatable.save(state.state["mlmodel_path"])
+
     K.clear_session()
 
 def _test():

@@ -3,7 +3,7 @@ import logging
 
 import state
 import copy
-from model import convert_keras_model, fetch_keras_model
+from model import convert_keras_model_to_tfjs, fetch_keras_model, convert_keras_model_to_mlmodel
 from message import LibraryType
 
 
@@ -42,6 +42,7 @@ def start_new_session(message, clients):
     state.state["repo_id"] = message.repo_id
     state.state["session_id"] = message.session_id
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
+    state.state["ios_config"] = message.ios_config
 
     # 3. According to the 'Selection Criteria', choose clients to forward
     #    training messages to.
@@ -68,11 +69,16 @@ def start_new_session(message, clients):
     # 5. Retrieve the initial model we are training with.
     fetch_keras_model()
 
-    # 6. If we are training with a JAVASCRIPT library, convert the model to 
+    # 6. If we are training with a JAVASCRIPT or IOS library, convert the model to 
     #    TFJS and host it on the server.
     if state.state["library_type"] == LibraryType.JS.value:
-        _ = convert_keras_model()    
+        _ = convert_keras_model_to_tfjs()    
         state.state["use_gradients"] = False
+    elif state.state["library_type"] == LibraryType.IOS.value:
+        assert state.state["ios_config"]["data_type"] == 'image', \
+            "Can only support image data for iOS now!"
+        state.state["hyperparams"] = message.hyperparams
+        _ = convert_keras_model_to_mlmodel()
 
     # 7. Kickstart a DML Session with the model and round # 1
     return {
@@ -115,17 +121,14 @@ def start_next_round(clients):
 
     if state.state['library_type'] == LibraryType.PYTHON.value:
         new_message['gradients'] = [gradient.tolist() for gradient in state.state['current_gradients']]
+    elif state.state['library_type'] == LibraryType.JS.value:
+        _ = convert_keras_model_to_tfjs()
     else:
-        _ = convert_keras_model()
+        _ = convert_keras_model_to_mlmodel()
         
     state.state["last_message_sent_to_library"] = new_message
-    # Swap weights and convert (NEW) .h5 model into TFJS model
     assert state.state["current_round"] > 0
 
-    
-
-    # Kickstart a DML Session with the TFJS model
-    
     return {
         "error": False,
         "action": "BROADCAST",
