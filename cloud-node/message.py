@@ -102,9 +102,10 @@ class NewUpdateMessage(Message):
     def __init__(self, serialized_message):
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
-        self.action = serialized_message["action"]
-        print(serialized_message["results"].keys())
         if "gradients" in serialized_message["results"]:
+            if isinstance(serialized_message["results"], str):
+                print("is string")
+                serialized_message["results"] = json.loads(serialized_message["results"])
             gradients = serialized_message["results"]["gradients"]
             self.gradients = [np.array(gradient) for gradient in gradients]
         elif "weights" in serialized_message["results"]:
@@ -121,7 +122,6 @@ class NewUpdateMessage(Message):
         return json.dumps({
             "session_id": self.session_id,
             "round": self.round,
-            "action": self.action,
             "weights": "omitted",
             "omega": self.omega,
         })

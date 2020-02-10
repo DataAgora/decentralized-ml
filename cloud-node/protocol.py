@@ -78,6 +78,7 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             state.reset_state()
             state.state_lock.release()
             error_message = "Exception processing new message: " + str(e)
+            raise(e)
             raise Exception(error_message)
 
         if results["error"]:

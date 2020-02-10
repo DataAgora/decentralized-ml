@@ -21,3 +21,4 @@ def upload_keras_model(repo_id, session_id, h5_model_path):
     except Exception as e:
         print("S3 Error: {0}".format(e))
         return False
+    return True

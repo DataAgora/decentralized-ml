@@ -44,6 +44,8 @@ def start_new_session(message, clients):
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
     state.state["ios_config"] = message.ios_config
 
+    print(message.ios_config)
+
     # 3. According to the 'Selection Criteria', choose clients to forward
     #    training messages to.
     chosen_clients = _choose_clients(
@@ -70,7 +72,7 @@ def start_new_session(message, clients):
     fetch_keras_model()
 
     # 6. If we are training with a JAVASCRIPT or IOS library, convert the model to 
-    #    TFJS and host it on the server.
+    #    accordingly and host it on the server.
     if state.state["library_type"] == LibraryType.JS.value:
         _ = convert_keras_model_to_tfjs()    
         state.state["use_gradients"] = False
