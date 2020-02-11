@@ -17,6 +17,7 @@ chardet==3.0.4
 Click==7.0
 colorama==0.3.9
 constantly==15.1.0
+coremltools==3.2
 decorator==4.4.0
 dnspython==1.16.0
 docker==3.7.2
@@ -117,9 +118,9 @@ termcolor==1.1.0
 texttable==0.9.1
 tornado==6.0.2
 traitlets==4.3.2
-Twisted==19.10.0
+Twisted==18.9.0
 txaio==18.8.1
-urllib3==1.24.2
+urllib3==1.24.1
 uWSGI==2.0.18
 wcwidth==0.1.7
 websocket-client==0.56.0
