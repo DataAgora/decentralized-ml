@@ -106,7 +106,6 @@ class NewUpdateMessage(Message):
         self.round = serialized_message["round"]
         if "gradients" in serialized_message["results"]:
             if isinstance(serialized_message["results"], str):
-                print("is string")
                 serialized_message["results"] = json.loads(serialized_message["results"])
             gradients = serialized_message["results"]["gradients"]
             self.gradients = [np.array(gradient) for gradient in gradients]

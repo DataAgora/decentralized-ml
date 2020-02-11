@@ -44,8 +44,6 @@ def start_new_session(message, clients):
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
     state.state["ios_config"] = message.ios_config
 
-    print(message.ios_config)
-
     # 3. According to the 'Selection Criteria', choose clients to forward
     #    training messages to.
     chosen_clients = _choose_clients(

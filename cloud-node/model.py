@@ -269,7 +269,6 @@ def _keras_2_mlmodel_image():
     if model.loss == "categorical_crossentropy":
         builder.set_categorical_cross_entropy_loss(name='loss', input='output')
     else:
-        print(model.loss)
         raise Exception("iOS loss function must be categorical cross entropy!")
 
     batch_size = state.state["hyperparams"]["batch_size"]

@@ -55,8 +55,8 @@ def serve_tfjs_model(filename):
     if not state.state["busy"]:
         return "No active session!\n"
 
-    # if state.state["library_type"] != LibraryType.JS.value:
-    #     return "Current session is not for JAVASCRIPT!"
+    if state.state["library_type"] != LibraryType.JS.value:
+        return "Current session is not for JAVASCRIPT!"
 
     return send_from_directory(
         os.path.join(app.root_path, state.state['tfjs_model_path']),
