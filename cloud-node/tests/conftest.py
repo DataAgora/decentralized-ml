@@ -30,12 +30,20 @@ def session_id():
     return "test-session"
 
 @pytest.fixture(scope="session")
+def ios_session_id():
+    return "ios-test-session"
+
+@pytest.fixture(scope="session")
 def repo_id():
     return "test-repo"
 
 @pytest.fixture(scope="session")
 def h5_model_path():
     return "cloud-node/tests/artifacts/my_model.h5"
+
+@pytest.fixture(scope="session")
+def ios_model_path():
+    return "cloud-node/tests/artifacts/ios_model.h5"
 
 @pytest.fixture(scope="session")
 def trained_h5_model_path():
@@ -46,9 +54,18 @@ def model_s3_key(session_id, repo_id):
     return "{0}/{1}/{2}/model.h5".format(repo_id, session_id, 0)
 
 @pytest.fixture(scope="session")
+def ios_model_s3_key(ios_session_id, repo_id):
+    return "{0}/{1}/{2}/model.h5".format(repo_id, ios_session_id, 0)
+
+@pytest.fixture(scope="session")
 def s3_object(model_s3_key):
     s3 = boto3.resource("s3")
     return s3.Object("updatestore", model_s3_key)
+
+@pytest.fixture(scope="session")
+def ios_s3_object(ios_model_s3_key):
+    s3 = boto3.resource("s3")
+    return s3.Object("updatestore", ios_model_s3_key)
 
 @pytest.fixture(scope="session")
 def hyperparams():
@@ -80,6 +97,18 @@ def session_message(repo_id, session_id, hyperparams):
     }
 
 @pytest.fixture(scope="session")
+def ios_config():
+    ios_config = {
+        "data_type": "image",
+        "image_config": {
+            "dims": (28, 28),
+            "color_space": "GRAYSCALE",
+        },
+        "class_labels": [str(i) for i in range(10)]
+    }
+    return ios_config
+
+@pytest.fixture(scope="session")
 def python_session_message(session_message):
     python_message = deepcopy(session_message)
     python_message["library_type"] = "PYTHON"
@@ -90,6 +119,14 @@ def js_session_message(session_message):
     js_message = deepcopy(session_message)
     js_message["library_type"] = "JAVASCRIPT"
     return Message.make(js_message)
+
+@pytest.fixture(scope="session")
+def ios_session_message(session_message, ios_session_id, ios_config):
+    ios_message = deepcopy(session_message)
+    ios_message["session_id"] = ios_session_id
+    ios_message["library_type"] = "IOS"
+    ios_message["ios_config"] = ios_config
+    return Message.make(ios_message)
 
 @pytest.fixture(scope="session")
 def train_message(session_id, repo_id, hyperparams):
