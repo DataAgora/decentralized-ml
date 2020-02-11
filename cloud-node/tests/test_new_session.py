@@ -92,17 +92,17 @@ def test_new_ios_session(ios_session_message, factory, ios_broadcast_message, \
 
     assert results == ios_broadcast_message, "Resulting message is incorrect!"
 
-# def test_session_while_busy(python_session_message, factory, \
-#         dashboard_client):
-#     """
-#     Test that new session cannot be started while server is busy.
-#     """
-#     state.state["busy"] = True
+def test_session_while_busy(python_session_message, factory, \
+        dashboard_client):
+    """
+    Test that new session cannot be started while server is busy.
+    """
+    state.state["busy"] = True
 
-#     results = process_new_message(python_session_message, factory, 
-#         dashboard_client)
+    results = process_new_message(python_session_message, factory, 
+        dashboard_client)
 
-#     assert results["error"], "Error should have occurred!"
-#     assert results["message"] == "Server is already busy working."
+    assert results["error"], "Error should have occurred!"
+    assert results["message"] == "Server is already busy working."
 
     
