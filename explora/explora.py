@@ -3,21 +3,28 @@ import uuid
 import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
 
-from utils.validation import validate_repo_id, validate_model, \
-    validate_and_prepare_hyperparameters, validate_percentage_averaged, \
-    validate_max_rounds, validate_library_type, \
-    validate_checkpoint_frequency
+from utils.validation import valid_repo_id, valid_model, \
+    valid_and_prepare_hyperparameters, valid_percentage_averaged, \
+    valid_max_rounds, valid_library_type, \
+    valid_checkpoint_frequency
 from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import websocket_connect
+from utils.enums import ErrorMessages, data_types
+from utils.data_config import DataConfig, ImageConfig 
 
 
 CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
+def make_data_config(data_type, class_labels, color_space=None, \
+        image_dims=None):
+    assert data_type in data_types, ErrorMessages.INVALID_DATA_TYPE.value
+    return ImageConfig(class_labels, color_space, image_dims)
+
 async def start_new_session(repo_id, model, hyperparameters, \
         percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
-        checkpoint_frequency=1):
+        checkpoint_frequency=1, data_config=None):
     """
-    Validate arguments and then start a new session by sending a message to
+    valid arguments and then start a new session by sending a message to
     the server with the given configuration. Designed to be called in
     `Explora.ipynb`.
 
@@ -34,6 +41,8 @@ async def start_new_session(repo_id, model, hyperparameters, \
             `PYTHON` or `JAVASCRIPT`.
         checkpoint_frequency (int): Save the model in S3 every
             `checkpoint_frequency` rounds.
+        data_config (dict): The configuration for the dataset, if applicable.
+            If `library_type` is `IOS`, then this argument is required!  
 
     Examples:
         >>> start_new_session(
@@ -52,32 +61,14 @@ async def start_new_session(repo_id, model, hyperparameters, \
     cloud_node_host = "ws://" + repo_id + CLOUD_BASE_URL
     session_id = str(uuid.uuid4())
 
-    if not validate_repo_id(repo_id):
-        print("Repo ID is not in a valid format!")
-        return
-
-    if not validate_model(model):
-        print("Provided model is not a Keras model!")
-        return
-
-    if not validate_and_prepare_hyperparameters(hyperparameters):
-        print("Hyperparameters must include batch size!")
-        return
-
-    if not validate_percentage_averaged(percentage_averaged):
-        print("Percentage averaged must be float and between 0 and 1!")
-        return
-
-    if not validate_max_rounds(max_rounds):
-        print("Max rounds must be int and at least 1!")
-        return
-
-    if not validate_library_type(library_type):
-        print("Library type must be either PYTHON or JAVASCRIPT")
-        return
-
-    if not validate_checkpoint_frequency(checkpoint_frequency, max_rounds):
-        print("Checkpoint frequency must be int and between 0 and max rounds!")
+    if not (valid_repo_id(repo_id) \
+            and valid_library_type(library_type) \
+            and valid_model(model, library_type) \
+            and valid_and_prepare_hyperparameters(hyperparameters) \
+            and valid_percentage_averaged(percentage_averaged) \
+            and valid_max_rounds(max_rounds) \
+            and valid_checkpoint_frequency(checkpoint_frequency, max_rounds) \
+            and valid_data_config(library_type, data_config) \
         return
 
     h5_model_path = "model/model.h5"

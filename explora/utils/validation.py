@@ -2,8 +2,11 @@ import uuid
 
 import keras
 
+from data_config import DataConfig, ImageConfig
+from enums import ErrorMessages, LibraryType, DataType, library_types, \
+    color_spaces, data_types
 
-def validate_repo_id(repo_id):
+def valid_repo_id(repo_id):
     """
     Check that repo ID is in the uuid4 format.
     Args:
@@ -14,11 +17,20 @@ def validate_repo_id(repo_id):
     try:
         uuid_obj = uuid.UUID(repo_id, version=4)
     except ValueError:
+        print(ErrorMessages.INVALID_REPO_ID.value)
         return False
-
     return True
 
-def validate_model(model):
+def valid_library_type(library_type):
+    """
+    Check that library_type is PYTHON or JAVASCRIPT.
+    Args:
+        library_type (str): The type of library to train with. Must be either
+            `PYTHON` or `JAVASCRIPT`.
+    """
+    return library_type in library_types
+
+def valid_model(model):
     """
     Check that the model is a Keras model and is compiled.
     Args:
@@ -27,9 +39,20 @@ def validate_model(model):
     Returns:
         bool: True if Keras model and compiled, False otherwise
     """
-    return isinstance(model, keras.engine.Model) and model.optimizer
+    if not isinstance(model, keras.engine.Model):
+        print(ErrorMessages.INVALID_MODEL_TYPE.value)
+        return False
+    elif not model.optimizer or not model.loss:
+        print(ErrorMessages.NOT_COMPILED.value)
+        return False
+    elif library_type == LibraryType.IOS.value \
+            and model.loss != 'categorical_cross_entropy':
+        print(ErrorMessages.INVALID_LOSS.value)
+        return False
 
-def validate_and_prepare_hyperparameters(hyperparams):
+    return True
+
+def valid_and_prepare_hyperparameters(hyperparams):
     """
     Check that hyperparams has `batch_size` entry and that it is an 
     appropriate number. Then add default entries for `epochs` and `shuffle`.
@@ -39,47 +62,81 @@ def validate_and_prepare_hyperparameters(hyperparams):
     """
     if not isinstance(hyperparams, dict) \
             or hyperparams.get('batch_size', 0) < 1:
+        print(ErrorMessages.INVALID_HYPERPARAMS.value)
         return False
     hyperparams['epochs'] = hyperparams.get('epochs', 5)
     hyperparams['shuffle'] = hyperparams.get('shuffle', True)
     return True
 
-def validate_percentage_averaged(percentage_averaged):
+def valid_percentage_averaged(percentage_averaged):
     """
     Check that percentage averaged is 1 OR is float and between 0 and 1.
     Args:
         percentage_averaged (float): Percentage of nodes to be averaged before
             moving on to the next round.
     """
-    return percentage_averaged == 1 \
-        or (isinstance(percentage_averaged, float) \
-            and percentage_averaged > 0 \
-            and percentage_averaged < 1)
+    if percentage_averaged != 1:
+        if not isinstance(percentage_averaged, float) \
+                and percentage_averaged > 0 \
+                and percentage_averaged < 1:
+            print(ErrorMessages.INVALID_PERCENTAGE_AVERAGED.value)
+            return False
+    return True
 
-def validate_max_rounds(max_rounds):
+def valid_max_rounds(max_rounds):
     """
     Check that max rounds is int and at least 1.
     Args:
         max_rounds (int): Maximum number of rounds to train for.
     """
-    return isinstance(max_rounds, int) and max_rounds >= 1
+    if not isinstance(max_rounds, int) or max_rounds < 1:
+        print(ErrorMessages.INVALID_MAX_ROUNDS.value)
+        return False
+    return True
 
-def validate_library_type(library_type):
-    """
-    Check that library_type is PYTHON or JAVASCRIPT.
-    Args:
-        library_type (str): The type of library to train with. Must be either
-            `PYTHON` or `JAVASCRIPT`.
-    """
-    return library_type in ("PYTHON", "JAVASCRIPT")
-
-def validate_checkpoint_frequency(checkpoint_frequency, max_rounds):
+def valid_checkpoint_frequency(checkpoint_frequency, max_rounds):
     """
     Check that checkpoint frequency is int and between 0 and max rounds.
     Args:
         checkpoint_frequency (int): Save the model in S3 every 
             `checkpoint_frequency` rounds.
     """
-    return isinstance(checkpoint_frequency, int) \
-        and checkpoint_frequency >= 1 \
-        and checkpoint_frequency <= max_rounds
+    if not isinstance(checkpoint_frequency, int) \
+            or checkpoint_frequency < 1 \
+            or checkpoint_frequency > max_rounds:
+        print(ErrorMessages.INVALID_CHECKPOINT_FREQUENCY.value)
+        return True
+    return False
+
+def valid_data_config(library_type, data_config):
+    if library_type != LibraryType.IOS.value:
+        return True
+    elif data_config == None:
+        print(ErrorMessages.DATA_CONFIG_NOT_SPECIFIED.value)
+        return False
+    elif not isinstance(data_config, DataConfig):
+        print(ErrorMessages.UNKNOWN_CONFIG.value)
+        return False
+    elif data_config.data_type not in data_types:
+        print(ErrorMessages.INVALID_DATA_TYPE.value)
+        return False
+    elif not isinstance(data_config.class_labels, list) \
+            or len(data_config.class_labels) > 0:
+        print(ErrorMessages.INVALID_CLASS_LABELS.value)
+        return False
+    elif data_config.data_type == DataType.IMAGE.value \
+            and not valid_image_config(data_config):
+        return False
+    return True    
+
+def valid_image_config(image_config):
+    if image_config.color_space not in color_spaces:
+        print(ErrorMessages.INVALID_COLOR_SPACE.value)
+        return False
+    elif not isinstance(image_config.dims, tuple) \
+            or len(image_config.dims) != 2 \
+            or any([not isinstance(dim, int) for dim in image_config.dims]):
+        print(ErrorMessages.INVALID_IMAGE_DIMS.value)
+        return False
+    return True
+    
