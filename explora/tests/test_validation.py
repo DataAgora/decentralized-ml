@@ -2,10 +2,11 @@ import context
 
 import pytest
 
+from explora import make_data_config
 from utils.validation import valid_repo_id, valid_model, \
     valid_and_prepare_hyperparameters, valid_percentage_averaged, \
     valid_max_rounds, valid_library_type, \
-    valid_checkpoint_frequency
+    valid_checkpoint_frequency, valid_data_config
 from utils.enums import LibraryType
 
 def test_repo_id_validation(good_repo_id, bad_repo_id):
@@ -95,3 +96,24 @@ def test_checkpoint_frequency_validation(good_checkpoint_frequency, \
     assert not valid_checkpoint_frequency(bad_checkpoint_frequency, \
             good_max_rounds), \
         "This checkpoint frequency should have failed validation!"
+
+def test_image_config(good_image_config, bad_image_config, \
+        bad_image_config_2, bad_image_config_3, bad_image_config_4):
+    assert valid_data_config(LibraryType.IOS.value, good_image_config), \
+        "This image config should have passed validation!"
+
+    assert not valid_data_config(LibraryType.IOS.value, bad_image_config), \
+        "This image config should have failed validation!"
+    
+    assert not valid_data_config(LibraryType.IOS.value, bad_image_config_2), \
+        "This image config should have failed validation!"
+
+    assert not valid_data_config(LibraryType.IOS.value, bad_image_config_3), \
+        "This image config should have failed validation!"
+
+    assert not valid_data_config(LibraryType.IOS.value, bad_image_config_4), \
+        "This image config should have failed validation!"
+
+def test_make_config_assertion(bad_data_type, good_class_labels):
+    with pytest.raises(AssertionError):
+        make_data_config(bad_data_type, good_class_labels)

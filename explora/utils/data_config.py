@@ -11,7 +11,7 @@ class DataConfig(object):
 
 class ImageConfig(DataConfig):
     def __init__(self, class_labels, color_space, dims):
-        super.__init__("image", class_labels)
+        super().__init__("image", class_labels)
         self.color_space = color_space
         self.dims = dims
 

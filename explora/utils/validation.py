@@ -121,7 +121,7 @@ def valid_data_config(library_type, data_config):
         print(ErrorMessages.INVALID_DATA_TYPE.value)
         return False
     elif not isinstance(data_config.class_labels, list) \
-            or len(data_config.class_labels) > 0:
+            or len(data_config.class_labels) <= 0:
         print(ErrorMessages.INVALID_CLASS_LABELS.value)
         return False
     elif data_config.data_type == DataType.IMAGE.value \

@@ -68,7 +68,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
             and valid_percentage_averaged(percentage_averaged) \
             and valid_max_rounds(max_rounds) \
             and valid_checkpoint_frequency(checkpoint_frequency, max_rounds) \
-            and valid_data_config(library_type, data_config) \
+            and valid_data_config(library_type, data_config)):
         return
 
     h5_model_path = "model/model.h5"
