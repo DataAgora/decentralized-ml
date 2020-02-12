@@ -76,10 +76,8 @@ class NewSessionMessage(Message):
         self.termination_criteria = serialized_message["termination_criteria"]
         self.library_type = serialized_message["library_type"]
         self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
-        self.ios_config = serialized_message.get("ios_config", {})
+        self.ios_config = serialized_message.get["ios_config"]
         self.node_type = "DASHBOARD"
-        if self.library_type == LibraryType.IOS.value:
-            assert self.ios_config, "iOS Config must not be empty!"
 
     def __repr__(self):
         return json.dumps({
