@@ -155,5 +155,4 @@ def bad_image_config_4(good_data_type, good_class_labels, good_color_space, \
         color_space=good_color_space, 
         image_dims=bad_image_dims
     )
-
   
