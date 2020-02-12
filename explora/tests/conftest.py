@@ -15,13 +15,22 @@ def bad_repo_id():
 
 @pytest.fixture(scope='session')
 def good_keras_model():
-    print(tf.__version__, "WAH")
     return keras.models.load_model("explora/tests/artifacts/model.h5")
+
+@pytest.fixture(scope='session')
+def good_keras_ios_model():
+    return keras.models.load_model("explora/tests/artifacts/ios_model.h5")
 
 @pytest.fixture(scope='session')
 def bad_keras_model():
     model = keras.models.load_model("explora/tests/artifacts/model.h5")
     model.optimizer = None
+    return model
+
+@pytest.fixture(scope='session')
+def bad_keras_ios_model():
+    model = keras.models.load_model("explora/tests/artifacts/ios_model.h5")
+    model.loss = "sparse_categorical_crossentropy"
     return model
 
 @pytest.fixture(scope='session')

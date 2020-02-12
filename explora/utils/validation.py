@@ -2,8 +2,8 @@ import uuid
 
 import keras
 
-from data_config import DataConfig, ImageConfig
-from enums import ErrorMessages, LibraryType, DataType, library_types, \
+from utils.data_config import DataConfig, ImageConfig
+from utils.enums import ErrorMessages, LibraryType, DataType, library_types, \
     color_spaces, data_types
 
 def valid_repo_id(repo_id):
@@ -30,7 +30,7 @@ def valid_library_type(library_type):
     """
     return library_type in library_types
 
-def valid_model(model):
+def valid_model(library_type, model):
     """
     Check that the model is a Keras model and is compiled.
     Args:
@@ -46,7 +46,7 @@ def valid_model(model):
         print(ErrorMessages.NOT_COMPILED.value)
         return False
     elif library_type == LibraryType.IOS.value \
-            and model.loss != 'categorical_cross_entropy':
+            and model.loss != 'categorical_crossentropy':
         print(ErrorMessages.INVALID_LOSS.value)
         return False
 
@@ -77,8 +77,8 @@ def valid_percentage_averaged(percentage_averaged):
     """
     if percentage_averaged != 1:
         if not isinstance(percentage_averaged, float) \
-                and percentage_averaged > 0 \
-                and percentage_averaged < 1:
+                or percentage_averaged < 0 \
+                or percentage_averaged > 1:
             print(ErrorMessages.INVALID_PERCENTAGE_AVERAGED.value)
             return False
     return True
@@ -105,8 +105,8 @@ def valid_checkpoint_frequency(checkpoint_frequency, max_rounds):
             or checkpoint_frequency < 1 \
             or checkpoint_frequency > max_rounds:
         print(ErrorMessages.INVALID_CHECKPOINT_FREQUENCY.value)
-        return True
-    return False
+        return False
+    return True
 
 def valid_data_config(library_type, data_config):
     if library_type != LibraryType.IOS.value:
