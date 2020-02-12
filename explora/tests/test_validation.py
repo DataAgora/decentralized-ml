@@ -9,6 +9,7 @@ from utils.validation import valid_repo_id, valid_model, \
     valid_checkpoint_frequency, valid_data_config
 from utils.enums import LibraryType
 
+
 def test_repo_id_validation(good_repo_id, bad_repo_id):
     """
     Test that a valid repo ID passes validation and an invalid one fails
@@ -99,6 +100,10 @@ def test_checkpoint_frequency_validation(good_checkpoint_frequency, \
 
 def test_image_config(good_image_config, bad_image_config, \
         bad_image_config_2, bad_image_config_3, bad_image_config_4):
+    """
+    Test that a valid image config passes validation and invalid ones fail 
+    validation.
+    """
     assert valid_data_config(LibraryType.IOS.value, good_image_config), \
         "This image config should have passed validation!"
 
@@ -115,5 +120,9 @@ def test_image_config(good_image_config, bad_image_config, \
         "This image config should have failed validation!"
 
 def test_make_config_assertion(bad_data_type, good_class_labels):
+    """
+    Test that trying to make an image config with an invalid data type will
+    raise an AssertionError.
+    """
     with pytest.raises(AssertionError):
         make_data_config(bad_data_type, good_class_labels)

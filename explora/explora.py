@@ -17,6 +17,25 @@ CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
 def make_data_config(data_type, class_labels, color_space=None, \
         image_dims=None):
+    """
+    Helper function to generate the required data config for users running 
+    training sessions with the iOS library.
+    
+    Args:
+        data_type (str): The type of data the model will train on. Currently,
+            only `image` is supported for the iOS library
+        class_labels (list): The list of possible labels that the model can
+            output.
+        color_space (str, optional): The type of image that is inputted into 
+            the model, if applicable. Must be specified if `data_type` is 
+            `image`. If specified, must be either `GRAYSCALE` or `COLOR`.
+        image_dims (tuple, optional): The dimensions of image that is inputted
+            into the model, if applicable. Must be specified if `data_type` is 
+            `image`. Must have a length of 2 (width x height).
+    
+    Returns:
+        DataConfig: Data config to be used when starting a new session.
+    """
     assert data_type in data_types, ErrorMessages.INVALID_DATA_TYPE.value
     return ImageConfig(class_labels, color_space, image_dims)
 
@@ -24,7 +43,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
         percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
         checkpoint_frequency=1, data_config=None):
     """
-    valid arguments and then start a new session by sending a message to
+    Validate arguments and then start a new session by sending a message to
     the server with the given configuration. Designed to be called in
     `Explora.ipynb`.
 
@@ -41,8 +60,9 @@ async def start_new_session(repo_id, model, hyperparameters, \
             `PYTHON` or `JAVASCRIPT`.
         checkpoint_frequency (int): Save the model in S3 every
             `checkpoint_frequency` rounds.
-        data_config (dict): The configuration for the dataset, if applicable.
-            If `library_type` is `IOS`, then this argument is required!  
+        data_config (:obj:`DataConfig`, optional): The configuration for the 
+            dataset, if applicable. If `library_type` is `IOS`, then this 
+            argument is required!  
 
     Examples:
         >>> start_new_session(
