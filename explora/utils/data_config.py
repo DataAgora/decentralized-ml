@@ -48,7 +48,7 @@ class ImageConfig(DataConfig):
         Returns:
             dict: The serialized image config.
         """
-        config = super.serialize()
+        config = super().serialize()
         image_config = {
             "color_space": self.color_space,
             "dims": self.dims

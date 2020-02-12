@@ -50,6 +50,7 @@ def valid_model(library_type, model):
         bool: True if Keras model and compiled, False otherwise.
     """
     if not isinstance(model, keras.engine.Model):
+        print(type(model))
         print(ErrorMessages.INVALID_MODEL_TYPE.value)
         return False
     elif not model.optimizer or not model.loss:

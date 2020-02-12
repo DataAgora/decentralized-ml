@@ -6,7 +6,7 @@ tf.compat.v1.disable_v2_behavior()
 from utils.validation import valid_repo_id, valid_model, \
     valid_and_prepare_hyperparameters, valid_percentage_averaged, \
     valid_max_rounds, valid_library_type, \
-    valid_checkpoint_frequency
+    valid_checkpoint_frequency, valid_data_config
 from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import websocket_connect
 from utils.enums import ErrorMessages, data_types
@@ -83,7 +83,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
 
     if not (valid_repo_id(repo_id) \
             and valid_library_type(library_type) \
-            and valid_model(model, library_type) \
+            and valid_model(library_type, model) \
             and valid_and_prepare_hyperparameters(hyperparameters) \
             and valid_percentage_averaged(percentage_averaged) \
             and valid_max_rounds(max_rounds) \
