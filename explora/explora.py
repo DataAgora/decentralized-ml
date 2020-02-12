@@ -24,8 +24,7 @@ def make_data_config(data_type, class_labels, color_space=None, \
     Args:
         data_type (str): The type of data the model will train on. Currently,
             only `image` is supported for the iOS library
-        class_labels (list): The list of possible labels that the model can
-            output.
+        class_labels (list): The list of possible labels in the dataset.
         color_space (str, optional): The type of image that is inputted into 
             the model, if applicable. Must be specified if `data_type` is 
             `image`. If specified, must be either `GRAYSCALE` or `COLOR`.
@@ -53,14 +52,15 @@ async def start_new_session(repo_id, model, hyperparameters, \
             model must be compiled!
         hyperparams (dict): The hyperparameters to be used during training.
             Must include `batch_size`!
-        percentage_averaged (float): Percentage of nodes to be averaged before
-            moving on to the next round.
-        max_rounds (int): Maximum number of rounds to train for.
-        library_type (str): The type of library to train with. Must be either
-            `PYTHON` or `JAVASCRIPT`.
-        checkpoint_frequency (int): Save the model in S3 every
-            `checkpoint_frequency` rounds.
-        data_config (:obj:`DataConfig`, optional): The configuration for the 
+        percentage_averaged (float, optional): Percentage of nodes to be 
+            averaged before moving on to the next round. Defaults to 0.75.
+        max_rounds (int, optional): Maximum number of rounds to train for.
+            Defaults to 5.
+        library_type (str, optional): The type of library to train with. Must
+            be either `PYTHON` or `JAVASCRIPT` or `IOS`. Defaults to `PYTHON`.
+        checkpoint_frequency (int, optional): Save the model in S3 every
+            `checkpoint_frequency` rounds. Defaults to 1.
+        data_config (DataConfig, optional): The configuration for the 
             dataset, if applicable. If `library_type` is `IOS`, then this 
             argument is required!  
 
@@ -97,6 +97,8 @@ async def start_new_session(repo_id, model, hyperparameters, \
         print("Model upload failed!")
         return
 
+    ios_config = data_config.serialize() if data_config else {}
+
     new_message = {
         "type": "NEW_SESSION",
         "session_id": session_id,
@@ -114,7 +116,8 @@ async def start_new_session(repo_id, model, hyperparameters, \
             "type": "MAX_ROUND",
             "value": max_rounds
         },
-        "library_type": library_type
+        "library_type": library_type,
+        "ios_config": ios_config,
     }
 
     await websocket_connect(cloud_node_host, new_message)

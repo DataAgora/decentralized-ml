@@ -2,15 +2,25 @@ from enum import Enum
 
 
 class LibraryType(Enum):
+    """
+    Enum to enumerate types of libraries.
+    """
     PYTHON = "PYTHON"
     JAVASCRIPT = "JAVASCRIPT"
     IOS = "IOS"
 
 class ColorSpace(Enum):
+    """
+    Enum to enumerate types of color spaces for image data for iOS training
+    sessions.
+    """
     GRAYSCALE = "GRAYSCALE"
     COLOR = "COLOR"
 
 class DataType(Enum):
+    """
+    Enum to enumerate types of data for iOS training sessions.
+    """
     IMAGE = "image"
 
 library_types = tuple([library_type.value for library_type in LibraryType])
@@ -18,6 +28,9 @@ color_spaces = tuple([color_space.value for color_space in ColorSpace])
 data_types = tuple([data_type.value for data_type in DataType])
 
 class ErrorMessages(Enum):
+    """
+    Enum to enumerate the possible validation error messages.
+    """
     INVALID_REPO_ID = "Repo ID is in an invalid format!"
     INVALID_LIBRARY_TYPE = "Invalid library type! The only valid library " \
         "types are: {}".format(library_types)    

@@ -6,11 +6,14 @@ from utils.data_config import DataConfig, ImageConfig
 from utils.enums import ErrorMessages, LibraryType, DataType, library_types, \
     color_spaces, data_types
 
+
 def valid_repo_id(repo_id):
     """
     Check that repo ID is in the uuid4 format.
+
     Args:
         repo_id (str): The repo ID associated with the current dataset.
+
     Returns:
         bool: True if in valid format, False otherwise
     """
@@ -23,21 +26,28 @@ def valid_repo_id(repo_id):
 
 def valid_library_type(library_type):
     """
-    Check that library_type is PYTHON or JAVASCRIPT.
+    Check that library type is valid.
+
     Args:
         library_type (str): The type of library to train with. Must be either
-            `PYTHON` or `JAVASCRIPT`.
+            `PYTHON` or `JAVASCRIPT` or `IOS`.
+
+    Returns:
+        bool: True if valid, False otherwise.
     """
     return library_type in library_types
 
 def valid_model(library_type, model):
     """
     Check that the model is a Keras model and is compiled.
+
     Args:
+        library_type (str): The type of library to train with.
         model (keras.engine.Model): The initial Keras model to train with. The
             model must be compiled!
+    
     Returns:
-        bool: True if Keras model and compiled, False otherwise
+        bool: True if Keras model and compiled, False otherwise.
     """
     if not isinstance(model, keras.engine.Model):
         print(ErrorMessages.INVALID_MODEL_TYPE.value)
@@ -56,9 +66,13 @@ def valid_and_prepare_hyperparameters(hyperparams):
     """
     Check that hyperparams has `batch_size` entry and that it is an 
     appropriate number. Then add default entries for `epochs` and `shuffle`.
+
     Args:
         hyperparams (dict): The hyperparameters to be used during training. 
             Must include `batch_size`!
+
+    Returns:
+        bool: True if valid, False otherwise.
     """
     if not isinstance(hyperparams, dict) \
             or hyperparams.get('batch_size', 0) < 1:
@@ -71,9 +85,13 @@ def valid_and_prepare_hyperparameters(hyperparams):
 def valid_percentage_averaged(percentage_averaged):
     """
     Check that percentage averaged is 1 OR is float and between 0 and 1.
+
     Args:
         percentage_averaged (float): Percentage of nodes to be averaged before
             moving on to the next round.
+
+    Returns:
+        bool: True if valid, False otherwise.
     """
     if percentage_averaged != 1:
         if not isinstance(percentage_averaged, float) \
@@ -86,8 +104,12 @@ def valid_percentage_averaged(percentage_averaged):
 def valid_max_rounds(max_rounds):
     """
     Check that max rounds is int and at least 1.
+
     Args:
         max_rounds (int): Maximum number of rounds to train for.
+
+    Returns:
+        bool: True if valid, False otherwise.
     """
     if not isinstance(max_rounds, int) or max_rounds < 1:
         print(ErrorMessages.INVALID_MAX_ROUNDS.value)
@@ -97,9 +119,13 @@ def valid_max_rounds(max_rounds):
 def valid_checkpoint_frequency(checkpoint_frequency, max_rounds):
     """
     Check that checkpoint frequency is int and between 0 and max rounds.
+
     Args:
         checkpoint_frequency (int): Save the model in S3 every 
             `checkpoint_frequency` rounds.
+
+    Returns:
+        bool: True if valid, False otherwise.
     """
     if not isinstance(checkpoint_frequency, int) \
             or checkpoint_frequency < 1 \
@@ -109,6 +135,17 @@ def valid_checkpoint_frequency(checkpoint_frequency, max_rounds):
     return True
 
 def valid_data_config(library_type, data_config):
+    """
+    Check that the data config is valid.
+
+    Args:
+        library_type (str): The type of library to train with.
+        data_config (DataConfig): The data config. Can be `None` if the library
+            type is not `IOS`.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """
     if library_type != LibraryType.IOS.value:
         return True
     elif data_config == None:
@@ -125,11 +162,21 @@ def valid_data_config(library_type, data_config):
         print(ErrorMessages.INVALID_CLASS_LABELS.value)
         return False
     elif data_config.data_type == DataType.IMAGE.value \
-            and not valid_image_config(data_config):
+            and not _valid_image_config(data_config):
         return False
     return True    
 
-def valid_image_config(image_config):
+def _valid_image_config(image_config):
+    """
+    Check that the image config is valid.
+
+    Args:
+        library_type (str): The type of library to train with.
+        image_config (ImageConfig): The image config.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """
     if image_config.color_space not in color_spaces:
         print(ErrorMessages.INVALID_COLOR_SPACE.value)
         return False
