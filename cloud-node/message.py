@@ -76,7 +76,7 @@ class NewSessionMessage(Message):
         self.termination_criteria = serialized_message["termination_criteria"]
         self.library_type = serialized_message["library_type"]
         self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
-        self.ios_config = serialized_message.get["ios_config"]
+        self.ios_config = serialized_message["ios_config"]
         self.node_type = "DASHBOARD"
 
     def __repr__(self):

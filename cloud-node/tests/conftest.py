@@ -94,6 +94,7 @@ def session_message(repo_id, session_id, hyperparams):
             "type": "MAX_ROUND",
             "value": 5
         },
+        "ios_config": {}
     }
 
 @pytest.fixture(scope="session")
