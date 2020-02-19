@@ -56,7 +56,7 @@ def valid_model(library_type, model):
         print(ErrorMessages.NOT_COMPILED.value)
         return False
     elif library_type == LibraryType.IOS.value \
-            and not (model.loss != 'categorical_crossentropy'
+            and (model.loss != 'categorical_crossentropy'
                 or model.loss != keras.losses.categorical_crossentropy):
         print(ErrorMessages.INVALID_LOSS.value)
         return False
