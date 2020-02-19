@@ -50,14 +50,14 @@ def valid_model(library_type, model):
         bool: True if Keras model and compiled, False otherwise.
     """
     if not isinstance(model, keras.engine.Model):
-        print(type(model))
         print(ErrorMessages.INVALID_MODEL_TYPE.value)
         return False
     elif not model.optimizer or not model.loss:
         print(ErrorMessages.NOT_COMPILED.value)
         return False
     elif library_type == LibraryType.IOS.value \
-            and model.loss != 'categorical_crossentropy':
+            and not (model.loss != 'categorical_crossentropy'
+                or model.loss != keras.losses.categorical_crossentropy):
         print(ErrorMessages.INVALID_LOSS.value)
         return False
 
