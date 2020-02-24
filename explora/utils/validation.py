@@ -37,6 +37,40 @@ def valid_library_type(library_type):
     """
     return library_type in library_types
 
+def _valid_ios_loss(loss):
+    """
+    Validate the loss function of the model to be used in the iOS library.
+    
+    Args:
+        loss (str | function): The loss function of the model.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """
+    if isinstance(loss, str):
+        loss = keras.losses.get(loss)
+    if loss != keras.losses.categorical_crossentropy \
+            and loss != keras.losses.mean_squared_error:
+        print(ErrorMessages.INVALID_LOSS.value)
+        return False
+    return True
+
+def _valid_ios_optimizer(optimizer):
+    """
+    Validate the loss function of the model to be used in the iOS library.
+    
+    Args:
+        optimizer (keras.optimizers.TODO): The optimizer of the model.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """
+    if not isinstance(optimizer, keras.optimizers.SGD) \
+            and not isinstance(optimizer, keras.optimizers.Adam):
+        print(ErrorMessages.INVALID_OPTIMIZER.value)
+        return False 
+    return True
+
 def valid_model(library_type, model):
     """
     Check that the model is a Keras model and is compiled.
@@ -47,7 +81,8 @@ def valid_model(library_type, model):
             model must be compiled!
     
     Returns:
-        bool: True if Keras model and compiled, False otherwise.
+        bool: True if Keras model and compiled and valid optimizer/loss, False
+            otherwise.
     """
     if not isinstance(model, keras.engine.Model):
         print(ErrorMessages.INVALID_MODEL_TYPE.value)
@@ -55,12 +90,10 @@ def valid_model(library_type, model):
     elif not model.optimizer or not model.loss:
         print(ErrorMessages.NOT_COMPILED.value)
         return False
-    elif library_type == LibraryType.IOS.value \
-            and model.loss != 'categorical_crossentropy' \
-            and model.loss != keras.losses.categorical_crossentropy:
-        print(ErrorMessages.INVALID_LOSS.value)
-        return False
-
+    elif library_type == LibraryType.IOS.value:
+        if not _valid_ios_loss(model.loss) \
+                or not _valid_ios_optimizer(model.optimizer):
+            return False
     return True
 
 def valid_and_prepare_hyperparameters(hyperparams):

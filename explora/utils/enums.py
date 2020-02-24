@@ -36,7 +36,9 @@ class ErrorMessages(Enum):
         "types are: {}".format(library_types)    
     INVALID_MODEL_TYPE = "Provided model is not a Keras model!"
     NOT_COMPILED = "Model must compiled with optimizer and loss!"
-    INVALID_LOSS = "Loss must be categorical cross entropy for iOS library!"
+    INVALID_LOSS = "Loss must be categorical cross entropy or mean squared " \
+        "error for iOS library!"
+    INVALID_OPTIMIZER = "Optimizer must be SGD or Adam for iOS library!"
     INVALID_HYPERPARAMS = "Hyperparameters must include positive batch size!"
     INVALID_PERCENTAGE_AVERAGED = "Percentage averaged must be 1 OR float " \
         "and between 0 and 1!"

@@ -22,7 +22,7 @@ def test_repo_id_validation(good_repo_id, bad_repo_id):
         "This repo ID should have failed validation!"
 
 def test_keras_model_validation(good_keras_model, good_keras_ios_model, \
-        bad_keras_model, bad_keras_ios_model):
+        bad_keras_model, bad_keras_ios_model, bad_keras_ios_model_2):
     """
     Test that a valid Keras model passes validation and an invalid one fails 
     validation.
@@ -37,6 +37,9 @@ def test_keras_model_validation(good_keras_model, good_keras_ios_model, \
         "This model should have failed validation!"
 
     assert not valid_model(LibraryType.IOS.value, bad_keras_ios_model), \
+        "This iOS model should have failed validation!"
+
+    assert not valid_model(LibraryType.IOS.value, bad_keras_ios_model_2), \
         "This iOS model should have failed validation!"
 
 def test_hyperparams_validation(good_hyperparams, bad_hyperparams):

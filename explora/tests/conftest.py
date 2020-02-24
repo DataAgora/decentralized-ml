@@ -33,7 +33,13 @@ def bad_keras_model():
 @pytest.fixture(scope="session")
 def bad_keras_ios_model():
     model = keras.models.load_model("explora/tests/artifacts/ios_model.h5")
-    model.loss = "sparse_categorical_crossentropy"
+    model.loss = keras.losses.sparse_categorical_crossentropy
+    return model
+
+@pytest.fixture(scope="session")
+def bad_keras_ios_model_2():
+    model = keras.models.load_model("explora/tests/artifacts/ios_model.h5")
+    model.loss = keras.optimizers.RMSprop()
     return model
 
 @pytest.fixture(scope="session")
