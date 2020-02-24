@@ -93,8 +93,8 @@ def valid_model(library_type, model):
         optimizer = model.optimizer
         if isinstance(loss, str):
             loss = keras.losses.get(loss)
-        if not _valid_ios_loss(model.loss) \
-                or not _valid_ios_optimizer(model.optimizer):
+        if not _valid_ios_loss(loss) \
+                or not _valid_ios_optimizer(optimizer):
             return False
     return True
 
