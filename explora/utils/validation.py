@@ -42,13 +42,11 @@ def _valid_ios_loss(loss):
     Validate the loss function of the model to be used in the iOS library.
     
     Args:
-        loss (str | function): The loss function of the model.
+        loss (str): The loss function of the model.
 
     Returns:
         bool: True if valid, False otherwise.
     """
-    if isinstance(loss, str):
-        loss = keras.losses.get(loss)
     if loss != keras.losses.categorical_crossentropy \
             and loss != keras.losses.mean_squared_error:
         print(ErrorMessages.INVALID_LOSS.value)
@@ -60,7 +58,7 @@ def _valid_ios_optimizer(optimizer):
     Validate the loss function of the model to be used in the iOS library.
     
     Args:
-        optimizer (keras.optimizers.TODO): The optimizer of the model.
+        optimizer (keras.optimizers.Optimizer): The optimizer of the model.
 
     Returns:
         bool: True if valid, False otherwise.
@@ -91,6 +89,10 @@ def valid_model(library_type, model):
         print(ErrorMessages.NOT_COMPILED.value)
         return False
     elif library_type == LibraryType.IOS.value:
+        loss = model.loss
+        optimizer = model.optimizer
+        if isinstance(loss, str):
+            loss = keras.losses.get(loss)
         if not _valid_ios_loss(model.loss) \
                 or not _valid_ios_optimizer(model.optimizer):
             return False
