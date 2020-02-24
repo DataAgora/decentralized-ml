@@ -266,17 +266,6 @@ def _keras_2_mlmodel_image():
     trainable_layer_names = [layer.name for layer in model.layers if layer.get_weights()]
     builder.make_updatable(trainable_layer_names)
 
-    if model.loss == "categorical_crossentropy":
-        builder.set_categorical_cross_entropy_loss(name='loss', input='output')
-    else:
-        raise Exception("iOS loss function must be categorical cross entropy!")
-
-    batch_size = state.state["hyperparams"]["batch_size"]
-    epochs = state.state["hyperparams"]["epochs"]
-    lr = K.eval(model.optimizer.lr)
-    builder.set_sgd_optimizer(SgdParams(lr=lr, batch=batch_size))
-    builder.set_epochs(epochs)
-
     mlmodel_updatable = MLModel(neuralnetwork_spec)
     mlmodel_updatable.save(state.state["mlmodel_path"])
 
