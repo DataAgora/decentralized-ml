@@ -42,7 +42,7 @@ def _valid_ios_loss(loss):
     Validate the loss function of the model to be used in the iOS library.
     
     Args:
-        loss (str): The loss function of the model.
+        loss (function): The loss function of the model.
 
     Returns:
         bool: True if valid, False otherwise.
