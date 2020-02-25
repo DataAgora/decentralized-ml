@@ -282,7 +282,7 @@ def _keras_2_mlmodel_image():
         )
         builder.set_adam_optimizer(params)
     else:
-        raise Exception("Optimizer must be SGD or Adam!")
+        raise Exception("iOS optimizer must be SGD or Adam!")
 
     builder.set_epochs(state.state["hyperparams"]["epochs"])
     builder.set_shuffle(state.state["hyperparams"]["shuffle"])  
