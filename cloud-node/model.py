@@ -6,18 +6,19 @@ from functools import reduce
 import shutil
 
 import boto3
-import keras
+from keras import backend as K
+from keras.models import load_model
 from keras.losses import categorical_crossentropy, mean_squared_error
+from keras.optimizers import SGD, Adam
 import numpy as np
 import tensorflowjs as tfjs
 import coremltools
 from coremltools.converters import keras as keras_converter
 from coremltools.proto import FeatureTypes_pb2 as _FeatureTypes_pb2
-from coremltools.models.neural_network import SgdParams
+from coremltools.models.neural_network import SgdParams, AdamParams
 from coremltools.models import MLModel
 import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
-from keras import backend as K
 
 import state
 from message import LibraryType
@@ -93,7 +94,7 @@ def get_keras_model():
     Returns:
         keras.engine.Model: Returns the loaded Keras model.
     """
-    return keras.models.load_model(state.state["h5_model_path"])
+    return load_model(state.state["h5_model_path"])
 
 
 def convert_keras_model_to_tfjs():
@@ -252,21 +253,41 @@ def _keras_2_mlmodel_image():
     image_config = ios_config["image_config"]
     spec = coremltools.utils.load_spec(state.state["mlmodel_path"])
     builder = coremltools.models.neural_network.NeuralNetworkBuilder(spec=spec)
-    builder.inspect_layers()
-
-    neuralnetwork_spec = builder.spec
 
     dims = image_config["dims"]
-    neuralnetwork_spec.description.input[0].type.imageType.width = dims[0]
-    neuralnetwork_spec.description.input[0].type.imageType.height = dims[1]
+    spec.description.input[0].type.imageType.width = dims[0]
+    spec.description.input[0].type.imageType.height = dims[1]
 
     cs = _FeatureTypes_pb2.ImageFeatureType.ColorSpace.Value(image_config["color_space"])
-    neuralnetwork_spec.description.input[0].type.imageType.colorSpace = cs
+    spec.description.input[0].type.imageType.colorSpace = cs
 
     trainable_layer_names = [layer.name for layer in model.layers if layer.get_weights()]
     builder.make_updatable(trainable_layer_names)
 
-    mlmodel_updatable = MLModel(neuralnetwork_spec)
+    builder.set_categorical_cross_entropy_loss(name='loss', input='output')
+
+    if isinstance(model.optimizer, SGD):
+        params = SgdParams(
+            lr=K.eval(model.optimizer.lr), 
+            batch=state.state["hyperparams"]["batch_size"],
+        )
+        builder.set_sgd_optimizer(params)
+    elif isinstance(model.optimizer, Adam):
+        params = AdamParams(
+            lr=K.eval(model.optimizer.lr), 
+            batch_size=state.state["hyperparams"]["batch_size"],
+            beta1=model.optimizer.beta1,
+            beta2=model.optimizer.beta2,
+            eps=model.optimizer.eps,    
+        )
+        builder.set_adam_optimizer(params)
+    else:
+        raise Exception("Optimizer must be SGD or Adam!")
+
+    builder.set_epochs(state.state["hyperparams"]["epochs"])
+    builder.set_shuffle(state.state["hyperparams"]["shuffle"])  
+
+    mlmodel_updatable = MLModel(spec)
     mlmodel_updatable.save(state.state["mlmodel_path"])
 
     K.clear_session()

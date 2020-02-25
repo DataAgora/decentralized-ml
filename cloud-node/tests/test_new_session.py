@@ -40,6 +40,19 @@ def manage_test_object(s3_object, ios_s3_object, h5_model_path, ios_model_path):
     ios_s3_object.delete()
     state.reset_state()    
 
+def test_session_while_busy(python_session_message, factory, \
+        dashboard_client):
+    """
+    Test that new session cannot be started while server is busy.
+    """
+    state.state["busy"] = True
+
+    results = process_new_message(python_session_message, factory, 
+        dashboard_client)
+
+    assert results["error"], "Error should have occurred!"
+    assert results["message"] == "Server is already busy working."
+
 def test_new_python_session(python_session_message, factory, \
         broadcast_message, dashboard_client):
     """
@@ -91,18 +104,4 @@ def test_new_ios_session(ios_session_message, factory, ios_broadcast_message, \
         "iOS model conversion failed!"
 
     assert results == ios_broadcast_message, "Resulting message is incorrect!"
-
-def test_session_while_busy(python_session_message, factory, \
-        dashboard_client):
-    """
-    Test that new session cannot be started while server is busy.
-    """
-    state.state["busy"] = True
-
-    results = process_new_message(python_session_message, factory, 
-        dashboard_client)
-
-    assert results["error"], "Error should have occurred!"
-    assert results["message"] == "Server is already busy working."
-
     
