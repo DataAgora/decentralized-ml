@@ -163,9 +163,9 @@ class Repo extends Reflux.Component {
         <div className="row">
         <div className="col-1"></div>
           <div className="col-8">
-            <p id="bigo">Click <a href={"https://explora.dataagora.com"}>here</a> to use Explora and start your session.
+            <p id="bigo">Click <a href={"https://explora.discreetai.com"}>here</a> to use Explora and start your session.
              <br></br>  <br></br>Sign in with the username <b id="username">{username}</b> and leave the password blank.
-             <br></br>  <br></br>Open a new terminal, and clone <a href={"https://github.com/DataAgora/explora"}>this GitHub repo</a>. Open the folder and open the notebook called <i>Explora.ipynb</i>
+             <br></br>  <br></br>Open a new terminal, and clone <a href={"https://github.com/DiscreetAI/decentralized-ml"}>this GitHub repo</a>. Navigate to <i>decentralized-ml/explora</i>. Open the notebook <i>Explora.ipynb</i> for Javascript/Python sessions or the notebook <i>ExploraSample.ipynb</i> 
              <br></br> <br></br>Your repo ID is: <b> {this.state.repoData.Id} </b>.</p>
           </div>
         </div>

@@ -33,12 +33,6 @@ def get_status():
     The dashboard-api is the only hitting this endpoint, so it should be
     secured.
     """
-    print("STARTO")
-    s3_file = "Dockerfile"
-    s3 = boto3.resource("s3")
-    object = s3.Object("cloud-node-deployment", s3_file)
-    result = object.get()['Body'].read().decode('utf-8') 
-    print(result)
     return jsonify({"Busy": state.state["busy"]})
 
 @app.route('/model/<path:filename>')
