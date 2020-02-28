@@ -7,9 +7,6 @@ from time import strftime, sleep
 import boto3
 from botocore.exceptions import ClientError
 
-# REPO_URL = "https://github.com/georgymh/decentralized-ml-js"
-# REPO_PATH = "/tmp/decentralized-ml-js"
-# ZIP_PATH = '/tmp/cloud-node.zip'
 
 APPLICATION_NAME = "cloud-node"
 S3_BUCKET = "cloud-node-deployment"
@@ -18,58 +15,6 @@ AWS_REGION = 'us-west-1'
 BUCKET_KEY = APPLICATION_NAME + '/' + 'cloudnode_build.zip'
 DEPLOYMENT_NAME = 'deploy-elb-{}'
 PIPELINE_NAME = 'cloud-node-deploy'
-
-
-# def upload_to_s3(artifact):
-#     """
-#     Uploads an artifact to Amazon S3
-#     """
-#     try:
-#         client = boto3.client('s3')
-#     except ClientError as err:
-#         print("Failed to create boto3 client.\n" + str(err))
-#         return False
-#
-#     try:
-#         client.put_object(
-#             Body=open(artifact, 'rb'),
-#             Bucket=S3_BUCKET,
-#             Key=BUCKET_KEY
-#         )
-#     except ClientError as err:
-#         print("Failed to upload artifact to S3.\n" + str(err))
-#         return False
-#     except IOError as err:
-#         print("Failed to access artifact.zip in this directory.\n" + str(err))
-#         return False
-#
-#     return True
-
-
-# def pre_steps():
-#     """
-#     Removes temporary folders.
-#     """
-#     try:
-#         shutil.rmtree(REPO_PATH)
-#         shutil.rmtree(ZIP_PATH)
-#     except:
-#         pass
-
-# def clone_repo():
-#     """
-#     Clones the repo locally.
-#     """
-#     git.exec_command('clone', REPO_URL)
-#     return REPO_PATH
-
-# def zip_server_directory():
-#     """
-#     Zips the cloned repo so it can be uploaded to S3.
-#     """
-#     shutil.make_archive(ZIP_PATH.split('.zip')[0], 'zip', REPO_PATH + "/server")
-#     return ZIP_PATH
-
 
 def create_new_version(version_label):
     """
@@ -149,7 +94,12 @@ def deploy_new_version(env_name, version_label):
                     'Namespace': 'aws:elasticbeanstalk:application:environment',
                     'OptionName': 'SECRET_ACCESS_KEY',
                     'Value': os.environ['SECRET_ACCESS_KEY'],
-                }
+                },
+                {
+                    'Namespace': 'aws:autoscaling:launchconfiguration',
+                    'OptionName': 'IamInstanceProfile',
+                    'Value': 'dagora',
+                },
             ],
         )
     except ClientError as err:
