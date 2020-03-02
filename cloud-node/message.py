@@ -18,6 +18,7 @@ class LibraryType(Enum):
     """
     PYTHON = "PYTHON"
     JS = "JAVASCRIPT"
+    IOS = "IOS"
     IOS_IMAGE = "IOS_IMAGE"
     IOS_TEXT = "IOS_TEXT"
 
@@ -74,9 +75,9 @@ class NewSessionMessage(Message):
         self.selection_criteria = serialized_message["selection_criteria"]
         self.continuation_criteria = serialized_message["continuation_criteria"]
         self.termination_criteria = serialized_message["termination_criteria"]
-        self.library_type = serialized_message["library_type"]
         self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
         self.ios_config = serialized_message["ios_config"]
+        self.library_type = serialized_message["library_type"]
         self.node_type = "DASHBOARD"
 
     def __repr__(self):

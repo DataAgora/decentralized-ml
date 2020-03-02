@@ -74,10 +74,13 @@ def start_new_session(message, clients):
     if state.state["library_type"] == LibraryType.JS.value:
         _ = convert_keras_model_to_tfjs()    
         state.state["use_gradients"] = False
-    elif state.state["library_type"] == LibraryType.IOS_IMAGE.value or \
-            state.state["library_type"] == LibraryType.IOS_TEXT.value:
-        state.state["hyperparams"] = message.hyperparams
-        _ = convert_keras_model_to_mlmodel()
+    elif state.state["library_type"] == LibraryType.IOS.value:
+        data_type = state.state["ios_config"]["data_type"]
+        state.state["library_type"] = LibraryType.IOS_IMAGE.value \
+            if data_type == "image" else LibraryType.IOS_TEXT.value
+        if state.state["library_type"] == LibraryType.IOS_IMAGE.value:
+            state.state["hyperparams"] = message.hyperparams
+            _ = convert_keras_model_to_mlmodel()
 
     # 7. Kickstart a DML Session with the model and round # 1
     return {
