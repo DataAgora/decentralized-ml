@@ -6,7 +6,7 @@ import numpy as np
 import state
 from updatestore import store_update
 from coordinator import start_next_round, stop_session
-from model import swap_weights
+from model import swap_weights, save_mlmodel_weights
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -47,9 +47,10 @@ def handle_new_update(message, clients_dict):
     # 3. Update the number of nodes averaged (+1)
     state.state["num_nodes_averaged"] += 1
 
-    # 4. Log this update.
-    # NOTE: Disabled until we actually need it. Could be useful for a progress bar.
-    # store_update("UPDATE_RECEIVED", message, with_weights=False)
+    # 4. Save binary received weights, if received.
+    # NOTE: This only used after the first round of training with IOS_TEXT.
+    if message.binary_weights:
+        save_mlmodel_weights(binary_weights)
     
     # 5. Swap in the newly averaged weights for this model.
     swap_weights()

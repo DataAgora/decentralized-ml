@@ -64,17 +64,32 @@ def serve_mlmodel():
 
     TODO: Should do this through ngnix for a boost in performance. Should also
     have some auth token -> session id mapping (security fix in the future).
-
-    Args:
-        filename (str): The filename to serve.
     """
     if not state.state["busy"]:
         return "No active session!\n"
 
-    if state.state["library_type"] != LibraryType.IOS.value:
+    if state.state["library_type"] not in 
+            [LibraryType.IOS_IMAGE.value, LibraryType.IOS_TEXT.value]
         return "Current session is not for IOS!"
 
     app_path = os.path.join(app.root_path, state.state['mlmodel_path'])
+    return send_file(app_path)
+
+@app.route('/weights')
+def serve_mlmodel_weights():
+    """
+    Serves the TFJS model to the user.
+
+    TODO: Should do this through ngnix for a boost in performance. Should also
+    have some auth token -> session id mapping (security fix in the future).
+    """
+    if not state.state["busy"]:
+        return "No active session!\n"
+
+    if state.state["library_type"] != LibraryType.IOS_TEXT.value:
+        return "Current session is not for IOS!"
+
+    app_path = os.path.join(app.root_path, state.state['mlmodel_weights_path'])
     return send_file(app_path)
 
 @app.route('/model.h5', methods=['POST', 'GET'])

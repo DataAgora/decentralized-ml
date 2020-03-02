@@ -1,10 +1,9 @@
-import context
-
 from copy import deepcopy
 
 import pytest
 import boto3
 
+import context
 from message import Message
 from factory import CloudNodeFactory
 from protocol import CloudNodeProtocol
@@ -125,7 +124,7 @@ def js_session_message(session_message):
 def ios_session_message(session_message, ios_session_id, ios_config):
     ios_message = deepcopy(session_message)
     ios_message["session_id"] = ios_session_id
-    ios_message["library_type"] = "IOS"
+    ios_message["library_type"] = "IOS_IMAGE"
     ios_message["ios_config"] = ios_config
     return Message.make(ios_message)
 

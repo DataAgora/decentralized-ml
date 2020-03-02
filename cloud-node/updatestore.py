@@ -4,6 +4,7 @@ import os
 import boto3
 
 import state
+from message import LibraryType
 
 
 def store_update(type, message, with_weights=True):
@@ -12,7 +13,8 @@ def store_update(type, message, with_weights=True):
     """
     print("[{0}]: {1}".format(type, message))
 
-    if state.state["test"]:
+    if state.state["test"] \
+            or state.state["library_type"] == LibraryType.IOS_TEXT.value:
         return
 
     if with_weights:

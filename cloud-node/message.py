@@ -18,8 +18,8 @@ class LibraryType(Enum):
     """
     PYTHON = "PYTHON"
     JS = "JAVASCRIPT"
-    IOS = "IOS"
-
+    IOS_IMAGE = "IOS_IMAGE"
+    IOS_TEXT = "IOS_TEXT"
 
 class Message:
     """
@@ -107,6 +107,7 @@ class NewUpdateMessage(Message):
                 serialized_message["results"] = json.loads(serialized_message["results"])
             gradients = serialized_message["results"]["gradients"]
             self.gradients = [np.array(gradient) for gradient in gradients]
+            self.binary_weights = serialized_message["results"].get("binary_gradients", None)
         elif "weights" in serialized_message["results"]:
             self.weights = np.array(
                 serialized_message["results"]["weights"],

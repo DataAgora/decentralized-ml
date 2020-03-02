@@ -22,6 +22,7 @@ tf.compat.v1.disable_v2_behavior()
 
 import state
 from message import LibraryType
+from parse_weights import calculate_new_weights
 
 
 TEMP_FOLDER = 'temp'
@@ -72,7 +73,56 @@ def fetch_keras_model():
     state.state['h5_model_path'] = h5_model_path
     
     return state.state['h5_model_path']
+
+def fetch_mlmodel():
+    """
+    Download the MLModel converted from a Keras model.
+
+    This function is to be called at the beginning of a DML Session.
+
+    NOTE: This function is only for text models to be used with iOS libraries.
+    """
+    session_id = state.state["session_id"]
+    model_path = os.path.join(TEMP_FOLDER, session_id)
+
+    # Create directory if necessary
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+
+    # Save model on disk
+    mlmodel_path = model_path + '/my_model.mlmodel'
+    try:
+        repo_id = state.state["repo_id"]
+        session_id = state.state["session_id"]
+        s3 = boto3.resource("s3")
+        model_s3_key = "{0}/{1}/{2}/model.mlmodel"
+        model_s3_key = model_s3_key.format(repo_id, session_id, 0)
+        object = s3.Object("updatestore", model_s3_key)
+        object.download_file(h5_model_path)
+    except Exception as e:
+        print("S3 Error: {0}".format(e))
+
+    state.state['mlmodel_path'] = h5_model_path
     
+    return state.state['mlmodel_path']
+    
+def save_mlmodel_weights(binary_weights):
+    """
+    Save the provided binary weights from the iOS Library so that gradient
+    calculation can be done.
+
+    Only called after round 1 of training with the iOS Library for text data.
+    
+    Args:
+        binary_weights (str): The binary weights to be saved.
+    """
+    session_id = state.state["session_id"]
+    round = state.state["current_round"]
+    mlmodel_folder_path = os.path.join(TEMP_FOLDER, session_id)
+    mlmodel_weights_path = os.path.join(mlmodel_folder_path, "weights")
+    with open(mlmodel_folder_path, "rb") as f:
+        f.write(binary_weights)
+        state.state["mlmodel_weights_path"] = mlmodel_weights_path
 
 def get_encoded_h5_model():
     """
@@ -145,10 +195,10 @@ def convert_keras_model_to_mlmodel():
     """
     session_id = state.state["session_id"]
     round = state.state["current_round"]
-    mlmodel_path = os.path.join(TEMP_FOLDER, session_id, str(round))
-    if not os.path.exists(mlmodel_path):
-        os.makedirs(mlmodel_path)
-    state.state["mlmodel_path"] = os.path.join(mlmodel_path, "my_model.mlmodel")
+    mlmodel_folder_path = os.path.join(TEMP_FOLDER, session_id, str(round))
+    if not os.path.exists(mlmodel_folder_path):
+        os.makedirs(mlmodel_folder_path)
+    state.state["mlmodel_path"] = os.path.join(mlmodel_folder_path, "my_model.mlmodel")
 
     _keras_2_mlmodel_image()
 
@@ -161,7 +211,8 @@ def swap_weights():
     For Javascript libraries, this function also reconverts the Keras model
     to a TFJS model.
 
-    For iOS libraries, this function also reconverts the Keras model to a iOS model.
+    For iOS libraries (image), this function also reconverts the Keras model
+    to a iOS model.
     """
     model = get_keras_model()
     _clear_checkpoint()
@@ -178,7 +229,7 @@ def swap_weights():
         new_weights = np.subtract(weights, gradients)
         model.set_weights(new_weights)
         model.save(new_h5_model_path)
-    elif state.state["library_type"] == LibraryType.IOS.value:
+    elif state.state["library_type"] == LibraryType.IOS_IMAGE.value:
         gradients = state.state["current_gradients"]
         learning_rate = K.eval(model.optimizer.lr)
         new_weights = []
@@ -197,6 +248,14 @@ def swap_weights():
         model.set_weights(new_weights)
         model.save(new_h5_model_path)
         convert_keras_model_to_mlmodel()
+    elif state.state["library_type"] == LibraryType.IOS_TEXT.value:
+        old_mlmodel_weights_path = state.state["mlmodel_weights_path"]
+        new_mlmodel_weights_path = base_model_path + '/weights{0}'.format(round)
+        gradients = state.state["current_gradients"]
+        learning_rate = K.eval(model.optimizer.lr)
+        _ = calculate_new_weights(old_mlmodel_weights_path, \
+                new_mlmodel_weights_path, lr=learning_rate)
+        state.state["mlmodel_weights_path"] = new_mlmodel_weights_path
     else:
         weights_flat = state.state["current_weights"]
         weights_shape = state.state["weights_shape"]

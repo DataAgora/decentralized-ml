@@ -74,9 +74,8 @@ def start_new_session(message, clients):
     if state.state["library_type"] == LibraryType.JS.value:
         _ = convert_keras_model_to_tfjs()    
         state.state["use_gradients"] = False
-    elif state.state["library_type"] == LibraryType.IOS.value:
-        assert state.state["ios_config"]["data_type"] == 'image', \
-            "Can only support image data for iOS now!"
+    elif state.state["library_type"] == LibraryType.IOS_IMAGE.value or \
+            state.state["library_type"] == LibraryType.IOS_TEXT.value:
         state.state["hyperparams"] = message.hyperparams
         _ = convert_keras_model_to_mlmodel()
 
@@ -123,7 +122,7 @@ def start_next_round(clients):
         new_message['gradients'] = [gradient.tolist() for gradient in state.state['current_gradients']]
     elif state.state['library_type'] == LibraryType.JS.value:
         _ = convert_keras_model_to_tfjs()
-    else:
+    elif state.state["library_type"] == LibraryType.IOS_IMAGE.value:
         _ = convert_keras_model_to_mlmodel()
         
     state.state["last_message_sent_to_library"] = new_message
