@@ -204,9 +204,13 @@ def convert_keras_model_to_mlmodel():
 
 def swap_weights():
     """
-    Loads the initial stored h5 model in <TEMP_FOLDER>/<session_id>/model.h5,
-    swaps the weights with the aggregated weights currently in the global state,
-    then saves the new model in <TEMP_FOLDER>/<session_id>/model<round>.h5.
+    For most libraries, load the stored h5 model, swap the weights with the 
+    aggregated weights currently in the global state, then saves the new model 
+    in <TEMP_FOLDER>/<session_id>/model<round>.h5.
+
+    For iOS libraries, read the binary weights file at the old weights path,
+    and write to a new binary weights file at 
+    <TEMP_FOLDER>/<session_id>/weights.
 
     For Javascript libraries, this function also reconverts the Keras model
     to a TFJS model.
