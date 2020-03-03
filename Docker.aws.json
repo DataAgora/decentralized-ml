@@ -1,6 +1,7 @@
 {
     "Image": {
-      "Name": "880058582700.dkr.ecr.us-west-1.amazonaws.com/cloud:latest"
+      "Name": "880058582700.dkr.ecr.us-west-1.amazonaws.com/cloud:latest",
+      "Update": "true"
     },
     "Ports": [
       {
