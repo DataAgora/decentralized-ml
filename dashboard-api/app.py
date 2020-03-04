@@ -21,6 +21,7 @@ JWT_ALGO = "HS256"
 APPLICATION_NAME = "cloud-node"
 app = Flask(__name__)
 CORS(app)
+CLOUD_BASE_ENDPOINT = "http://{}.au4c4pd2ch.us-west-1.elasticbeanstalk.com/secret/reset_state"
 
 @app.route("/")
 def home():
