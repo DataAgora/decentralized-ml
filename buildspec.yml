@@ -1,20 +1,30 @@
 version: 0.2
 
+
 phases:
   install:
-    runtime-versions:
-      docker: 18
+    commands:
+      - echo "$(lsb_release -cs)"
+      - apt-get update -y
+      - apt-get install -y apt-transport-https ca-certificates software-properties-common
+      - add-apt-repository -y ppa:openjdk-r/ppa
+      - sudo apt-get update -y
+      - apt-get install -y openjdk-8-jdk
+      - echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+      - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
+      - apt-get update -y
+      - apt-get install -y sbt
+      - pip install --upgrade awscli
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
-      - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
-      - docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - $(aws ecr get-login --no-include-email --region us-east-1)
   build:
     commands:
-      - echo Build started on `date`
-      - echo Building the Docker image...          
-      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+      - sbt test
+      - sbt docker:publish
   post_build:
     commands:
       - echo Build completed on `date`
-      - docker run $IMAGE_REPO_NAME:$IMAGE_TAG
+artifacts:
+  files:
+    - Dockerrun.aws.json
