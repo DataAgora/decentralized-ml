@@ -6,7 +6,9 @@ phases:
       docker: 18
   pre_build:
     commands:
+      - uname -a
       - apt-get update
+      - apt-get upgrade
       - apt-get install docker-engine -y
       - service docker start
       - docker run hello-world
