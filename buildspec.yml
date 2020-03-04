@@ -6,10 +6,11 @@ phases:
       docker: 18
   pre_build:
     commands:
-      - pip install --upgrade awscli
+      - apt-get update
       - apt-get install docker-engine -y
       - service docker start
       - docker run hello-world
+      - pip install --upgrade awscli
       - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
   build:
     commands:
