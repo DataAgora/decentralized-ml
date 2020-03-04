@@ -7,6 +7,7 @@ phases:
   pre_build:
     commands:
       - pip install --upgrade awscli
+      - apt-get install docker-ce docker-ce-cli
       - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
   build:
     commands:
