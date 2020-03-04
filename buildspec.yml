@@ -6,14 +6,9 @@ phases:
       docker: 18
   pre_build:
     commands:
-      - uname -a
-      - apt-get update
-      - apt-get upgrade
-      - apt-get install docker-engine -y
-      - service docker start
-      - docker run hello-world
-      - pip install --upgrade awscli
+      - echo Logging in to Amazon ECR...
       - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+      - docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
   build:
     commands:
       - echo Build started on `date`
