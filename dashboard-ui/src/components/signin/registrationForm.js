@@ -51,24 +51,24 @@ class RegistationForm extends Reflux.Component {
 
 
     return (
-      <form className="login-form col-12 col-sm-12 col-md-6 offset-md-3">
+      <form className="login-form col-12 col-sm-12 col-md-6 offset-md-3" onSubmit="this._handleSubmit.bind(this)">
 
         { errorMessage }
 
         <div className="form-group form-row">
           <div className="col">
             <label htmlFor="inputFname">First name</label>
-            <input type="text" ref="fname" className="form-control" id="inputFname" placeholder="First name" />
+            <input type="text" ref="fname" className="form-control" id="inputFname" placeholder="First name" required/>
           </div>
           <div className="col">
             <label htmlFor="inputLname">Last name</label>
-            <input type="text" ref="lname" className="form-control" id="inputLname" placeholder="Last name" />
+            <input type="text" ref="lname" className="form-control" id="inputLname" placeholder="Last name" required/>
           </div>
         </div>
 
         <div className="form-group">
           <label htmlFor="inputOrganization">Organization</label>
-          <input type="text" ref="organization" className="form-control" id="inputOrganization" placeholder="Current organization" />
+          <input type="text" ref="organization" className="form-control" id="inputOrganization" placeholder="Current organization" required/>
         </div>
 
         <div className="form-group">
@@ -78,21 +78,21 @@ class RegistationForm extends Reflux.Component {
 
         <div className="form-group">
           <label htmlFor="inputEmail">Email address</label>
-          <input type="email" ref="email" className="form-control" id="inputEmail" placeholder="Email address" />
+          <input type="email" ref="email" className="form-control" id="inputEmail" placeholder="Email address" required/>
         </div>
 
         <div className="form-group">
           <label htmlFor="inputPassword1">Password</label>
-          <input type="password" ref="password1" className="form-control" id="inputPassword1" placeholder="Enter password" />
+          <input type="password" ref="password1" className="form-control" id="inputPassword1" placeholder="Enter password" required/>
         </div>
 
         <div className="form-group">
           <label htmlFor="inputPassword2">Repeat password</label>
-          <input type="password" ref="password2" className="form-control" id="inputPassword2" placeholder="Repeat password" />
+          <input type="password" ref="password2" className="form-control" id="inputPassword2" placeholder="Repeat password" required/>
         </div>
 
         <div className="form-group text-center">
-          <button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Register</button>
+          <button type="submit" className="btn btn-dark-alt">Register</button>
         </div>
 
         <div className="form-group text-center text-dark">

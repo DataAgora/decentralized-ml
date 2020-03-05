@@ -86,7 +86,7 @@ class NewRepo extends Reflux.Component {
             <h3>Create a new repo</h3>
             <p className="mt-3">A <b>repo</b> is a link to a network of devices, history of training, and resulting models.</p>
             <p className="mt-3">Create a new repository to start doing private federated learning. Repos are private by default.</p>
-            <form className="mt-4">
+            <form className="mt-4" onSubmit="this._handleSubmit.bind(this)">
               <div className="form-group">
                <label htmlFor="repoNameInput">Repo name</label>
                <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" />
@@ -98,7 +98,7 @@ class NewRepo extends Reflux.Component {
                <small id="repoDescriptionHelp" className="form-text text-muted">Anything will do. Use this to remember what a repo is about.</small>
               </div>
               <div className="text-center mt-5">
-                <button type="submit" className={"btn btn-lg btn-primary " + (this.state.creationState.creating ? "disabled" : "")} onClick={this._handleSubmit.bind(this)}>Create Repo</button>
+                <button type="submit" className={"btn btn-lg btn-primary " + (this.state.creationState.creating ? "disabled" : "")}>Create Repo</button>
               </div>
               <p id="wait" hidden="true" className="mt-3">Please wait...</p>
             </form>

@@ -37,29 +37,29 @@ class LoginForm extends Reflux.Component {
     if (this.state.error) {
       errorMessage = (
         <div className='alert alert-danger padding-bottom alert-dismissible fade show' role="alert">
-          { this.state.error }
+          { "Authentication failed. Check to make sure that your email and password were entered correctly." }
         </div>
       );
     }
 
     return (
       <div>
-        <form className="login-form col-12 col-sm-12 col-md-4 offset-md-4">
+        <form className="login-form col-12 col-sm-12 col-md-4 offset-md-4" onSubmit="this._handleSubmit.bind(this)">
 
           { errorMessage }
 
           <div className="form-group">
             <label>Email address</label>
-            <input type="email" ref="email" className="form-control" id="inputEmail" placeholder="Enter email" />
+            <input type="email" ref="email" className="form-control" id="inputEmail" placeholder="Enter email" required/>
           </div>
 
           <div className="form-group">
             <label>Password</label>
-            <input type="password" ref="password" className="form-control" id="inputPassword" placeholder="Enter password" />
+            <input type="password" ref="password" className="form-control" id="inputPassword" placeholder="Enter password" required/>
           </div>
 
           <div className="form-group text-center">
-            <button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Sign In</button>
+            <button type="submit" className="btn btn-dark-alt">Sign In</button>
           </div>
 
           <div className="form-group text-center text-dark">
