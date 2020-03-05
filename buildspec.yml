@@ -1,31 +1,5 @@
 version: 0.2
 
-
-# phases:
-#   install:
-#     commands:
-#       - echo "$(lsb_release -cs)"
-#       - apt-get update -y
-#       - apt-get install -y apt-transport-https ca-certificates software-properties-common
-#       - add-apt-repository -y ppa:openjdk-r/ppa
-#       - apt-get update -y
-#       - apt-get install -y openjdk-8-jdk
-#       - echo "deb https://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
-#       - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
-#       - apt-get update -y
-#       - apt-get install -y sbt
-#       - pip install --upgrade awscli
-#   pre_build:
-#     commands:
-#       - $(aws ecr get-login --no-include-email --region us-east-1)
-#   build:
-#     commands:
-#       - sbt test
-#       - sbt docker:publish
-#   post_build:
-#     commands:
-#       - echo Build completed on `date`
-
 artifacts:
   files:
     - Dockerrun.aws.json

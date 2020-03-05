@@ -29,8 +29,6 @@ class Repo extends Reflux.Component {
     const { match: { params } } = this.props;
     this.repoId = params.repoId;
     repo_id = this.repoId
-    console.log("DONE");
-
   }
 
   setUsername(username) {
@@ -48,7 +46,6 @@ class Repo extends Reflux.Component {
 
     if (AuthStore.state.isAuthenticated) {
       let jwtString = AuthStore.state.jwt;
-      console.log("component", jwtString)
       fetch(
         Endpoints["dashboardGetExploraURL"] + repo_id, {
           method: 'POST',
@@ -64,9 +61,7 @@ class Repo extends Reflux.Component {
       )
       .then(r => r.json())
       .then(r => {
-        console.log(r)
         username = r["Message"];
-        console.log(username)
         setUsername(username);
       });
     }
@@ -78,7 +73,6 @@ class Repo extends Reflux.Component {
   resetState() {
     if (AuthStore.state.isAuthenticated) {
       let jwtString = AuthStore.state.jwt;
-      console.log(jwtString)
       fetch(
         Endpoints["dashboardResetCloudNode"] + repo_id, {
           method: 'POST',
@@ -102,7 +96,6 @@ class Repo extends Reflux.Component {
   deleteRepo() {
     if (AuthStore.state.isAuthenticated) {
       let jwtString = AuthStore.state.jwt;
-      console.log("delete", jwtString)
       fetch(
         Endpoints["dashboardDeleteRepo"] + repo_id, {
           method: 'POST',
@@ -118,7 +111,6 @@ class Repo extends Reflux.Component {
       )
       .then(r => r.json())
       .then(r => {
-        console.log(r)
         if (r["Error"] == false)
           window.location.href = '/dashboard';
       });
