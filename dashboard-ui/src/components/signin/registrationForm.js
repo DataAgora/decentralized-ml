@@ -25,21 +25,26 @@ class RegistationForm extends Reflux.Component {
   _handleSubmit(event) {
     event.preventDefault();
 
-    var registrationObject = {
-      "first_name": ReactDOM.findDOMNode(this.refs.fname).value,
-      "last_name": ReactDOM.findDOMNode(this.refs.lname).value,
-      "company": ReactDOM.findDOMNode(this.refs.organization).value,
-      "occupation": ReactDOM.findDOMNode(this.refs.position).value,
-      "email": ReactDOM.findDOMNode(this.refs.email).value,
-      "password1": ReactDOM.findDOMNode(this.refs.password1).value,
-      "password2": ReactDOM.findDOMNode(this.refs.password2).value
-    };
+    let form = document.getElementById('registrationForm');
 
-    AuthActions.registration(registrationObject);
+    if (form.reportValidity()) {
+      var registrationObject = {
+        "first_name": ReactDOM.findDOMNode(this.refs.fname).value,
+        "last_name": ReactDOM.findDOMNode(this.refs.lname).value,
+        "company": ReactDOM.findDOMNode(this.refs.organization).value,
+        "occupation": ReactDOM.findDOMNode(this.refs.position).value,
+        "email": ReactDOM.findDOMNode(this.refs.email).value,
+        "password1": ReactDOM.findDOMNode(this.refs.password1).value,
+        "password2": ReactDOM.findDOMNode(this.refs.password2).value
+      };
+  
+      AuthActions.registration(registrationObject);
+    }
   }
 
   render() {
     var errorMessage = "";
+
     if (this.state.error) {
       errorMessage = (
         <div className='alert alert-danger padding-bottom alert-dismissible fade show' role="alert">
@@ -51,7 +56,7 @@ class RegistationForm extends Reflux.Component {
 
 
     return (
-      <form className="login-form col-12 col-sm-12 col-md-6 offset-md-3" onSubmit="this._handleSubmit.bind(this)">
+      <form id="registrationForm" className="login-form col-12 col-sm-12 col-md-6 offset-md-3">
 
         { errorMessage }
 
@@ -92,7 +97,7 @@ class RegistationForm extends Reflux.Component {
         </div>
 
         <div className="form-group text-center">
-          <button type="submit" className="btn btn-dark-alt">Register</button>
+          <button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Register</button>
         </div>
 
         <div className="form-group text-center text-dark">

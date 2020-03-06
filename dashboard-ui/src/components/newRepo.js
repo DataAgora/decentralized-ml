@@ -22,12 +22,17 @@ class NewRepo extends Reflux.Component {
 
   _handleSubmit(event) {
     event.preventDefault();
-    let repoName = ReactDOM.findDOMNode(this.refs.repoName).value.replace(/[^a-zA-Z0-9-]/g,'-');
-    document.getElementById("wait").hidden = false;
-    RepoDataActions.createNewRepo(
-      repoName,
-      ReactDOM.findDOMNode(this.refs.repoDescription).value
-    );
+
+    let form = document.getElementById('registrationForm');
+
+    if (form.reportValidity()) {
+      let repoName = ReactDOM.findDOMNode(this.refs.repoName).value.replace(/[^a-zA-Z0-9-]/g,'-');
+      document.getElementById("wait").hidden = false;
+      RepoDataActions.createNewRepo(
+        repoName,
+        ReactDOM.findDOMNode(this.refs.repoDescription).value
+      );
+    }
   }
 
   _handleContinue(event) {
@@ -74,7 +79,7 @@ class NewRepo extends Reflux.Component {
       return (
         <div className="text-center">
           <h3>Sorry, but you have no more repos left.</h3>
-          <p className="mt-4">If you want to upgrade your account to support more repos, <a href="mailto:panda@dataagora.com?subject=Upgrade Account&body=I would like to upgrade my account!">please email us</a>.</p>
+          <p className="mt-4">If you want to upgrade your account to support more repos, <a href="mailto:neelesh.dodda@discreetai.com?subject=Upgrade Account&body=I would like to upgrade my account!">please email us</a>.</p>
           <p className="mt-3"><Link to="/">Back to dashboard</Link></p>
         </div>
       );
@@ -86,7 +91,7 @@ class NewRepo extends Reflux.Component {
             <h3>Create a new repo</h3>
             <p className="mt-3">A <b>repo</b> is a link to a network of devices, history of training, and resulting models.</p>
             <p className="mt-3">Create a new repository to start doing private federated learning. Repos are private by default.</p>
-            <form className="mt-4" onSubmit="this._handleSubmit.bind(this)">
+            <form id="newRepoForm" className="mt-4">
               <div className="form-group">
                <label htmlFor="repoNameInput">Repo name</label>
                <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" />
@@ -98,7 +103,7 @@ class NewRepo extends Reflux.Component {
                <small id="repoDescriptionHelp" className="form-text text-muted">Anything will do. Use this to remember what a repo is about.</small>
               </div>
               <div className="text-center mt-5">
-                <button type="submit" className={"btn btn-lg btn-primary " + (this.state.creationState.creating ? "disabled" : "")}>Create Repo</button>
+                <button type="submit" className={"btn btn-lg btn-primary " + (this.state.creationState.creating ? "disabled" : "")} onClick={this._handleSubmit.bind(this)}>Create Repo</button>
               </div>
               <p id="wait" hidden="true" className="mt-3">Please wait...</p>
             </form>
