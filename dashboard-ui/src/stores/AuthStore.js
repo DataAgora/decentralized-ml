@@ -33,7 +33,6 @@ class AuthStore extends Reflux.Store {
     this._changed();
 
     var endpoint = Endpoints["eauthLogin"];
-    console.log(endpoint)
     fetch(
       endpoint, {
         method: 'POST',

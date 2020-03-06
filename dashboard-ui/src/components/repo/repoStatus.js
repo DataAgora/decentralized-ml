@@ -14,6 +14,7 @@ class RepoStatus extends Reflux.Component {
 
   componentDidMount() {
     CoordinatorActions.fetchCoordinatorStatus(this.props.repoId);
+    setTimeout(this.componentDidMount, 10000)
   }
 
   render() {

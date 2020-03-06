@@ -26,10 +26,13 @@ class LoginForm extends Reflux.Component {
   _handleSubmit(event) {
     event.preventDefault();
 
-    AuthActions.login(
-      ReactDOM.findDOMNode(this.refs.email).value,
-      ReactDOM.findDOMNode(this.refs.password).value
-    );
+    let form = document.getElementById('loginForm');
+    if (form.reportValidity()) {
+      AuthActions.login(
+        ReactDOM.findDOMNode(this.refs.email).value,
+        ReactDOM.findDOMNode(this.refs.password).value
+      );
+    }
   }
 
   render() {
@@ -44,7 +47,7 @@ class LoginForm extends Reflux.Component {
 
     return (
       <div>
-        <form className="login-form col-12 col-sm-12 col-md-4 offset-md-4" onSubmit="this._handleSubmit.bind(this)">
+        <form id="loginForm" className="login-form col-12 col-sm-12 col-md-4 offset-md-4">
 
           { errorMessage }
 
@@ -59,7 +62,7 @@ class LoginForm extends Reflux.Component {
           </div>
 
           <div className="form-group text-center">
-            <button type="submit" className="btn btn-dark-alt">Sign In</button>
+            <button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Sign In</button>
           </div>
 
           <div className="form-group text-center text-dark">
