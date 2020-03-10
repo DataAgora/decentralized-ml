@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import Reflux from 'reflux';
 
 import NotFoundPage from './notFoundPage';
@@ -18,8 +19,13 @@ import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import Endpoints from './../constants/endpoints.js';
 import AuthStore from './../stores/AuthStore';
 
+import CoordinatorActions from './../actions/CoordinatorActions';
+
+
 var username = null;
 var repo_id = null;
+var cachedElements = {}
+var timerOn = {}
 
 class Repo extends Reflux.Component {
   constructor(props) {
@@ -43,7 +49,7 @@ class Repo extends Reflux.Component {
     const { match: { params } } = this.props;
     const repoId = params.repoId;
     var setUsername = this.setUsername;
-
+    let createdLessThan10MinutesAgo = Math.floor(Date.now()/1000) < (this.state.repoData.CreatedAt + 60*10) 
     if (AuthStore.state.isAuthenticated) {
       let jwtString = AuthStore.state.jwt;
       fetch(
@@ -67,7 +73,14 @@ class Repo extends Reflux.Component {
     }
     RepoDataActions.fetchRepoData(repoId);
     RepoLogsActions.fetchRepoLogs(repoId);
-    
+    this.updateStatus = this.updateStatus.bind(this)
+    if (!(repoId in timerOn && timerOn[repoId])) {
+      setTimeout(this.updateStatus, 500)
+    } else {
+      console.log("manual update")
+      console.log(cachedElements)
+      setTimeout(this.update, 500, cachedElements[repoId])
+    }
   }
 
   resetState() {
@@ -117,6 +130,129 @@ class Repo extends Reflux.Component {
     }
   }
 
+  copyRepoIDToClipboard() {
+    let text = repo_id
+    var dummy = document.createElement("textarea");
+    // to avoid breaking orgain page when copying more words
+    // cant copy when adding below this code
+    // dummy.style.display = 'none'
+    document.body.appendChild(dummy);
+    //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
+    dummy.value = text;
+    dummy.select();
+    document.execCommand("copy");
+    document.body.removeChild(dummy);
+  }
+
+  copyUsernameToClipboard() {
+    let text = username
+    var dummy = document.createElement("textarea");
+    // to avoid breaking orgain page when copying more words
+    // cant copy when adding below this code
+    // dummy.style.display = 'none'
+    document.body.appendChild(dummy);
+    //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
+    dummy.value = text;
+    dummy.select();
+    document.execCommand("copy");
+    document.body.removeChild(dummy);
+  }
+
+  copyRepoToClipboard() {
+    let text = "https://github.com/DiscreetAI/decentralized-ml"
+    var dummy = document.createElement("textarea");
+    // to avoid breaking orgain page when copying more words
+    // cant copy when adding below this code
+    // dummy.style.display = 'none'
+    document.body.appendChild(dummy);
+    //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
+    dummy.value = text;
+    dummy.select();
+    document.execCommand("copy");
+    document.body.removeChild(dummy);
+  }
+
+  updateStatus() {
+    console.log("update!", this)
+    const { match: { params } } = this.props;
+    const repoId = params.repoId;
+    console.log(repoId)
+    let jwtString = AuthStore.state.jwt;
+    let createdLessThan10MinutesAgo = Math.floor(Date.now()/1000) < (this.state.repoData.CreatedAt + 60*10);
+
+    fetch(
+      Endpoints["dashboardFetchCoordinatorStatus"] + repoId, {
+        method: 'GET',
+        headers: {
+          'Content-Type':'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ' + jwtString,
+        },
+      }
+    ).then(response => response.json())
+    .then(response => {
+      let status = response
+      var newEl = document.createElement('span');
+      newEl.id = "status"
+      if (status === undefined) {
+        newEl.classList.add("badge")
+        newEl.classList.add("badge-pill")
+        newEl.classList.add("badge-dark")
+        newEl.innerHTML = "..."
+      }
+  
+      if (!("Busy" in status)) {
+        console.log(Math.floor(Date.now()/1000), (this.state.repoData.CreatedAt + 60*10))
+        if (createdLessThan10MinutesAgo) {
+          newEl.classList.add("badge")
+          newEl.classList.add("badge-pill")
+          newEl.classList.add("badge-warning")
+          newEl.innerHTML = "Deploying..."
+        } else {
+          newEl.classList.add("badge")
+          newEl.classList.add("badge-pill")
+          newEl.classList.add("badge-danger")
+          newEl.innerHTML = "Unknown"
+        }
+      } else {
+        if (status["Busy"] === true) {
+          newEl.classList.add("badge")
+          newEl.classList.add("badge-pill")
+          newEl.classList.add("badge-success")
+          newEl.innerHTML = "Active"
+        } else {
+          newEl.classList.add("badge")
+          newEl.classList.add("badge-pill")
+          newEl.classList.add("badge-secondary")
+          newEl.innerHTML = "Idle"
+        }
+      }
+      
+      console.log(newEl)
+      
+      if (this.stillOnRepoPage(repoId)) {
+        console.log("automatic update")
+        this.update(newEl)
+        cachedElements[repoId] = newEl.cloneNode(true);
+        setTimeout(this.updateStatus, 20000)
+        timerOn[repoId] = true;
+      } else {
+        timerOn[repoId] = false
+      }
+    });
+  }
+
+  update(newEl) {
+    let object = document.getElementById("status")
+    object.parentNode.replaceChild(newEl, object);
+  }
+
+  stillOnRepoPage(repoId) {
+    let url = window.location.href.split('/')
+    console.log(url.length == 5, url[3] == 'repo', url[4] == repoId, url)
+    return url.length == 5 && url[3] == 'repo' && url[4] == repoId
+  }
+
   render() {
     // if (this.state.error !== false) {
     //   return (
@@ -147,7 +283,7 @@ class Repo extends Reflux.Component {
             <p>{this.state.repoData.Description}</p>
           </div>
           <div className="col-2 text-right">
-            <RepoStatus repoId={this.state.repoData.Id} isDeploying={createdLessThan10MinutesAgo} />
+            <span id="status"></span>
             <p className="mt-3"><button onClick={this.resetState} className="btn btn-xs btn-dark"><b>Reset</b></button></p>
             <p className="mt-3"><button onClick={this.deleteRepo} className="btn btn-xs btn-red-alt"><b>Delete Repo</b></button></p>
           </div>
@@ -155,10 +291,24 @@ class Repo extends Reflux.Component {
         <div className="row">
         <div className="col-1"></div>
           <div className="col-8">
-            <p id="bigo">Click <a href={"https://explora.discreetai.com"}>here</a> to use Explora and start your session.
-             <br></br>  <br></br>Sign in with the username <b id="username">{username}</b> and leave the password blank.
-             <br></br>  <br></br>Open a new terminal, and clone <a href={"https://github.com/DiscreetAI/decentralized-ml"}>this GitHub repo</a>. Navigate to <i>decentralized-ml/explora</i>. Open the notebook <i>Explora.ipynb</i> for Javascript/Python sessions or the notebook <i>ExploraSample.ipynb</i> 
-             <br></br> <br></br>Your repo ID is: <b> {this.state.repoData.Id} </b>.</p>
+
+            <p id="bigo">
+              To start your training session, complete the following steps once the cloud node status is <b>Idle</b>.
+              <br></br><br></br>
+              <ol>
+                <li>Click <a href={"https://explora.discreetai.com"}>here</a> to use Explora and start your session.</li>
+                <br></br>
+                <li>Sign in using just your Explora username:  <b id="username">{username}</b>.  <button class="btn btn-xs btn-primary ml-2" onClick={this.copyUsernameToClipboard}>Copy to Clipboard</button></li>
+                <br></br>
+                <li>Open a new terminal, and clone our Github repo <a href="https://github.com/DiscreetAI/decentralized-ml">here</a>. <button class="btn btn-xs btn-primary ml-2" onClick={this.copyRepoToClipboard}>Copy to Clipboard</button></li>
+                <br></br>
+                <li>Navigate to <i>decentralized-ml/explora</i>. Open the notebook <i>Explora.ipynb</i> for Javascript/Python sessions or the notebook <i>ExploraMobile.ipynb</i> for iOS sessions.</li>
+                <br></br>
+                <li>Fill in the repo ID cell (<code>repo_id = # REPO ID HERE</code>) with: <b>{this.state.repoData.Id}</b>.  <button class="btn btn-xs btn-primary ml-2" onClick={this.copyRepoIDToClipboard}>Copy to Clipboard</button> </li>
+                <br></br>
+                <li>Run the cells to begin training with the sample model!</li>
+              </ol>
+              </p>
           </div>
         </div>
 

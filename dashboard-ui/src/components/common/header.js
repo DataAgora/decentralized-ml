@@ -17,15 +17,10 @@ class Header extends Reflux.Component {
   render() {
     var rightElement;
     if (this.state.isAuthenticated) {
-      let companyName = this.state.claims["company"];
-
       rightElement = (
         <ul className="navbar-nav ml-auto">
           <li className="nav-item">
               <Link to="/new" className="nav-link" href="#"><b>New repo</b></Link>
-          </li>
-          <li className="nav-item">
-              <div className="nav-link">{"@" + companyName}</div>
           </li>
           <li className="nav-item">
               <Link to="/signout" className="nav-link" href="#"><FontAwesomeIcon icon="sign-out-alt" /></Link>

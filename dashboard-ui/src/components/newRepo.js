@@ -23,7 +23,7 @@ class NewRepo extends Reflux.Component {
   _handleSubmit(event) {
     event.preventDefault();
 
-    let form = document.getElementById('registrationForm');
+    let form = document.getElementById('newRepoForm');
 
     if (form.reportValidity()) {
       let repoName = ReactDOM.findDOMNode(this.refs.repoName).value.replace(/[^a-zA-Z0-9-]/g,'-');
@@ -94,12 +94,12 @@ class NewRepo extends Reflux.Component {
             <form id="newRepoForm" className="mt-4">
               <div className="form-group">
                <label htmlFor="repoNameInput">Repo name</label>
-               <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" />
+               <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" required/>
                <small id="repoNameHelp" className="form-text text-muted">Use a repo name you haven't used yet. Make it catchy.</small>
               </div>
               <div className="form-group">
                <label htmlFor="repoDescriptionInput">Brief description</label>
-               <input type="text" className="form-control" id="repoDescriptionInput" ref="repoDescription" placeholder="To do magic on users' data without even seeing it." maxLength="80"/>
+               <input type="text" className="form-control" id="repoDescriptionInput" ref="repoDescription" placeholder="To do magic on users' data without even seeing it." maxLength="80" required/>
                <small id="repoDescriptionHelp" className="form-text text-muted">Anything will do. Use this to remember what a repo is about.</small>
               </div>
               <div className="text-center mt-5">

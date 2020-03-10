@@ -57,6 +57,7 @@ class CoordinatorStore extends Reflux.Store {
     this.state.coordinatorStatuses[repoId] = status;
     this.state.loading = false;
     this._changed();
+    console.log("DONE")
   }
 
   onFetchCoordinatorStatusFailed (repoId, errorObject) {

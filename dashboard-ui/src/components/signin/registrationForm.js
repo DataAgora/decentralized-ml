@@ -13,6 +13,7 @@ class RegistationForm extends Reflux.Component {
   constructor(props) {
     super(props);
     this.store = AuthStore;
+    this.check = this.check.bind(this)
   }
 
   componentWillUpdate(nextProps, nextState) {
@@ -22,17 +23,38 @@ class RegistationForm extends Reflux.Component {
     }
   }
 
+  check() {
+    let p1 = document.getElementById('inputPassword1')
+    let p2 = document.getElementById('inputPassword2')
+    if (p1.value != p2.value) {
+      p2.setCustomValidity('Passwords must be matching!');
+    } else {
+      p2.setCustomValidity('');
+    }
+  }
+
   _handleSubmit(event) {
     event.preventDefault();
 
     let form = document.getElementById('registrationForm');
 
     if (form.reportValidity()) {
+      var firstName = ReactDOM.findDOMNode(this.refs.fname).value
+      var lastName = ReactDOM.findDOMNode(this.refs.lname).value
+
+      if (firstName == "") {
+        firstName = "N/A"
+      }
+
+      if (lastName == "") {
+        lastName = "N/A"
+      }
+
       var registrationObject = {
         "first_name": ReactDOM.findDOMNode(this.refs.fname).value,
         "last_name": ReactDOM.findDOMNode(this.refs.lname).value,
-        "company": ReactDOM.findDOMNode(this.refs.organization).value,
-        "occupation": ReactDOM.findDOMNode(this.refs.position).value,
+        "company": "N/A",
+        "occupation": "N/A",
         "email": ReactDOM.findDOMNode(this.refs.email).value,
         "password1": ReactDOM.findDOMNode(this.refs.password1).value,
         "password2": ReactDOM.findDOMNode(this.refs.password2).value
@@ -63,37 +85,27 @@ class RegistationForm extends Reflux.Component {
         <div className="form-group form-row">
           <div className="col">
             <label htmlFor="inputFname">First name</label>
-            <input type="text" ref="fname" className="form-control" id="inputFname" placeholder="First name" required/>
+            <input type="text" ref="fname" className="form-control" id="inputFname" placeholder="First name"/>
           </div>
           <div className="col">
             <label htmlFor="inputLname">Last name</label>
-            <input type="text" ref="lname" className="form-control" id="inputLname" placeholder="Last name" required/>
+            <input type="text" ref="lname" className="form-control" id="inputLname" placeholder="Last name"/>
           </div>
         </div>
 
         <div className="form-group">
-          <label htmlFor="inputOrganization">Organization</label>
-          <input type="text" ref="organization" className="form-control" id="inputOrganization" placeholder="Current organization" required/>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="inputPosition">Position</label>
-          <input type="text" ref="position" className="form-control" id="inputPosition" placeholder="Current position" />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="inputEmail">Email address</label>
+          <label htmlFor="inputEmail">Email address*</label>
           <input type="email" ref="email" className="form-control" id="inputEmail" placeholder="Email address" required/>
         </div>
 
         <div className="form-group">
-          <label htmlFor="inputPassword1">Password</label>
+          <label htmlFor="inputPassword1">Password*</label>
           <input type="password" ref="password1" className="form-control" id="inputPassword1" placeholder="Enter password" required/>
         </div>
 
         <div className="form-group">
-          <label htmlFor="inputPassword2">Repeat password</label>
-          <input type="password" ref="password2" className="form-control" id="inputPassword2" placeholder="Repeat password" required/>
+          <label htmlFor="inputPassword2">Repeat password*</label>
+          <input type="password" ref="password2" className="form-control" id="inputPassword2" placeholder="Repeat password" onInput={this.check} required/>
         </div>
 
         <div className="form-group text-center">

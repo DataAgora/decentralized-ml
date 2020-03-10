@@ -4,12 +4,6 @@ import Reflux from 'reflux';
 import CoordinatorStore from './../../stores/CoordinatorStore';
 import CoordinatorActions from './../../actions/CoordinatorActions';
 
-function updateStatus(repoID) {
-  console.log("updating status...")
-  CoordinatorActions.fetchCoordinatorStatus(repoID);
-  setTimeout(updateStatus, 10000)
-}
-
 class RepoStatus extends Reflux.Component {
 
   constructor(props) {
@@ -19,7 +13,6 @@ class RepoStatus extends Reflux.Component {
 
   componentDidMount() {
     CoordinatorActions.fetchCoordinatorStatus(this.props.repoId);
-    setTimeout(updateStatus, 10000, this.props.repoId)
   }
 
   render() {
@@ -42,6 +35,10 @@ class RepoStatus extends Reflux.Component {
     } else {
       return <span className="badge badge-pill badge-secondary">Idle</span>;
     }
+  }
+
+  rerender() {
+    this.forceUpdate()
   }
 }
 
