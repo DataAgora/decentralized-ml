@@ -8,6 +8,10 @@ import state
 from parse_weights import calculate_new_weights, read_compiled_weights
 
 
+@pytest.fixture(autouse=True)
+def reset_state():
+    state.reset_state()
+
 @pytest.fixture(scope="session")
 def simple_gradients_path():
     return "cloud-node/tests/artifacts/simple_gradients.json"

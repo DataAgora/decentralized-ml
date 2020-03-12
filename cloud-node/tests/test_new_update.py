@@ -11,6 +11,10 @@ from new_message import process_new_message
 
 
 @pytest.fixture(autouse=True)
+def reset_state():
+    state.reset_state()
+
+@pytest.fixture(autouse=True)
 def set_training_state(session_id, repo_id, python_session_message, \
         h5_model_path):
     session_h5_model_folder = os.path.join("temp", session_id)

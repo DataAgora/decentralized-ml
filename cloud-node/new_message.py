@@ -4,7 +4,7 @@ import state
 from message import Message
 from message import MessageType
 from coordinator import start_new_session, stop_session
-from aggregator import handle_new_update
+from aggregator import handle_new_update, handle_no_dataset
 
 
 def validate_new_message(payload):
@@ -74,6 +74,20 @@ def process_new_message(message, factory, client):
             # Handle new weights (average, move to next round, terminate session)
             results = handle_new_update(message, factory.clients)
             print("Averaged new weights!")
+        else:
+            # Stopping session as the session starter has disconnected.
+            results = stop_session(factory.clients)
+            print("Disconnected from dashboard client, stopping session.")
+
+    elif message.type == MessageType.NO_DATASET.value:
+        # Verify this node has been registered
+        if not factory.is_registered(client, message.node_type): return
+
+        if factory.clients["DASHBOARD"]: 
+            # Handle `NO_DATASET` message (reduce # of chosen nodes, analyze 
+            # continuation and termination criteria accordingly)
+            results = handle_no_dataset(message, factory.clients)
+            print("Handled `NO_DATASET` message!")
         else:
             # Stopping session as the session starter has disconnected.
             results = stop_session(factory.clients)

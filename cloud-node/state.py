@@ -15,6 +15,7 @@ def init():
         state = {
             "busy": False,
             "session_id": None,
+            "dataset_id": None,
             "repo_id": None,
             "current_round": 0,
             "num_nodes_averaged": 0,

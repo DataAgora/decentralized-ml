@@ -7,6 +7,10 @@ import state
 from new_message import process_new_message
 
 
+@pytest.fixture(autouse=True)
+def reset_state():
+    state.reset_state()
+
 @pytest.fixture
 def broadcast_message(factory, train_message):
     return {
@@ -17,14 +21,12 @@ def broadcast_message(factory, train_message):
     }
 
 @pytest.fixture
-def ios_broadcast_message(train_message, factory, ios_session_id):
-    ios_message = deepcopy(train_message)
-    ios_message["session_id"] = ios_session_id
+def ios_broadcast_message(ios_train_message, factory, ios_session_id):
     return {
         "error": False,
         "action": "BROADCAST",
         "client_list": factory.clients["LIBRARY"],
-        "message": ios_message,
+        "message": ios_train_message,
     }
     
 @pytest.fixture(autouse=True)

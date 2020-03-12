@@ -40,16 +40,14 @@ def start_new_session(message, clients):
     state.state["num_nodes_averaged"] = 0
     state.state["initial_message"] = message
     state.state["repo_id"] = message.repo_id
+    state.state["dataset_id"] = message.dataset_id
     state.state["session_id"] = message.session_id
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
     state.state["ios_config"] = message.ios_config
 
     # 3. According to the 'Selection Criteria', choose clients to forward
     #    training messages to.
-    chosen_clients = _choose_clients(
-        message.selection_criteria,
-        clients,
-    )
+    chosen_clients = _choose_clients(message.selection_criteria, clients)
     state.state["num_nodes_chosen"] = len(chosen_clients)
 
     new_message = {
@@ -81,6 +79,7 @@ def start_new_session(message, clients):
         if state.state["library_type"] == LibraryType.IOS_IMAGE.value:
             state.state["hyperparams"] = message.hyperparams
             _ = convert_keras_model_to_mlmodel()
+        new_message["dataset_id"] = state.state["dataset_id"]
 
     # 7. Kickstart a DML Session with the model and round # 1
     return {
@@ -127,6 +126,9 @@ def start_next_round(clients):
         _ = convert_keras_model_to_tfjs()
     elif state.state["library_type"] == LibraryType.IOS_IMAGE.value:
         _ = convert_keras_model_to_mlmodel()
+        new_message["dataset_id"] = state.state["dataset_id"]
+    elif state.state["library_type"] == LibraryType.IOS_TEXT.value:
+        new_message["dataset_id"] = state.state["dataset_id"]
         
     state.state["last_message_sent_to_library"] = new_message
     assert state.state["current_round"] > 0
@@ -155,6 +157,7 @@ def stop_session(clients_dict):
     new_message = {
         "action": "STOP",
         "session_id": state.state["session_id"],
+        "dataset_id": state.state["dataset_id"],
         "repo_id": state.state["repo_id"]
     }
     

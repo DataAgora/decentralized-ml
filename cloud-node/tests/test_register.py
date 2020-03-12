@@ -2,10 +2,15 @@ import json
 
 import pytest
 
+import state
 from protocol import CloudNodeProtocol
 from new_message import process_new_message
 from message import Message
 
+
+@pytest.fixture(autouse=True)
+def reset_state():
+    state.reset_state()
 
 @pytest.fixture(scope="module")
 def dummy_client():

@@ -11,6 +11,7 @@ class MessageType(Enum):
     REGISTER = "REGISTER"
     NEW_SESSION = "NEW_SESSION"
     NEW_UPDATE = "NEW_UPDATE"
+    NO_DATASET = "NO_DATASET"
 
 class LibraryType(Enum):
     """
@@ -70,6 +71,7 @@ class NewSessionMessage(Message):
 
     def __init__(self, serialized_message):
         self.repo_id = serialized_message["repo_id"]
+        self.dataset_id = serialized_message.get("dataset_id", None)
         self.session_id = serialized_message["session_id"]
         self.hyperparams = serialized_message["hyperparams"]
         self.selection_criteria = serialized_message["selection_criteria"]
@@ -92,7 +94,8 @@ class NewSessionMessage(Message):
 
 class NewUpdateMessage(Message):
     """
-    The type of message sent by the Library. This is an update.
+    The update message sent by the Library. Indicates new weights or gradients
+    to be averaged after training.
 
     Args:
         serialized_message (dict): The serialized message to provide the new
@@ -117,6 +120,7 @@ class NewUpdateMessage(Message):
         else:
             raise Exception(("No update received!"))
         self.omega = serialized_message["results"]["omega"]
+        self.dataset_id = serialized_message.get("dataset_id", None)
         self.node_type = "LIBRARY"
 
     def __repr__(self):
@@ -125,4 +129,27 @@ class NewUpdateMessage(Message):
             "round": self.round,
             "weights": "omitted",
             "omega": self.omega,
+        })
+
+class NoDatasetMessage(Message):
+    """
+    The no dataset message sent by the Library. Indicates that this client
+    does not have the specified dataset.
+
+    Args:
+        serialized_message (dict): The serialized message to provide the no
+            dataset message.
+    """
+    type = MessageType.NO_DATASET.value
+
+    def __init__(self, serialized_message):
+        self.session_id = serialized_message["session_id"]
+        self.round = serialized_message["round"]
+        self.dataset_id = serialized_message["dataset_id"]
+        self.node_type = "LIBRARY"
+
+    def __repr__(self):
+        return json.dumps({
+            "session_id": self.session_id,
+            "round": self.round,
         })

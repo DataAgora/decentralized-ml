@@ -29,6 +29,10 @@ def session_id():
     return "test-session"
 
 @pytest.fixture(scope="session")
+def dataset_id():
+    return "test-dataset"
+
+@pytest.fixture(scope="session")
 def ios_session_id():
     return "ios-test-session"
 
@@ -121,11 +125,13 @@ def js_session_message(session_message):
     return Message.make(js_message)
 
 @pytest.fixture(scope="session")
-def ios_session_message(session_message, ios_session_id, ios_config):
+def ios_session_message(session_message, ios_session_id, ios_config, \
+        dataset_id):
     ios_message = deepcopy(session_message)
     ios_message["session_id"] = ios_session_id
     ios_message["library_type"] = "IOS"
     ios_message["ios_config"] = ios_config
+    ios_message["dataset_id"] = dataset_id
     return Message.make(ios_message)
 
 @pytest.fixture(scope="session")
@@ -137,3 +143,22 @@ def train_message(session_id, repo_id, hyperparams):
         "action": "TRAIN",
         "hyperparams": hyperparams,
     }
+
+@pytest.fixture(scope="session")
+def ios_train_message(ios_session_id, repo_id, dataset_id, hyperparams):
+    return {
+        "session_id": ios_session_id,
+        "repo_id": repo_id,
+        "dataset_id": dataset_id,
+        "round": 1,
+        "action": "TRAIN",
+        "hyperparams": hyperparams,
+    }
+
+@pytest.fixture(scope="session")
+def no_action_message(ios_session_id, dataset_id):
+    return {
+        "action": None,
+        "error": False,
+    }
+    
