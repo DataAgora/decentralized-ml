@@ -15,7 +15,7 @@ __pycache__/
 */node_modules/
 cloud-node/temp/
 datacenter/sessions
-dashboardui/utils.js
+dashboard-ui/src/utils.js
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

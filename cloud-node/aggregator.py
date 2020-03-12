@@ -94,7 +94,7 @@ def handle_no_dataset(message, clients_dict):
     nodes by 1 and then check the continuation/termination criteria again.
 
     Args:
-        message (NewUpdateMessage): The `NO_DATASET` message sent to the server.
+        message (NoDatasetMessage): The `NO_DATASET` message sent to the server.
 
     Returns:
         dict: Returns a dictionary detailing whether an error occurred and

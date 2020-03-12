@@ -151,5 +151,6 @@ class NoDatasetMessage(Message):
     def __repr__(self):
         return json.dumps({
             "session_id": self.session_id,
+            "dataset_id": self.dataset_id
             "round": self.round,
         })
