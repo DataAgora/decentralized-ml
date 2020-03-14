@@ -172,7 +172,8 @@ def valid_checkpoint_frequency(checkpoint_frequency, max_rounds):
 
 def valid_data_config(library_type, data_config):
     """
-    Check that the data config is valid.
+    Check that the data config is valid if the library type is iOS. Otherwise,
+    check to make sure that the data_config is not set (`None`).
 
     Args:
         library_type (str): The type of library to train with.
@@ -183,7 +184,11 @@ def valid_data_config(library_type, data_config):
         bool: True if valid, False otherwise.
     """
     if library_type != LibraryType.IOS.value:
-        return True
+        if data_config is not None:
+            print(ErrorMessages.SET_DATA_CONFIG.value)
+            return False
+        else:
+            return True
     elif data_config == None:
         print(ErrorMessages.DATA_CONFIG_NOT_SPECIFIED.value)
         return False
@@ -207,7 +212,6 @@ def _valid_image_config(image_config):
     Check that the image config is valid.
 
     Args:
-        library_type (str): The type of library to train with.
         image_config (ImageConfig): The image config.
 
     Returns:
@@ -220,6 +224,28 @@ def _valid_image_config(image_config):
             or len(image_config.dims) != 2 \
             or any([not isinstance(dim, int) for dim in image_config.dims]):
         print(ErrorMessages.INVALID_IMAGE_DIMS.value)
+        return False
+    return True
+
+def valid_dataset_id(library_type, dataset_id):
+    """
+    Check to make sure the dataset_id is set if the library type is `IOS`.
+    Otherwise, check to make sure the dataset_id is not set (`None`).
+    
+    Args:
+        library_type (str): The type of library to train with.
+        dataset_id (str): The dataset ID of the corresponding dataset in the
+            iOS library.
+    
+    Returns:
+        bool: True if valid, False otherwise.
+    """
+    if library_type == LibraryType.IOS.value:
+        if not isinstance(dataset_id, str):
+            print(ErrorMessages.MISSING_DATASET_ID.value)
+            return False
+    elif dataset_id != None:
+        print(ErrorMessages.SET_DATASET_ID.value)
         return False
     return True
     

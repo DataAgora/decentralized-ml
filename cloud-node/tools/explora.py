@@ -42,6 +42,7 @@ class Explora(object):
         NEW_MESSAGE = {
             "type": "NEW_SESSION",
             "repo_id": repo_id,
+            "dataset_id": "testDataset",
             "hyperparams": hyperparams,
             "session_id": "test-session",
             "checkpoint_frequency": 1,

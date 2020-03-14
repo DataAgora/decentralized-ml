@@ -5,7 +5,7 @@ tf.compat.v1.disable_v2_behavior()
 
 from utils.validation import valid_repo_id, valid_model, \
     valid_and_prepare_hyperparameters, valid_percentage_averaged, \
-    valid_max_rounds, valid_library_type, \
+    valid_max_rounds, valid_library_type, valid_dataset_id, \
     valid_checkpoint_frequency, valid_data_config
 from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import websocket_connect
@@ -40,7 +40,7 @@ def make_data_config(data_type, class_labels, color_space=None, \
 
 async def start_new_session(repo_id, model, hyperparameters, \
         percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
-        checkpoint_frequency=1, data_config=None):
+        checkpoint_frequency=1, data_config=None, dataset_id=None):
     """
     Validate arguments and then start a new session by sending a message to
     the server with the given configuration. Designed to be called in
@@ -62,7 +62,10 @@ async def start_new_session(repo_id, model, hyperparameters, \
             `checkpoint_frequency` rounds. Defaults to 1.
         data_config (DataConfig, optional): The configuration for the 
             dataset, if applicable. If `library_type` is `IOS`, then this 
-            argument is required!  
+            argument is required!
+        dataset_id (str, optional): The dataset ID for the dataset, if
+            applicable. If `library_type` is `IOS`, then this argument is 
+            required since the application may have multiple datasets!
 
     Examples:
         >>> start_new_session(
@@ -88,7 +91,8 @@ async def start_new_session(repo_id, model, hyperparameters, \
             and valid_percentage_averaged(percentage_averaged) \
             and valid_max_rounds(max_rounds) \
             and valid_checkpoint_frequency(checkpoint_frequency, max_rounds) \
-            and valid_data_config(library_type, data_config)):
+            and valid_data_config(library_type, data_config) \
+            and valid_dataset_id(library_type, dataset_id)):
         return
 
     h5_model_path = "model/model.h5"

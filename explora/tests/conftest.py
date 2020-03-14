@@ -17,6 +17,14 @@ def bad_repo_id():
     return "bad_repo_id"
 
 @pytest.fixture(scope="session")
+def good_dataset_id():
+    return "testDataset"
+
+@pytest.fixture(scope="session")
+def bad_dataset_id():
+    return None
+
+@pytest.fixture(scope="session")
 def good_keras_model():
     return keras.models.load_model("explora/tests/artifacts/model.h5")
 

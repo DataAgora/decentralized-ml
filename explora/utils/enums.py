@@ -49,9 +49,14 @@ class ErrorMessages(Enum):
         "library!"
     UNKNOWN_CONFIG = "Unknown data config received! Use `make_data_config` " \
         "to generate the data config!"
+    SET_DATA_CONFIG = "Data config should not be set for non iOS libraries!"
     INVALID_DATA_TYPE = "Invalid data type! The only valid data types are: " \
         "{}".format(data_types)
     INVALID_CLASS_LABELS = "Class labels must be nonempty list!"
     INVALID_COLOR_SPACE = "Invalid color space! The only valid color spaces " \
         "are: {}".format(color_spaces) 
     INVALID_IMAGE_DIMS = "Image dimensions must be a tuple of 2 integers."
+    MISSING_DATASET_ID = "Dataset ID must be string and is required for iOS " \
+        " libraries!"
+    SET_DATASET_ID = "Dataset ID should not be set for non iOS libraries!"
+    

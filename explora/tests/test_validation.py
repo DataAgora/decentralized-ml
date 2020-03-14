@@ -5,7 +5,7 @@ import pytest
 from explora import make_data_config
 from utils.validation import valid_repo_id, valid_model, \
     valid_and_prepare_hyperparameters, valid_percentage_averaged, \
-    valid_max_rounds, valid_library_type, \
+    valid_max_rounds, valid_library_type, valid_dataset_id, \
     valid_checkpoint_frequency, valid_data_config
 from utils.enums import LibraryType
 
@@ -19,6 +19,23 @@ def test_repo_id_validation(good_repo_id, bad_repo_id):
         "This repo ID should have passed validation!"
 
     assert not valid_repo_id(bad_repo_id), \
+        "This repo ID should have failed validation!"
+
+def test_dataset_id_validation(good_dataset_id, bad_dataset_id):
+    """
+    Test that a valid dataset ID passes validation and an invalid one fails
+    validation.
+    """
+    assert valid_dataset_id(LibraryType.IOS.value, good_dataset_id), \
+        "This repo ID should have passed validation!"
+
+    assert not valid_dataset_id(LibraryType.IOS.value, bad_dataset_id), \
+        "This repo ID should have failed validation!"
+
+    assert valid_dataset_id(LibraryType.PYTHON.value, None), \
+        "This repo ID should have passed validation!"
+
+    assert not valid_dataset_id(LibraryType.PYTHON.value, good_dataset_id), \
         "This repo ID should have failed validation!"
 
 def test_keras_model_validation(good_keras_model, good_keras_ios_model, \
@@ -120,6 +137,12 @@ def test_image_config(good_image_config, bad_image_config, \
         "This image config should have failed validation!"
 
     assert not valid_data_config(LibraryType.IOS.value, bad_image_config_4), \
+        "This image config should have failed validation!"
+
+    assert valid_data_config(LibraryType.PYTHON.value, None), \
+        "This image config should have passed validation!"
+
+    assert not valid_data_config(LibraryType.PYTHON.value, good_image_config), \
         "This image config should have failed validation!"
 
 def test_make_config_assertion(bad_data_type, good_class_labels):
