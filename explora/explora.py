@@ -107,6 +107,7 @@ async def start_new_session(repo_id, model, hyperparameters, \
         "type": "NEW_SESSION",
         "session_id": session_id,
         "repo_id": repo_id,
+        "dataset_id": dataset_id,
         "hyperparams": hyperparameters,
         "checkpoint_frequency": checkpoint_frequency,
         "selection_criteria": {
