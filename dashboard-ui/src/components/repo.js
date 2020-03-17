@@ -75,11 +75,11 @@ class Repo extends Reflux.Component {
     RepoLogsActions.fetchRepoLogs(repoId);
     this.updateStatus = this.updateStatus.bind(this)
     if (!(repoId in timerOn && timerOn[repoId])) {
-      setTimeout(this.updateStatus, 500)
+      setTimeout(this.updateStatus, 1500)
     } else {
       console.log("manual update")
       console.log(cachedElements)
-      setTimeout(this.update, 500, cachedElements[repoId])
+      setTimeout(this.update, 1500, cachedElements[repoId])
     }
   }
 
@@ -234,7 +234,7 @@ class Repo extends Reflux.Component {
         console.log("automatic update")
         this.update(newEl)
         cachedElements[repoId] = newEl.cloneNode(true);
-        setTimeout(this.updateStatus, 20000)
+        setTimeout(this.updateStatus, 5000)
         timerOn[repoId] = true;
       } else {
         timerOn[repoId] = false
@@ -283,7 +283,7 @@ class Repo extends Reflux.Component {
             <p>{this.state.repoData.Description}</p>
           </div>
           <div className="col-2 text-right">
-            <span id="status"></span>
+            <span id="status" className="badge badge-pill badge-dark">...</span>
             <p className="mt-3"><button onClick={this.resetState} className="btn btn-xs btn-dark"><b>Reset</b></button></p>
             <p className="mt-3"><button onClick={this.deleteRepo} className="btn btn-xs btn-red-alt"><b>Delete Repo</b></button></p>
           </div>
