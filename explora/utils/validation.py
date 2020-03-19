@@ -1,8 +1,9 @@
 import uuid
 
 import keras
+import coremltools
 
-from utils.data_config import DataConfig, ImageConfig
+from utils.data_config import DataConfig, ImageConfig, TextConfig
 from utils.enums import ErrorMessages, LibraryType, DataType, library_types, \
     color_spaces, data_types
 
@@ -69,33 +70,48 @@ def _valid_ios_optimizer(optimizer):
         return False 
     return True
 
-def valid_model(library_type, model):
+def valid_model(data_config, model_path):
     """
     Check that the model is a Keras model and is compiled.
 
     Args:
-        library_type (str): The type of library to train with.
-        model (keras.engine.Model): The initial Keras model to train with. The
-            model must be compiled!
+        data_config (DataConfig): The configuration for the 
+            dataset, if applicable. If `library_type` is `IOS`, then this 
+            argument is required!
+        model_path (str): The path to the initial model to train with. Must be 
+            an `.mlmodel` (`MLModel`) file if the model is a text model for 
+            iOS, or a `.h5` (compiled Keras model) file otherwise.
     
     Returns:
         bool: True if Keras model and compiled and valid optimizer/loss, False
             otherwise.
     """
-    if not isinstance(model, keras.engine.Model):
-        print(ErrorMessages.INVALID_MODEL_TYPE.value)
-        return False
-    elif not model.optimizer or not model.loss:
-        print(ErrorMessages.NOT_COMPILED.value)
-        return False
-    elif library_type == LibraryType.IOS.value:
-        loss = model.loss
-        optimizer = model.optimizer
-        if isinstance(loss, str):
-            loss = keras.losses.get(loss)
-        if not _valid_ios_loss(loss) \
-                or not _valid_ios_optimizer(optimizer):
+    if isinstance(data_config, TextConfig):
+        try:
+            mlmodel = coremltools.models.MLModel(model_path)
+        except:
+            print(ErrorMessages.INVALID_MLMODEL_PATH.value)
             return False
+        mlmodel.save("model/my_model.mlmodel")
+    else:
+        try:
+            model = keras.models.load_model(model_path)
+        except:
+            print(ErrorMessages.INVALID_KERAS_MODEL_PATH.value)
+            return False
+
+        if not model.optimizer or not model.loss:
+            print(ErrorMessages.NOT_COMPILED.value)
+            return False
+        elif isinstance(data_config, ImageConfig):
+            loss = model.loss
+            optimizer = model.optimizer
+            if isinstance(loss, str):
+                loss = keras.losses.get(loss)
+            if not _valid_ios_loss(loss) \
+                    or not _valid_ios_optimizer(optimizer):
+                return False
+        model.save("model/model.h5")
     return True
 
 def valid_and_prepare_hyperparameters(hyperparams):
@@ -198,18 +214,11 @@ def valid_data_config(library_type, data_config):
     elif data_config.data_type not in data_types:
         print(ErrorMessages.INVALID_DATA_TYPE.value)
         return False
-    elif not isinstance(data_config.class_labels, list) \
-            or len(data_config.class_labels) <= 0:
-        print(ErrorMessages.INVALID_CLASS_LABELS.value)
-        return False
-    elif data_config.data_type == DataType.IMAGE.value \
-            and not _valid_image_config(data_config):
-        return False
     return True    
 
-def _valid_image_config(image_config):
+def valid_image_config_args(class_labels, color_space, dims):
     """
-    Check that the image config is valid.
+    Check that the arguments for an image config is valid.
 
     Args:
         image_config (ImageConfig): The image config.
@@ -217,13 +226,33 @@ def _valid_image_config(image_config):
     Returns:
         bool: True if valid, False otherwise.
     """
-    if image_config.color_space not in color_spaces:
+    if not isinstance(class_labels, list) \
+            or len(class_labels) <= 0:
+        print(ErrorMessages.INVALID_CLASS_LABELS.value)
+        return False
+    elif color_space not in color_spaces:
         print(ErrorMessages.INVALID_COLOR_SPACE.value)
         return False
-    elif not isinstance(image_config.dims, tuple) \
-            or len(image_config.dims) != 2 \
-            or any([not isinstance(dim, int) for dim in image_config.dims]):
+    elif not isinstance(dims, tuple) \
+            or len(dims) != 2 \
+            or any([not isinstance(dim, int) for dim in dims]):
         print(ErrorMessages.INVALID_IMAGE_DIMS.value)
+        return False
+    return True
+
+def valid_text_config_args(vocab_size):
+    """
+    Check that the arguments for an text config is valid.
+
+    Args:
+        text_config (TextConfig): The text config.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """
+    if not isinstance(vocab_size, int) \
+            or vocab_size <= 1:
+        print(ErrorMessages.INVALID_VOCAB_SIZE.value)
         return False
     return True
 
@@ -248,4 +277,42 @@ def valid_dataset_id(library_type, dataset_id):
         print(ErrorMessages.SET_DATASET_ID.value)
         return False
     return True
+
+def valid_session_args(repo_id, model, hyperparameters, \
+        percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
+        checkpoint_frequency=1, data_config=None, dataset_id=None):
+    """
+    Validate arguments for starting a new session. Print error message message
+    if validation failed.
+
+    Args:
+        repo_id (str): The repo ID associated with the current dataset.
+        model (keras.engine.Model): The initial Keras model to train with. The
+            model must be compiled!
+        hyperparams (dict): The hyperparameters to be used during training.
+            Must include `batch_size`!
+        percentage_averaged (float): Percentage of nodes to be 
+            averaged before moving on to the next round. Defaults to 0.75.
+        max_rounds (int): Maximum number of rounds to train for.
+            Defaults to 5.
+        library_type (str): The type of library to train with. Must
+            be either `PYTHON` or `JAVASCRIPT` or `IOS`. Defaults to `PYTHON`.
+        checkpoint_frequency (int): Save the model in S3 every
+            `checkpoint_frequency` rounds. Defaults to 1.
+        data_config (DataConfig): The configuration for the 
+            dataset, if applicable. If `library_type` is `IOS`, then this 
+            argument is required!
+        dataset_id (str): The dataset ID for the dataset, if
+            applicable. If `library_type` is `IOS`, then this argument is 
+            required since the application may have multiple datasets!
+    """
+    return valid_repo_id(repo_id) \
+        and valid_library_type(library_type) \
+        and valid_data_config(library_type, data_config) \
+        and valid_model(data_config, model) \
+        and valid_and_prepare_hyperparameters(hyperparameters) \
+        and valid_percentage_averaged(percentage_averaged) \
+        and valid_max_rounds(max_rounds) \
+        and valid_checkpoint_frequency(checkpoint_frequency, max_rounds) \
+        and valid_dataset_id(library_type, dataset_id)
     

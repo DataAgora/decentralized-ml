@@ -16,6 +16,7 @@ __pycache__/
 cloud-node/temp/
 datacenter/sessions
 dashboard-ui/src/utils.js
+model/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

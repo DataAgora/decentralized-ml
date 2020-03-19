@@ -22,6 +22,7 @@ class DataType(Enum):
     Enum to enumerate types of data for iOS training sessions.
     """
     IMAGE = "image"
+    TEXT = "text"
 
 library_types = tuple([library_type.value for library_type in LibraryType])
 color_spaces = tuple([color_space.value for color_space in ColorSpace])
@@ -34,7 +35,10 @@ class ErrorMessages(Enum):
     INVALID_REPO_ID = "Repo ID is in an invalid format!"
     INVALID_LIBRARY_TYPE = "Invalid library type! The only valid library " \
         "types are: {}".format(library_types)    
-    INVALID_MODEL_TYPE = "Provided model is not a Keras model!"
+    INVALID_KERAS_MODEL_PATH = "Invalid Keras model path! Check that the " \
+        "file exists and is a `.h5` file!"
+    INVALID_MLMODEL_PATH = "Invalid `MLModel` model path! Check that the " \
+        "file exists and is a `.mlmodel` file!"
     NOT_COMPILED = "Model must compiled with optimizer and loss!"
     INVALID_LOSS = "Loss must be categorical cross entropy or mean squared " \
         "error for iOS library!"
@@ -59,4 +63,5 @@ class ErrorMessages(Enum):
     MISSING_DATASET_ID = "Dataset ID must be string and is required for iOS " \
         " libraries!"
     SET_DATASET_ID = "Dataset ID should not be set for non iOS libraries!"
+    INVALID_VOCAB_SIZE = "Vocab size must be int and greater than 0!"
     

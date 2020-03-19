@@ -6,6 +6,7 @@ import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
 
 from explora import make_data_config
+from utils.enums import LibraryType
 
 
 @pytest.fixture(scope="session")
@@ -25,30 +26,28 @@ def bad_dataset_id():
     return None
 
 @pytest.fixture(scope="session")
-def good_keras_model():
-    return keras.models.load_model("explora/tests/artifacts/model.h5")
+def good_keras_model_path():
+    return "explora/tests/artifacts/model.h5"
 
 @pytest.fixture(scope="session")
-def good_keras_ios_model():
-    return keras.models.load_model("explora/tests/artifacts/ios_model.h5")
+def good_keras_ios_model_path():
+    return "explora/tests/artifacts/ios_model.h5"
 
 @pytest.fixture(scope="session")
-def bad_keras_model():
-    model = keras.models.load_model("explora/tests/artifacts/model.h5")
-    model.optimizer = None
-    return model
+def bad_keras_model_path():
+    return "explora/tests/artifacts/bad_model.h5"
 
 @pytest.fixture(scope="session")
-def bad_keras_ios_model():
-    model = keras.models.load_model("explora/tests/artifacts/ios_model.h5")
-    model.loss = keras.losses.sparse_categorical_crossentropy
-    return model
+def bad_keras_ios_model_path():
+    return "explora/tests/artifacts/bad_ios_model.h5"
 
 @pytest.fixture(scope="session")
-def bad_keras_ios_model_2():
-    model = keras.models.load_model("explora/tests/artifacts/ios_model.h5")
-    model.loss = keras.optimizers.RMSprop()
-    return model
+def bad_keras_ios_model_2_path():
+    return "explora/tests/artifacts/bad_ios_model_2.h5"
+
+@pytest.fixture(scope="session")
+def good_mlmodel_path():
+    return "explora/tests/artifacts/my_model.mlmodel"
 
 @pytest.fixture(scope="session")
 def good_hyperparams():
@@ -79,8 +78,16 @@ def bad_max_rounds():
     return 0
 
 @pytest.fixture(scope="session")
-def good_library_type():
-    return "PYTHON"
+def python():
+    return LibraryType.PYTHON.value
+
+@pytest.fixture(scope="session")
+def ios():
+    return LibraryType.IOS.value
+
+@pytest.fixture(scope="session")
+def good_library_type(python):
+    return python
 
 @pytest.fixture(scope="session")
 def bad_library_type():
@@ -95,19 +102,23 @@ def bad_checkpoint_frequency():
     return -1
 
 @pytest.fixture(scope="session")
-def good_data_type():
+def image():
     return "image"
 
 @pytest.fixture(scope="session")
-def bad_data_type():
+def text():
     return "text"
 
 @pytest.fixture(scope="session")
-def good_class_labels():
+def bad_data_type():
+    return "bad_type"
+
+@pytest.fixture(scope="session")
+def good_image_labels():
     return ["label1", "label2"]
 
 @pytest.fixture(scope="session")
-def bad_class_labels():
+def bad_image_labels():
     return "label"
 
 @pytest.fixture(scope="session")
@@ -127,46 +138,56 @@ def bad_image_dims():
     return (5.4, 7.7)
 
 @pytest.fixture(scope="session")
-def good_image_config(good_data_type, good_class_labels, good_color_space, \
+def good_vocab_size():
+    return 100
+
+@pytest.fixture(scope="session")
+def bad_vocab_size():
+    return 0
+
+@pytest.fixture(scope="session")
+def good_image_config(image, good_image_labels, good_color_space, \
         good_image_dims):
     return make_data_config(
-        data_type=good_data_type, 
-        class_labels=good_class_labels, 
-        color_space=good_color_space, 
-        image_dims=good_image_dims
+        data_type=image, 
+        image_labels=good_image_labels, 
+        color_space=good_color_space,
+        dims=good_image_dims
     )
 
 @pytest.fixture(scope="session")
-def bad_image_config():
-    return None  
-
-@pytest.fixture(scope="session")
-def bad_image_config_2(good_data_type, bad_class_labels, good_color_space, \
-        good_image_dims):
+def good_text_config(text, good_vocab_size):
     return make_data_config(
-        data_type=good_data_type, 
-        class_labels=bad_class_labels, 
-        color_space=good_color_space, 
-        image_dims=good_image_dims
+        data_type=text, 
+        vocab_size=good_vocab_size
     )
 
 @pytest.fixture(scope="session")
-def bad_image_config_3(good_data_type, good_class_labels, bad_color_space, \
+def good_image_config_args(good_image_labels, good_color_space, \
         good_image_dims):
-    return make_data_config(
-        data_type=good_data_type, 
-        class_labels=good_class_labels, 
-        color_space=bad_color_space, 
-        image_dims=good_image_dims
-    )
+    return (good_image_labels, good_color_space, good_image_dims)
 
 @pytest.fixture(scope="session")
-def bad_image_config_4(good_data_type, good_class_labels, good_color_space, \
+def bad_image_config_args(bad_image_labels, good_color_space, \
+        good_image_dims):
+    return (bad_image_labels, good_color_space, good_image_dims)
+
+@pytest.fixture(scope="session")
+def bad_image_config_args_2(good_image_labels, bad_color_space, \
+        good_image_dims):
+    return (good_image_labels, bad_color_space, good_image_dims)
+
+@pytest.fixture(scope="session")
+def bad_image_config_args_3(good_image_labels, good_color_space, \
         bad_image_dims):
-    return make_data_config(
-        data_type=good_data_type, 
-        class_labels=good_class_labels, 
-        color_space=good_color_space, 
-        image_dims=bad_image_dims
-    )
+    return (good_image_labels, good_color_space, bad_image_dims)
+
+@pytest.fixture(scope="session")
+def good_text_config_args(good_vocab_size):
+    return (good_vocab_size,) 
+
+@pytest.fixture(scope="session")
+def bad_text_config_args(bad_vocab_size):
+    return (bad_vocab_size,) 
+
   

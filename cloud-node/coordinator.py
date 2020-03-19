@@ -3,7 +3,8 @@ import logging
 
 import state
 import copy
-from model import convert_keras_model_to_tfjs, fetch_keras_model, convert_keras_model_to_mlmodel
+from model import convert_keras_model_to_tfjs, fetch_keras_model, \
+    convert_keras_model_to_mlmodel, fetch_mlmodel
 from message import LibraryType
 
 
@@ -61,27 +62,28 @@ def start_new_session(message, clients):
     # 4. Record the message to be sent and the library type we are training
     #    with. By default, we use gradients for transmission.
     state.state["last_message_sent_to_library"] = new_message
-    state.state["library_type"] = message.library_type
     state.state["use_gradients"] = True
-
-    # 5. Retrieve the initial model we are training with.
-    fetch_keras_model()
-
-    # 6. If we are training with a JAVASCRIPT or IOS library, convert the model to 
-    #    accordingly and host it on the server.
-    if state.state["library_type"] == LibraryType.JS.value:
-        _ = convert_keras_model_to_tfjs()    
-        state.state["use_gradients"] = False
-    elif state.state["library_type"] == LibraryType.IOS.value:
+    state.state["library_type"] = message.library_type
+    if state.state["library_type"] == LibraryType.IOS.value:
+        new_message["dataset_id"] = state.state["dataset_id"]
         data_type = state.state["ios_config"]["data_type"]
         state.state["library_type"] = LibraryType.IOS_IMAGE.value \
             if data_type == "image" else LibraryType.IOS_TEXT.value
-        if state.state["library_type"] == LibraryType.IOS_IMAGE.value:
+
+    # 5. Retrieve the initial model we are training with and convert it if 
+    #    necessary..
+    if state.state["library_type"] == LibraryType.IOS_TEXT.value:
+        fetch_mlmodel()
+    else:
+        fetch_keras_model()
+        if state.state["library_type"] == LibraryType.JS.value:
+            _ = convert_keras_model_to_tfjs()    
+            state.state["use_gradients"] = False
+        elif state.state["library_type"] == LibraryType.IOS_IMAGE.value:
             state.state["hyperparams"] = message.hyperparams
             _ = convert_keras_model_to_mlmodel()
-        new_message["dataset_id"] = state.state["dataset_id"]
 
-    # 7. Kickstart a DML Session with the model and round # 1
+    # 6. Kickstart a DML Session with the model and round # 1
     return {
         "error": False,
         "action": "BROADCAST",

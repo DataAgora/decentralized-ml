@@ -1,7 +1,7 @@
 import boto3
 
 
-def upload_keras_model(repo_id, session_id, h5_model_path):
+def upload_keras_model(repo_id, session_id, model_path):
     """
     Upload the Keras model to S3 at the beginning of the session.
 
@@ -9,7 +9,7 @@ def upload_keras_model(repo_id, session_id, h5_model_path):
         repo_id (str): The repo ID associated with the current dataset.
         session_id (str): The session ID that uniquely identifies this
             session.
-        h5_model_path (str): The filepath to the saved Keras model.
+        model_path (str): The filepath to the saved model.
     """
     try:
         s3 = boto3.resource("s3")

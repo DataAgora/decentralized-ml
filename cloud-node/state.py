@@ -29,6 +29,8 @@ def init():
             "last_message_sent_to_library": None,
             "test": False,
             "h5_model_path": None,
+            "library_type": None,
+            "ios_type": None
         }
         if os.path.isdir(TEMP_FOLDER):
             shutil.rmtree(TEMP_FOLDER)
