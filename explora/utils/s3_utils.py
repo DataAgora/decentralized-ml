@@ -17,7 +17,7 @@ def upload_keras_model(repo_id, session_id, model_path, is_mlmodel):
         model_name = "my_model.mlmodel" if is_mlmodel else "model.h5"
         model_s3_key = model_s3_key.format(repo_id, session_id, 0, model_name)
         object = s3.Object("updatestore", model_s3_key)
-        object.put(Body=open(h5_model_path, "rb"))
+        object.put(Body=open(model_path, "rb"))
         return True
     except Exception as e:
         print("S3 Error: {0}".format(e))
