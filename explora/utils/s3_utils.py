@@ -1,7 +1,7 @@
 import boto3
 
 
-def upload_keras_model(repo_id, session_id, model_path):
+def upload_keras_model(repo_id, session_id, model_path, is_mlmodel):
     """
     Upload the Keras model to S3 at the beginning of the session.
 
@@ -13,8 +13,9 @@ def upload_keras_model(repo_id, session_id, model_path):
     """
     try:
         s3 = boto3.resource("s3")
-        model_s3_key = "{0}/{1}/{2}/model.h5"
-        model_s3_key = model_s3_key.format(repo_id, session_id, 0)
+        model_s3_key = "{0}/{1}/{2}/{3}"
+        model_name = "my_model.mlmodel" if is_mlmodel else "model.h5"
+        model_s3_key = model_s3_key.format(repo_id, session_id, 0, model_name)
         object = s3.Object("updatestore", model_s3_key)
         object.put(Body=open(h5_model_path, "rb"))
         return True
