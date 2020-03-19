@@ -92,7 +92,6 @@ def valid_model(data_config, model_path):
         except:
             print(ErrorMessages.INVALID_MLMODEL_PATH.value)
             return False
-        mlmodel.save("model/my_model.mlmodel")
     else:
         try:
             model = keras.models.load_model(model_path)
@@ -111,7 +110,6 @@ def valid_model(data_config, model_path):
             if not _valid_ios_loss(loss) \
                     or not _valid_ios_optimizer(optimizer):
                 return False
-        model.save("model/model.h5")
     return True
 
 def valid_and_prepare_hyperparameters(hyperparams):

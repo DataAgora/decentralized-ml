@@ -101,8 +101,6 @@ async def start_new_session(repo_id, model_path, hyperparameters, \
     
     is_mlmodel = isinstance(data_config, TextConfig)
 
-    model_path = "model/my_model.mlmodel" if is_mlmodel else "model/model.h5"
-
     if not upload_keras_model(repo_id, session_id, model_path, is_mlmodel):
         print("Model upload failed!")
         return
