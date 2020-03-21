@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timedelta
 import uuid
 import os
 import boto3
@@ -34,10 +35,12 @@ def store_update(type, message, with_weights=True):
     try:
         dynamodb = boto3.resource("dynamodb", region_name="us-west-1")
         table = dynamodb.Table("UpdateStore")
+        current_time = datetime.now()
         item = {
             "Id": str(uuid.uuid4()),
             "RepoId": state.state["repo_id"],
-            "Timestamp": int(time.time()),
+            "Timestamp": int(current_time.timestamp),
+            "TTL": int((current_time + timedelta(days=3)).timestamp)
             "ContentType": type,
             "SessionId": state.state["session_id"],
             "Content": repr(message),
