@@ -200,7 +200,7 @@ def get_logs(repo_id):
         _assert_user_can_read_repo(user_id, repo_id)
         logs = _get_logs(repo_id)
     except Exception as e:
-        return jsonify(make_error(str(e))), 400
+        return jsonify(make_error(str(e)))
     return jsonify(logs)
 
 @app.route("/coordinator/status/<repo_id>", methods=["GET"])
@@ -326,7 +326,8 @@ def _get_logs(repo_id):
     logs_table = _get_dynamodb_table("UpdateStore")
     try:
         response = logs_table.query(
-            KeyConditionExpression=Key('RepoId').eq(repo_id)
+            KeyConditionExpression=Key('RepoId').eq(repo_id) \
+                & Key('ExpirationTime').gt(int(time.time())) 
         )
         logs = response["Items"]
     except Exception as e:
