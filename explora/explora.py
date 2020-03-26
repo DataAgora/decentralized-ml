@@ -77,6 +77,9 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
         dataset_id (str, optional): The dataset ID for the dataset, if
             applicable. If `library_type` is `IOS`, then this argument is 
             required since the application may have multiple datasets!
+        model_name (str): The name of the default model to train with, stored
+            in Explora already. If valid, the model path and data config
+            don't need to be specified with this argument.
 
     Examples:
         >>> start_new_session(

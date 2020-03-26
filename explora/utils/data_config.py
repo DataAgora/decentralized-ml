@@ -12,6 +12,15 @@ class DataConfig(object):
         self.class_labels = class_labels
 
     def __eq__(self, other):
+        """
+        Custom comparator for checking equality between data configs.
+        
+        Args:
+            other (DataConfig): The other data config to compare with.
+        
+        Returns:
+            bool: True if equal, False otherwise.
+        """
         return self.data_type == other.data_type \
             and self.class_labels == other.class_labels
 
@@ -45,6 +54,15 @@ class ImageConfig(DataConfig):
         self.dims = dims
 
     def __eq__(self, other):
+        """
+        Custom comparator for checking equality between image configs.
+        
+        Args:
+            other (ImageConfig): The other image config to compare with.
+        
+        Returns:
+            bool: True if equal, False otherwise.
+        """
         return super().__eq__(other) \
             and self.color_space == other.color_space \
             and self.dims == other.dims
