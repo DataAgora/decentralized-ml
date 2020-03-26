@@ -4,7 +4,7 @@ import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
 
 from utils.validation import valid_session_args, valid_image_config_args, \
-    valid_text_config_args
+    valid_text_config_args, valid_model_name
 from utils.s3_utils import upload_keras_model
 from utils.websocket_utils import websocket_connect
 from utils.enums import ErrorMessages, DataType, data_types
@@ -47,9 +47,10 @@ def make_data_config(data_type, image_labels=None, vocab_size=None, \
             "Invalid text config arguments!"
         return TextConfig(vocab_size)
 
-async def start_new_session(repo_id, model_path, hyperparameters, \
-        percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
-        checkpoint_frequency=1, data_config=None, dataset_id=None):
+async def start_new_session(repo_id, hyperparameters, model_name=None, \
+        model_path=None, percentage_averaged=0.75, max_rounds=5, \
+        library_type="PYTHON", checkpoint_frequency=1, data_config=None, \
+        dataset_id=None):
     """
     Validate arguments and then start a new session by sending a message to
     the server with the given configuration. Designed to be called in
@@ -57,11 +58,11 @@ async def start_new_session(repo_id, model_path, hyperparameters, \
 
     Args:
         repo_id (str): The repo ID associated with the current dataset.
+        hyperparams (dict): The hyperparameters to be used during training.
+            Must include `batch_size`!
         model_path (str): The path to the initial model to train with. Must be 
             an `.mlmodel` (`MLModel`) file if the model is a text model for 
             iOS, or a `.h5` (compiled Keras model) file otherwise.
-        hyperparams (dict): The hyperparameters to be used during training.
-            Must include `batch_size`!
         percentage_averaged (float, optional): Percentage of nodes to be 
             averaged before moving on to the next round. Defaults to 0.75.
         max_rounds (int, optional): Maximum number of rounds to train for.
@@ -94,8 +95,14 @@ async def start_new_session(repo_id, model_path, hyperparameters, \
     cloud_node_host = "ws://" + repo_id + CLOUD_BASE_URL
     session_id = str(uuid.uuid4())
 
-    if not valid_session_args(repo_id, model_path, hyperparameters, \
-            percentage_averaged, max_rounds, library_type, \
+    if model_name:
+        model_path, data_config = valid_model_name(model_name, library_type, \
+            model_path)
+        if not model_path:
+            return
+
+    if not valid_session_args(repo_id, model_path, model_name, \
+            hyperparameters, percentage_averaged, max_rounds, library_type, \
             checkpoint_frequency, data_config, dataset_id):
         return
     

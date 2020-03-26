@@ -6,7 +6,8 @@ import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
 
 from explora import make_data_config
-from utils.enums import LibraryType
+from utils.enums import LibraryType, ModelNames
+from utils.validation import _make_mnist_config, _make_ngram_config
 
 
 @pytest.fixture(scope="session")
@@ -26,28 +27,40 @@ def bad_dataset_id():
     return None
 
 @pytest.fixture(scope="session")
-def good_keras_model_path():
+def good_keras_path():
     return "explora/tests/artifacts/model.h5"
 
 @pytest.fixture(scope="session")
-def good_keras_ios_model_path():
+def good_ios_model_path():
     return "explora/tests/artifacts/ios_model.h5"
 
 @pytest.fixture(scope="session")
-def bad_keras_model_path():
+def bad_keras_path():
     return "explora/tests/artifacts/bad_model.h5"
 
 @pytest.fixture(scope="session")
-def bad_keras_ios_model_path():
+def bad_ios_model_path():
     return "explora/tests/artifacts/bad_ios_model.h5"
 
 @pytest.fixture(scope="session")
-def bad_keras_ios_model_2_path():
+def bad_ios_model_path_2():
     return "explora/tests/artifacts/bad_ios_model_2.h5"
 
 @pytest.fixture(scope="session")
 def good_mlmodel_path():
     return "explora/tests/artifacts/my_model.mlmodel"
+
+@pytest.fixture(scope="session")
+def good_keras_name():
+    return ModelNames.MNIST.value
+
+@pytest.fixture(scope="session")
+def good_mlmodel_name():
+    return ModelNames.NGRAM.value
+
+@pytest.fixture(scope="session")
+def bad_model_name():
+    return "bad-model-name"
 
 @pytest.fixture(scope="session")
 def good_hyperparams():
@@ -190,4 +203,11 @@ def good_text_config_args(good_vocab_size):
 def bad_text_config_args(bad_vocab_size):
     return (bad_vocab_size,) 
 
+@pytest.fixture(scope="session")
+def mnist_config():
+    return _make_mnist_config()
+
+@pytest.fixture(scope="session")
+def ngram_config():
+    return _make_ngram_config()
   

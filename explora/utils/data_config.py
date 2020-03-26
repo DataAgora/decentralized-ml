@@ -11,6 +11,10 @@ class DataConfig(object):
         self.data_type = data_type
         self.class_labels = class_labels
 
+    def __eq__(self, other):
+        return self.data_type == other.data_type \
+            and self.class_labels == other.class_labels
+
     def serialize(self):
         """
         Serialize the config into a dictionary.
@@ -39,6 +43,11 @@ class ImageConfig(DataConfig):
         super().__init__("image", class_labels)
         self.color_space = color_space
         self.dims = dims
+
+    def __eq__(self, other):
+        return super().__eq__(other) \
+            and self.color_space == other.color_space \
+            and self.dims == other.dims
 
     def serialize(self):
         """

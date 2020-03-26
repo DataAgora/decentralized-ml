@@ -7,7 +7,8 @@ from utils.validation import valid_repo_id, valid_model, \
     valid_and_prepare_hyperparameters, valid_percentage_averaged, \
     valid_max_rounds, valid_library_type, valid_dataset_id, \
     valid_checkpoint_frequency, valid_data_config, valid_image_config_args, \
-    valid_text_config_args, valid_session_args
+    valid_text_config_args, valid_session_args, valid_model_name
+from utils.enums import ModelPaths
 
 
 def test_repo_id_validation(good_repo_id, bad_repo_id):
@@ -38,34 +39,33 @@ def test_dataset_id_validation(ios, python, good_dataset_id, bad_dataset_id):
     assert not valid_dataset_id(python, good_dataset_id), \
         "This repo ID should have failed validation!"
 
-def test_keras_model_validation(good_keras_model_path, bad_keras_model_path):
+def test_keras_validation(good_keras_path, bad_keras_path):
     """
     Test that a valid Keras model passes validation and an invalid one fails 
     validation.
     """
-    assert valid_model(None, good_keras_model_path), \
+    assert valid_model(None, good_keras_path), \
         "This model path should have passed validation!"
 
-    assert not valid_model(None, bad_keras_model_path), \
+    assert not valid_model(None, bad_keras_path), \
         "This model path should have failed validation!"
 
     assert not valid_model(None, ""), \
         "This model path should have failed validation!"
 
-def test_keras_ios_model_validation(good_image_config, \
-        good_keras_ios_model_path, bad_keras_ios_model_path, \
-        bad_keras_ios_model_2_path):
+def test_ios_model_validation(good_image_config, good_ios_model_path, \
+        bad_ios_model_path, bad_ios_model_path_2):
     """
     Test that a valid Keras model for iOS passes validation and an invalid one 
     fails validation.
     """
-    assert valid_model(good_image_config, good_keras_ios_model_path), \
+    assert valid_model(good_image_config, good_ios_model_path), \
         "This model path should have passed validation!"
 
-    assert not valid_model(good_image_config, bad_keras_ios_model_path), \
+    assert not valid_model(good_image_config, bad_ios_model_path), \
         "This model path should have failed validation!"
 
-    assert not valid_model(good_image_config, bad_keras_ios_model_2_path), \
+    assert not valid_model(good_image_config, bad_ios_model_path_2), \
         "This model path should have failed validation!"
 
     assert not valid_model(good_image_config, None), \
@@ -77,6 +77,35 @@ def test_mlmodel_validation(good_text_config, good_mlmodel_path):
 
     assert not valid_model(good_text_config, None), \
         "This model path should have failed validation!"
+
+def test_model_name(python, good_keras_name, ios, mnist_config, \
+        good_mlmodel_name, ngram_config, bad_model_name, good_keras_path):
+    """
+    Test that a valid model name passes validation and an invalid one fails 
+    validation.
+    """
+    model_path, data_config = valid_model_name(good_keras_name, python, None)
+    assert model_path == ModelPaths.MNIST_PATH.value and not data_config, \
+        "This model name should have passed validation!"
+
+    model_path, data_config = valid_model_name(good_keras_name, ios, None)
+    assert model_path == ModelPaths.IOS_MNIST_PATH.value \
+            and data_config == mnist_config, \
+        "This model name should have passed validation!"
+
+    model_path, data_config = valid_model_name(good_mlmodel_name, ios, None)
+    assert model_path == ModelPaths.NGRAM_PATH.value \
+            and data_config == ngram_config, \
+        "This model name should have passed validation!"
+
+    model_path, data_config = valid_model_name(bad_model_name, python, None)
+    assert not model_path and not data_config, \
+        "This model name should have failed validation!"
+
+    model_path, data_config = valid_model_name(good_keras_name, python, \
+        good_keras_path)
+    assert not model_path and not data_config, \
+        "This model name should have failed validation!"
 
 def test_hyperparams_validation(good_hyperparams, bad_hyperparams):
     """
