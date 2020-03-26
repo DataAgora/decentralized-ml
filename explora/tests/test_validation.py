@@ -72,6 +72,10 @@ def test_ios_model_validation(good_image_config, good_ios_model_path, \
         "This model path should have failed validation!"
 
 def test_mlmodel_validation(good_text_config, good_mlmodel_path):
+    """
+    Test that a valid MLModel for iOS passes validation and an invalid one 
+    fails validation.
+    """
     assert valid_model(good_text_config, good_mlmodel_path), \
         "This model path should have passed validation!"
 
