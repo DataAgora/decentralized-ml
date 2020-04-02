@@ -1,6 +1,6 @@
 [
     {
-        "name": "cloud",
+        "name": "custom",
         "imageUri": "880058582700.dkr.ecr.us-west-1.amazonaws.com/cloud"
     }
 ]
