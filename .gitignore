@@ -3,6 +3,7 @@ new-env/
 api-env/
 test.rst
 */test.rst
+*/test.py
 *.pyc
 *.egg-info/
 .DS_Store

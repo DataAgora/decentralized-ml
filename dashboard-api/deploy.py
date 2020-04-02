@@ -8,223 +8,106 @@ import boto3
 from botocore.exceptions import ClientError
 
 
-APPLICATION_NAME = "cloud-node"
-S3_BUCKET = "cloud-node-deployment"
-AWS_REGION = 'us-west-1'
+CLOUD_CLUSTER_NAME = "default"
+CLOUD_TASK_DEFINITION = "first-run-task-definition"
+DOMAIN_ID = "/hostedzone/Z3NSW3B4FM6A7X"
+CLOUD_SUBDOMAIN = "{}.cloud.discreetai.com"
+EXPLORA_SUBDOMAIN = "{}.explora.discreetai.com"
 
-BUCKET_KEY = APPLICATION_NAME + '/' + 'cloudnode_build.zip'
-DEPLOYMENT_NAME = 'deploy-elb-{}'
-PIPELINE_NAME = 'cloud-node-deploy'
+ecs_client = boto3.client("ecs")
+ec2_client = boto3.resource("ec2")
+route53_client = boto3.client('route53')
 
-def create_new_version(version_label):
-    """
-    Helper function that creates a new application version of an environment in
-    AWS Elastic Beanstalk.
-    """
-    try:
-        client = boto3.client('elasticbeanstalk')
-    except ClientError as err:
-        raise Exception("Failed to create boto3 client.\n" + str(err))
-
-    try:
-        response = client.create_application_version(
-            ApplicationName=APPLICATION_NAME,
-            VersionLabel=version_label,
-            Description='New build',
-            SourceBundle={
-                'S3Bucket': S3_BUCKET,
-                'S3Key': BUCKET_KEY
-            },
-            Process=True
-        )
-    except ClientError as err:
-        raise Exception("Failed to create application version.\n" + str(err))
-
-    try:
-        if response['ResponseMetadata']['HTTPStatusCode'] is 200:
-            return True, "success"
-        else:
-            raise Exception("Response did not return 200. Response: \n" + str(response))
-    except (KeyError, TypeError) as err:
-        raise Exception(str(err))
-
-def deploy_new_version(env_name):
-    """
-    Helper function to deploy a created version of the environment to AWS
-    Elastic Beanstalk.
-
-    This needs to run after `create_new_version()`.
-    """
-    try:
-        client = boto3.client('elasticbeanstalk')
-    except ClientError as err:
-        raise Exception("Failed to create boto3 client.\n" + str(err))
-    
-    try:
-        result = client.describe_application_versions(
-            ApplicationName=APPLICATION_NAME
-        )
-        latest_version = result["ApplicationVersions"][0]['VersionLabel']
-    except ClientError as err:
-        raise Exception("Failed to get version label.\n" + str(err))
-
-    try:
-        response = client.create_environment(
-            ApplicationName=APPLICATION_NAME,
-            EnvironmentName=env_name,
-            SolutionStackName="64bit Amazon Linux 2018.03 v2.12.10 running Docker 18.06.1-ce",
-            VersionLabel=latest_version,
-            OptionSettings=[
-                {
-                   'ResourceName':'AWSEBLoadBalancer',
-                   'Namespace':'aws:elb:listener:80',
-                   'OptionName':'InstanceProtocol',
-                   'Value':'TCP'
-                },
-                {
-                   'ResourceName':'AWSEBAutoScalingLaunchConfiguration',
-                   'Namespace':'aws:autoscaling:launchconfiguration',
-                   'OptionName':'SecurityGroups',
-                   'Value':'ebs-websocket'
-                },
-                {
-                    'ResourceName': 'AWSEBLoadBalancer',
-                    'Namespace': 'aws:elb:listener:80',
-                    'OptionName': 'ListenerProtocol' ,
-                    'Value': 'TCP'
-                },
-                {
-                    'Namespace': 'aws:autoscaling:launchconfiguration',
-                    'OptionName': 'IamInstanceProfile',
-                    'Value': 'dagora',
-                },
-            ],
-        )
-    except ClientError as err:
-        raise Exception("Failed to update environment.\n" + str(err))
-
-    return response
-
-def deploy_cloud_node(env_name):
-    """
-    Creates and then deploys a new version of the Cloud Node to AWS Elastic
-    Beanstalk.
-    """
-    _ = deploy_new_version(env_name)
-    return True
-
-
-def make_codepipeline_elb_deploy_action(env_name):
-    """
-    Crafts a Deployment Action for AWS CodePipeline in JSON format.
-    """
+def create_new_nodes(repo_id):
+    cloud_ip_address, cloud_task_arn = _run_new_task(CLOUD_CLUSTER_NAME, \
+        CLOUD_TASK_DEFINITION)
+    names = _make_names(repo_id)
+    ip_addresses = [cloud_ip_address]
+    _modify_domains("CREATE", names, ip_addresses)
     return {
-      'name':'deploy-elb-' + env_name,
-      'actionTypeId':{
-         'category':'Deploy',
-         'owner':'AWS',
-         'provider':'ElasticBeanstalk',
-         'version':'1'
-      },
-      'runOrder':1,
-      'configuration':{
-         'ApplicationName': APPLICATION_NAME,
-         'EnvironmentName': env_name
-      },
-      'outputArtifacts':[
+        "CloudIpAddress": cloud_ip_address,
+        "CloudTaskArn": cloud_task_arn
+    }
 
-      ],
-      'inputArtifacts':[
-         {
-            'name':'SourceArtifact'
-         }
-      ],
-      'region': AWS_REGION
-   }
+def stop_nodes(task_arn, repo_id, cloud_ip_address):
+    _stop_task(CLOUD_CLUSTER_NAME, task_arn)
+    names = _make_names(repo_id)
+    ip_addresses = [cloud_ip_address]
+    _modify_domains("DELETE", names, ip_addresses)
 
-def add_codepipeline_deploy_step(env_name):
-    """
-    Makes a Cloud Node self-updateable by updating the AWS CodePipeline
-    pipeline.
-    """
-    try:
-        client = boto3.client('codepipeline')
-        pipeline_response = client.get_pipeline(
-            name=PIPELINE_NAME,
-        )
+def _create_new_task(cluster_name, task_definition):
+    new_task_response = ecs_client.run_task(
+        cluster=cluster_name,
+        taskDefinition=task_definition,
+        launchType="FARGATE",
+        networkConfiguration = {
+            "awsvpcConfiguration": {
+                "subnets": ["subnet-066927cc2aa7d231f"],
+                "assignPublicIp": "ENABLED",
+            }
+        }
+    )
+    if new_task_response["failures"]:
+        raise Exception(str(new_task_response["failures"]))
+    task_arn = new_task_response["tasks"][0]["taskArn"]
 
-        pipeline_data = pipeline_response['pipeline']
-        for stage in pipeline_data['stages']:
-            if stage['name'] == 'Deploy':
-                new_action = make_codepipeline_elb_deploy_action(env_name)
-                stage['actions'].append(new_action)
-                _ = client.update_pipeline(
-                    pipeline=pipeline_data
-                )
-                print("Updated CodeDeploy pipeline.")
-    except Exception as e:
-        raise Exception("Error adding deploy step: " + str(e))
+    return task_arn
 
-    return True
+def _get_network_interface_id(task_arn):
+    task_response = ecs_client.describe_tasks(
+        tasks=[task_arn]
+    )
+    if task_response["failures"]:
+        raise Exception(str(task_response["failures"]))
+    task_details = task_response["tasks"][0]["attachments"][0]["details"]
+    filter_function = lambda x: x["name"] == "networkInterfaceId"
+    network_interface_details = list(filter(filter_function, task_details))
+    if not network_interface_details:
+        sleep(1)
+        return _get_network_interface_id(task_arn)
+    network_interface_id = network_interface_details[0]["value"]
+    return network_interface_id
 
+def _get_public_ip(network_interface_id):
+    network_interface = ec2_client.NetworkInterface(network_interface_id)
+    ip_address_details = network_interface.private_ip_addresses[0]
+    if "Association" not in ip_address_details:
+        sleep(1)
+        return _get_public_ip(network_interface_id)
+    ip_address = ip_address_details["Association"]["PublicIp"]
+    return ip_address
 
-def run_deploy_routine(repo_id):
-    """
-    Runs the Deploy routine
-    """
-    # pre_steps()
-    # _ = clone_repo()
-    # _ = zip_server_directory()
-    _ = deploy_cloud_node(repo_id)
-    _ = add_codepipeline_deploy_step(repo_id)
+def _run_new_task(cluster_name, task_definition):
+    task_arn = _create_new_task(cluster_name, task_definition)
+    network_interface_id = _get_network_interface_id(task_arn)
+    ip_address = _get_public_ip(network_interface_id)
+    return ip_address, task_arn
 
-def _delete_cloud_node(repo_id):
-    """
-    Deletes cloud node
-    """
-    try:
-        client = boto3.client('elasticbeanstalk')
-    except ClientError as err:
-       raise Exception("Failed to create boto3 client.\n" + str(err))
+def _stop_task(cluster_name, task_arn):
+    _ = ecs_client.stop_task(
+        cluster=cluster_name,
+        task=task_arn,
+        reason="User requested deletion."
+    )
 
-    try:
-        response = client.terminate_environment(
-            EnvironmentName=repo_id,
-            TerminateResources=True,
-        )
+def _modify_domains(action, names, ip_addresses):
+    changes = [_route53_record(action, name, ip_address) \
+        for name, ip_address in zip(names, ip_addresses)]
+    response = route53_client.change_resource_record_sets(
+        HostedZoneId=DOMAIN_ID,
+        ChangeBatch={"Changes": changes}
+    )
 
-        return response
-    except ClientError as err:
-        raise Exception("Failed to delete environment.\n" + str(err))
+def _route53_record(action, name, ip_address):
+    return {
+        "Action": action,
+        "ResourceRecordSet": {
+            "Name": name,
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [{"Value": ip_address}]
+        }
+    }
 
-def _remove_codepipeline_deploy_step(env_name):
-    """
-    Removes Cloud Node from the AWS CodePipeline pipeline.
-    """
-    try:
-        target_name = DEPLOYMENT_NAME.format(env_name)
-        client = boto3.client('codepipeline')
-        pipeline_response = client.get_pipeline(
-            name=PIPELINE_NAME,
-        )
-
-        pipeline_data = pipeline_response['pipeline']
-        for stage in pipeline_data['stages']:
-            if stage['name'] == 'Deploy':
-                stage['actions'] = [action for action in stage['actions'] \
-                                    if action['name'] != target_name]
-                _ = client.update_pipeline(
-                    pipeline=pipeline_data
-                )
-                print("Updated CodeDeploy pipeline.")
-
-                return True
-    except Exception as e:
-        raise Exception("Error removing deploy step: " + str(e))
-
-def run_delete_routine(repo_id):
-    """
-    Runs delete cloud node routine
-    """
-    _ = _delete_cloud_node(repo_id)
-    _ = _remove_codepipeline_deploy_step(repo_id)
+def _make_names(repo_id):
+    return [CLOUD_SUBDOMAIN.format(repo_id)]

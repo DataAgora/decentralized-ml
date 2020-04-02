@@ -11,7 +11,8 @@ from flask_cors import CORS
 from boto3.dynamodb.conditions import Key, Attr
 from flask import Flask, request, jsonify
 
-from deploy import run_deploy_routine, run_delete_routine
+from deploy import create_new_nodes, stop_nodes, CLOUD_SUBDOMAIN, \
+    EXPLORA_SUBDOMAIN
 from dynamodb import DB
 
 
@@ -21,7 +22,7 @@ JWT_ALGO = "HS256"
 APPLICATION_NAME = "cloud-node"
 app = Flask(__name__)
 CORS(app)
-CLOUD_BASE_ENDPOINT = "http://{}.au4c4pd2ch.us-west-1.elasticbeanstalk.com/secret/reset_state"
+CLOUD_BASE_ENDPOINT = "http://{CLOUD_SUBDOMAIN}/secret/reset_state"
 
 @app.route("/")
 def home():
@@ -33,7 +34,7 @@ def reset_state(repo_id):
     Authorize request, then reset state for cloud node corresponding to given repo_id
     """
     claims = authorize_user(request, use_header=False)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
     try:
         response = requests.get(CLOUD_BASE_ENDPOINT.format(repo_id))
     except Exception as e:
@@ -48,7 +49,7 @@ def get_username(repo_id):
     Authorize request, then retrieve username for given repo_id
     """
     claims = authorize_user(request, use_header=False)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
     user_id = claims["pk"]
     try:
         users_table = _get_dynamodb_table("jupyterhub-users")
@@ -68,7 +69,7 @@ def get_user_data():
     """
     # Check authorization
     claims = authorize_user(request)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
 
     # Get data
     user_id = claims["pk"]
@@ -76,7 +77,7 @@ def get_user_data():
         user_data = _get_user_data(user_id)
         repos_remaining = user_data['ReposRemaining']
     except:
-        return jsonify(make_error("Error while getting user's permissions.")), 400
+        return jsonify(make_error("Error while getting user's permissions.")), 200
     return jsonify({"ReposRemaining": True if repos_remaining > 0 else False})
 
 @app.route("/repo/<repo_id>", methods=["GET"])
@@ -86,14 +87,14 @@ def get_repo(repo_id):
     """
     # Check authorization
     claims = authorize_user(request)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
 
     # Get data
     user_id = claims["pk"]
     try:
         repo_details = _get_repo_details(user_id, repo_id)
     except:
-        return jsonify(make_error("Error while getting the details for this repo.")), 400
+        return jsonify(make_error("Error while getting the details for this repo.")), 200
     return jsonify(repo_details)
 
 @app.route("/repo", methods=["POST"])
@@ -127,10 +128,12 @@ def create_new_repo():
     repo_name = re.sub('[^a-zA-Z0-9-]', '-', repo_name)
     try:
         _assert_user_has_repos_left(user_id)
-        repo_id = _create_new_repo_document(user_id, repo_name, repo_description)
+        repo_id = secrets.token_hex(16)
+        server_details = create_new_nodes(repo_id)
+        _create_new_repo_document(user_id, repo_id, repo_name, \
+            repo_description, server_details)
         api_key, true_api_key = _create_new_api_key(user_id, repo_id)
         _update_user_data_with_new_repo(user_id, repo_id, api_key)
-        _create_new_cloud_node(repo_id, api_key)
     except Exception as e:
         # TODO: Revert things.
         return jsonify(make_error(str(e))), 200
@@ -154,12 +157,15 @@ def delete_repo(repo_id):
 
     user_id = claims["pk"]
     try:
-        run_delete_routine(repo_id)
         api_key = _remove_api_key(user_id, repo_id)
+        repo_details = _get_repo_details(user_id, repo_id)
+        cloud_task_arn = repo_details["CloudTaskArn"]
+        cloud_ip_address = repo_details["CloudIpAddress"]
         _remove_logs(repo_id)
         _remove_repo_from_user_details(user_id, repo_id, api_key)
         _remove_creds_from_repo(user_id, repo_id)
         _remove_repo_details(user_id, repo_id)
+        stop_nodes(cloud_task_arn, repo_id, cloud_ip_address)
     except Exception as e:
         # TODO: Revert things.
         return jsonify(make_error(str(e))), 200
@@ -192,7 +198,7 @@ def get_logs(repo_id):
     """
     # Check authorization
     claims = authorize_user(request)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
 
     # Get data
     user_id = claims["pk"]
@@ -211,19 +217,18 @@ def get_coordinator_status(repo_id):
     """
     # Check authorization
     claims = authorize_user(request)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
 
     # Get data
     user_id = claims["pk"]
     try:
-        repo_details = _get_repo_details(user_id, repo_id)
-        cloud_node_url = repo_details['CoordinatorAddress']
-        # TODO: Remove the 'http' here and add 'https' to the URL constructor.
+        cloud_node_url = CLOUD_SUBDOMAIN.format(repo_id)
+        # TODO: Add HTTPS to cloud node
         r = requests.get("http://" + cloud_node_url + "/status")
         status_data = r.json()
         assert "Busy" in status_data
     except Exception as e:
-        return jsonify(make_error("Error while checking coordinator's status.")), 400
+        return jsonify(make_error("Error while checking coordinator's status.")), 200
     return jsonify(status_data)
 
 @app.route("/model", methods=["POST"])
@@ -240,16 +245,16 @@ def download_model():
     """
     # Check authorization
     claims = authorize_user(request)
-    if claims is None: return jsonify(make_unauthorized_error()), 400
+    if claims is None: return jsonify(make_unauthorized_error()), 200
 
     # Get parameters
     params = request.get_json()
     if "RepoId" not in params:
-        return jsonify(make_error("Missing repo id from request.")), 400
+        return jsonify(make_error("Missing repo id from request.")), 200
     if "SessionId" not in params:
-        return jsonify(make_error("Missing session id from request.")), 400
+        return jsonify(make_error("Missing session id from request.")), 200
     if "Round" not in params:
-        return jsonify(make_error("Missing round from request.")), 400
+        return jsonify(make_error("Missing round from request.")), 200
     repo_id  = params.get('RepoId', None)
     session_id  = params.get('SessionId', None)
     round  = params.get('Round', None)
@@ -262,44 +267,10 @@ def download_model():
         _assert_user_can_read_repo(user_id, repo_id)
         url = _create_presigned_url(bucket_name, object_name)
     except Exception as e:
-        return jsonify(make_error(str(e))), 400
+        return jsonify(make_error(str(e))), 200
 
     # Return url
     return jsonify({'DownloadUrl': url})
-
-
-# NOTE: This function was added in the auth-enterprise app instead.
-# Feel free to remove if you'd like.
-# @app.route("/userdata", methods=["POST"])
-# def create_user_data():
-#     # Check authorization
-#     claims = authorize_user(request)
-#     if claims is None: return jsonify(make_unauthorized_error()), 400
-#
-#     # Create document
-#     user_id = claims["pk"]
-#     try:
-#         _create_user_data(user_id)
-#     except Exception as e:
-#         return jsonify(make_error(str(e))), 400
-#     return jsonify({})
-#
-# def _create_user_data(user_id):
-#     """Only creates it if doesn't exist already."""
-#     table = _get_dynamodb_table("UsersDashboardData")
-#     try:
-#         item = {
-#             'UserId': user_id,
-#             'ReposManaged': set(["null"]),
-#             'ApiKeys': set(["null"]),
-#             'ReposRemaining': 5,
-#         }
-#         table.put_item(
-#             Item=item,
-#             ConditionExpression="attribute_not_exists(UserId)"
-#         )
-#     except:
-#         raise Exception("Error while creating the user data.")
 
 def _assert_user_has_repos_left(user_id):
     """
@@ -506,12 +477,12 @@ def _update_user_data_with_new_repo(user_id, repo_id, api_key):
     except Exception as e:
         raise Exception("Error while updating user data with new repo data: " + str(e))
 
-def _create_new_repo_document(user_id, repo_name, repo_description):
+def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
+        server_details):
     """
     Creates a new repo document in the DB.
     """
     table = _get_dynamodb_table("Repos")
-    repo_id = secrets.token_hex(16)
     try:
         item = {
             'Id': repo_id,
@@ -519,11 +490,11 @@ def _create_new_repo_document(user_id, repo_name, repo_description):
             'Description': repo_description,
             'OwnerId': user_id,
             'ContributorsId': [],
-            'CoordinatorAddress': _construct_cloud_node_url(repo_id),
+            'CoordinatorAddress': CLOUD_SUBDOMAIN.format(repo_id),
             'CreatedAt': int(time.time()),
             'creds': 'N/A'
-            # 'ExploratoryData': None,
         }
+        item.update(server_details)
         table.put_item(Item=item)
     except:
         raise Exception("Error while creating the new repo document.")
@@ -601,7 +572,7 @@ def _create_new_cloud_node(repo_id, api_key):
     Creates a new cloud node.
     """
     try:
-        run_deploy_routine(repo_id)
+        run_new_task(repo_id)
     except Exception as e:
         raise Exception("Error while creating new cloud node: " + str(e))
 
@@ -638,13 +609,6 @@ def _get_dynamodb_table(table_name):
     dynamodb = boto3.resource('dynamodb', region_name='us-west-1')
     table = dynamodb.Table(table_name)
     return table
-
-def _construct_cloud_node_url(repo_id):
-    """
-    Helper function that constructs a Cloud Node url given a Repo ID.
-    """
-    CLOUD_NODE_ADDRESS_TEMPLATE = "{0}.au4c4pd2ch.us-west-1.elasticbeanstalk.com"
-    return CLOUD_NODE_ADDRESS_TEMPLATE.format(repo_id)
 
 def authorize_user(request, use_header=True):
     """
