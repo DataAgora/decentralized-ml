@@ -1,147 +1,215 @@
+import time
+import decimal
+
 import boto3
-import os
 from boto3.dynamodb.conditions import Key, Attr
-import logging
 
-class DB(object):
+
+dynamodb_client = boto3.resource('dynamodb', region_name='us-west-1')
+
+def _get_logs(repo_id):
     """
-    DynamoDB class used to manage two tables.
-
-    'jupyterhub-users' (users_table) maps usernames to whether they are in use or not
-    'Repos' (repos_table) maps repo_ids to usernames (N/A if no username mapping exists yet) 
+    Returns the logs for a repo.
     """
-    def __init__(self, users_table, repos_table):
-        """
-        Set up DB and tables.
-        """
-        self.users_table = users_table
-        self.repos_table = repos_table
-    
-    def create_table(self):
-        """
-        Recreate users table (ONLY TO BE USED AFTER DELETING)
-        """
-        self.users_table = self.dynamodb.create_table(
-            TableName='jupyterhub-users',
-            KeySchema=[
-                {
-                    'AttributeName': 'username',
-                    'KeyType': 'HASH'
-                },
-                {
-                    'AttributeName': 'repo_id',
-                    'KeyType': 'SORT'
-                },
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'username',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'repo_id',
-                    'AttributeType': 'S'
-                },
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
+    logs_table = _get_dynamodb_table("UpdateStore")
+    try:
+        response = logs_table.query(
+            KeyConditionExpression=Key('RepoId').eq(repo_id) \
+                & Key('ExpirationTime').gt(int(time.time())) 
         )
+        logs = response["Items"]
+    except Exception as e:
+        raise Exception("Error while getting logs for repo. " + str(e))
+    return logs
 
-        table.meta.client.get_waiter('table_exists').wait(TableName='jupyterhub-users')
-
-    def delete_table(self):
-        """
-        Delete the users table
-        """
-        self.users_table.delete()
-        self.users_table = None
-
-    def add_user(self, username, batch=None):
-        """
-        Add a single user to the users table
-        """
-        if not batch:
-            batch = self.users_table
-        assert batch != None, "Table not initialized!"
-        batch.put_item(
-            Item={
-                'username': username,
-                'in_use': False
-            }
+def _remove_logs(repo_id):
+    """
+    Removes the logs for a repo.
+    """
+    logs_table = _get_dynamodb_table("UpdateStore")
+    try:
+        response = logs_table.query(
+            KeyConditionExpression=Key('RepoId').eq(repo_id)
         )
+        with logs_table.batch_writer() as batch:
+            for item in response["Items"]:
+                batch.delete_item(
+                    Key={
+                        'RepoId': item['RepoId'],
+                        'Timestamp': item['Timestamp']
+                    }
+                )
+        print("Successfully deleted logs!")
+        return True
+    except Exception as e:
+        raise Exception("Error while getting logs for repo. " + str(e))
 
-    def add_multiple_users(self, usernames):
-        """
-        Add multiple users in a single batch update
-        """
-        with self.users_table.batch_writer() as batch:
-            for username in usernames:
-                self.add_user(username, batch=batch)
-
-
-    def get_username(self, user_id, repo_id):
-        """
-        Get username for given repo_id. If a username doesn't exist for this repo, retrieve an 
-        available username and make it unavailable for other repos.
-        """
-        creds = self._get_creds(user_id, repo_id)
-        if creds != 'N/A':
-            return creds
-        return self._get_next_available_username(user_id, repo_id)
-
-    def _get_next_available_username(self, user_id, repo_id):
-        """
-        Retrieve next available username and make it unavailable for other repos.
-        """
-        response = self.users_table.scan(
-            FilterExpression=Attr('in_use').eq(False)
-        )
-        items = response['Items']
-        assert items, "No more usernames available!"
-        self._set_user_creds(user_id, repo_id, items[0]['username'])
-        self._set_creds_in_use(items[0]['username'], True)
-        return items[0]['username']
-
-    def _set_user_creds(self, user_id, repo_id, username):
-        """
-        Set username for given repo_id
-        """
-        self.repos_table.update_item(
+def _get_user_data(user_id):
+    """
+    Returns the user's data.
+    """
+    table = _get_dynamodb_table("UsersDashboardData")
+    try:
+        response = table.get_item(
             Key={
-                'Id': repo_id,
-                'OwnerId': user_id
+                "UserId": user_id,
+            }
+        )
+        data = response["Item"]
+    except:
+        raise Exception("Error while getting user dashboard data.")
+    return data
+
+def _remove_repo_from_user_details(user_id, repo_id, api_key):
+    """
+    Upon removing a repo, remove the repo from the user's details.
+    """
+    table = _get_dynamodb_table("UsersDashboardData")
+    try:
+        response = table.get_item(
+            Key={
+                "UserId": user_id,
+            }
+        )
+        data = response["Item"]
+        repos_managed = data['ReposManaged']
+        api_keys = data['ApiKeys']
+        if repo_id in repos_managed and api_key in api_keys:
+            repos_managed.remove(repo_id)
+            api_keys.remove(api_key)
+            if len(repos_managed) == 0:
+                data.pop('ReposManaged')
+                data.pop('ApiKeys')
+            data['ReposRemaining'] += 1
+            table.put_item(
+                Item=data
+            )
+            print("Successfully removed repo_id from user details!")
+            return True
+        else:
+            raise Exception("Could not find corresponding API key or repo id!")
+    except Exception as e:
+        raise Exception("Error while removing user dashboard data: " + str(e))
+
+def _get_repo_details(user_id, repo_id):
+    """
+    Returns a repo's details.
+    """
+    repos_table = _get_dynamodb_table("Repos")
+    try:
+        response = repos_table.get_item(
+            Key={
+                "Id": repo_id,
+                "OwnerId": user_id,
+            }
+        )
+        repo_details = response["Item"]
+    except:
+        raise Exception("Error while getting repo details.")
+    return repo_details
+
+def _remove_repo_details(user_id, repo_id):
+    """
+    Removes a repo's details.
+    """
+    repos_table = _get_dynamodb_table("Repos")
+    try:
+        response = repos_table.delete_item(
+            Key={
+                "Id": repo_id,
+                "OwnerId": user_id,
+            }
+        )
+        print("Removed repo details!")
+        return True
+    except:
+        raise Exception("Error while getting repo details.")
+
+
+def _update_user_data_with_new_repo(user_id, repo_id, api_key):
+    """
+    Updates a user with a new repo and its metadata.
+    """
+    table = _get_dynamodb_table("UsersDashboardData")
+    try:
+        response = table.get_item(
+            Key={
+                "UserId": user_id,
+            }
+        )
+        data = response["Item"]
+
+        repos_managed = data.get('ReposManaged', set([]))
+        api_keys = data.get('ApiKeys', set([]))
+
+        repos_managed.add(repo_id)
+        api_keys.add(api_key)
+
+        response = table.update_item(
+            Key={
+                'UserId': user_id,
             },
-            UpdateExpression='SET creds = :val1',
+            UpdateExpression="SET ReposRemaining = ReposRemaining - :val, ReposManaged = :val2, ApiKeys = :val3",
             ExpressionAttributeValues={
-                ':val1': username
+                ':val': decimal.Decimal(1),
+                ':val2': repos_managed,
+                ':val3': api_keys,
             }
         )
+    except Exception as e:
+        raise Exception("Error while updating user data with new repo data: " + str(e))
 
-    def _set_creds_in_use(self, username, in_use):
-        """
-        Set the 'in_use' boolean for this username
-        """              
-        self.users_table.update_item(
-            Key={
-                'username': username,
-            },
-            UpdateExpression='SET in_use = :val1',
-            ExpressionAttributeValues={
-                ':val1': in_use
-            }
-        )
+def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
+        server_details):
+    """
+    Creates a new repo document in the DB.
+    """
+    table = _get_dynamodb_table("Repos")
+    try:
+        item = {
+            'Id': repo_id,
+            'Name': repo_name,
+            'Description': repo_description,
+            'OwnerId': user_id,
+            'ContributorsId': [],
+            'CoordinatorAddress': CLOUD_SUBDOMAIN.format(repo_id),
+            'CreatedAt': int(time.time()),
+            'creds': 'N/A'
+        }
+        item.update(server_details)
+        table.put_item(Item=item)
+    except:
+        raise Exception("Error while creating the new repo document.")
+    return repo_id
 
-    def _get_creds(self, user_id, repo_id):
-        """
-        Get username for given repo_id (N/A if it doesn't exist)
-        """
-        response = self.repos_table.get_item(
-            Key={
-                'Id': repo_id,
-                'OwnerId': user_id
-            }
-        )
-        item = response['Item']
-        return item['creds']
+def _get_all_repos(user_id):
+    """
+    Returns all repos for a user.
+    """
+    try:
+        user_data = _get_user_data(user_id)
+        repos_managed = user_data.get('ReposManaged', 'None')
+
+        repos_table = _get_dynamodb_table("Repos")
+        all_repos = []
+        for repo_id in repos_managed:
+            if repo_id == "null": continue
+            response = repos_table.get_item(
+                Key={
+                    "Id": repo_id,
+                    "OwnerId": user_id,
+                }
+            )
+
+            if 'Item' in response:
+                all_repos.append(response['Item'])
+    except:
+        raise Exception("Error while getting all repos.")
+    return all_repos
+
+def _get_dynamodb_table(table_name):
+    """
+    Helper function that returns an AWS DynamoDB table object.
+    """
+    table = dynamodb_client.Table(table_name)
+    return table
