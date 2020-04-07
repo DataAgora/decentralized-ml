@@ -24,16 +24,18 @@ route53_client = boto3.client('route53')
 
 def create_new_nodes(repo_id, api_key):
     """
-    Runs new task (node) for ECS cloud cluster. Sets domain of task to be
-    `<repo_id>.cloud.discreetai.com by creating an record in Route53.
+    Runs new tasks (Explora + cloud) for ECS cluster. Sets domain of task to 
+    be `<repo_id>.cloud.discreetai.com by creating an record in Route53.
     
     Args:
         repo_id (str): The repo ID of the repo this task is to be associated
             with.
+        api_key (str): The corresponding API key of the repo. Used for auth in
+            the tasks.
     
     Returns:
         dict: A dictionary holding the public IP address and task ARN of the
-            newly created cloud task.
+            newly created cloud and Explora task.
     """
     cloud_ip_address, cloud_task_arn, explora_ip_address, explora_task_arn = \
         _run_new_tasks(api_key)
@@ -51,13 +53,15 @@ def create_new_nodes(repo_id, api_key):
 def stop_nodes(cloud_task_arn, explora_task_arn, repo_id, cloud_ip_address, \
         explora_ip_address):
     """
-    Stop the cloud task with its task ARN and remove the corresponding record 
-    in Route53.
+    Stop the cloud and Explora task with its task ARN and remove the 
+    corresponding record in Route53.
     
     Args:
         cloud_task_arn (str): The ARN of the cloud task to be stopped.
+        explora_task_arn (str): The ARN of the Explora task to be stopped.
         repo_id (str): The repo ID of the repo associated with this task.
-        cloud_ip_address (str): The public IP address of the cloud task. 
+        cloud_ip_address (str): The public IP address of the cloud task.
+        explora_ip_address (str): The public IP address of the Explora task. 
     """
     _stop_task(cloud_task_arn, explora_task_arn)
     names = _make_names(repo_id)
@@ -69,8 +73,8 @@ def _run_new_tasks(api_key):
     Run new task in the provided cluster with the provided task definition.
     
     Args:
-        cluster_name (str): The name of the cluster to run the task in.
-        task_definition (str): The name of the schema of the task to be run.
+        api_key (str): The corresponding API key of the repo. Used for auth in
+            the task.
     
     Returns:
         (str, str): The task ARN and public IP address of the newly created 
@@ -89,8 +93,8 @@ def _create_new_task(api_key):
     Run new task in the provided cluster with the provided task definition.
     
     Args:
-        cluster_name (str): The name of the cluster to run the task in.
-        task_definition (str): The name of the schema of the task to be run.
+        api_key (str): The corresponding API key of the repo. Used for auth in
+            the tasks.
     
     Returns:
         str: The task ARN of the newly created task.
@@ -197,11 +201,11 @@ def _get_public_ip(network_interface_id):
 
 def _stop_tasks(cloud_task_arn, explora_task_arn):
     """
-    Stop task in the provided cluster with the provided task ARN.
+    Stop cloud and Explora task with the provided task ARNs.
     
     Args:
-        cluster_name (str): The name of the cluster to run the task in.
-        task_arn (str): The ARN of the task to be stopped.
+        cloud_task_arn (str): The ARN of the cloud task to be stopped.
+        explora_task_arn (str): The ARN of the Explora task to be stopped.
     """
     _ = ecs_client.stop_task(
         cluster=CLUSTER_NAME,
