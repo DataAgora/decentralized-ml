@@ -345,8 +345,3 @@ def _make_names(repo_id):
         list: The list of domain names for this repo ID.
     """
     return [CLOUD_SUBDOMAIN.format(repo_id), EXPLORA_SUBDOMAIN.format(repo_id)]
-
-# cloud_arn = "arn:aws:ecs:us-west-1:880058582700:task/08610c7b-3136-469a-8307-dfb6fded15e0"
-# explora_arn = "arn:aws:ecs:us-west-1:880058582700:task/87e67a2b-5953-4619-b916-15d1265a0bbd"
-
-# status = get_status([cloud_arn, explora_arn])

@@ -124,7 +124,6 @@ def delete_repo(repo_id):
     Deletes a repo under the authenticated user.
     """
     # Check authorization
-    return_message = {"error": False, "message": "FUCK"}
     claims = authorize_user(request)
     if not claims: return make_unauthorized_error()
 
