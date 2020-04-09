@@ -61,6 +61,7 @@ class AuthStore extends Reflux.Store {
   onLoginFailed (errorMessage) {
     this._resetState();
     this.state.error = errorMessage;
+    console.log(errorMessage)
     this._changed();
   }
 
@@ -97,6 +98,7 @@ class AuthStore extends Reflux.Store {
   onRegistrationFailed(errorMessage) {
     this._resetState();
     this.state.error = errorMessage;
+    console.log(errorMessage)
     this._changed();
   }
 

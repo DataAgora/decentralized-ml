@@ -44,11 +44,10 @@ class CoordinatorStore extends Reflux.Store {
 
   _handleResponse(repoId, response, refluxAction) {
     response.json().then(serverResponse => {
-      if (response.status === 200) {
-        refluxAction.completed(repoId, serverResponse);
+      if (serverResponse["error"]) {
+        refluxAction.failed(repoId, serverResponse["message"]);
       } else {
-        // TODO: Use error returned by server.
-        refluxAction.failed(repoId, serverResponse);
+        refluxAction.completed(repoId, serverResponse["message"]);
       }
     });
   }
@@ -57,12 +56,12 @@ class CoordinatorStore extends Reflux.Store {
     this.state.coordinatorStatuses[repoId] = status;
     this.state.loading = false;
     this._changed();
-    console.log("DONE")
   }
 
-  onFetchCoordinatorStatusFailed (repoId, errorObject) {
+  onFetchCoordinatorStatusFailed (repoId, error) {
     this.state.coordinatorStatuses[repoId] = {};
-    this.state.error = errorObject["message"];
+    this.state.error = error;
+    console.log(error);
     this.state.loading = false;
     this._changed();
   }
@@ -70,7 +69,6 @@ class CoordinatorStore extends Reflux.Store {
   _changed () {
     this.trigger(this.state);
   }
-
 }
 
 export default CoordinatorStore;

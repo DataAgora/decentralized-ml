@@ -37,7 +37,6 @@ class DashboardStore extends Reflux.Store {
           },
         }
       ).then(response => {
-        console.log(response)
         this._handleFetchAllReposResponse(response);
       });
     }
@@ -45,17 +44,15 @@ class DashboardStore extends Reflux.Store {
 
   _handleFetchAllReposResponse(response) {
     response.json().then(serverResponse => {
-      if (response.status === 200) {
-        DashboardActions.fetchAllRepos.completed(serverResponse);
+      if (serverResponse["error"]) {
+        DashboardActions.fetchAllRepos.failed(serverResponse["message"]);
       } else {
-        // TODO: Use error returned by server.
-        DashboardActions.fetchAllRepos.failed(serverResponse);
+        DashboardActions.fetchAllRepos.completed(serverResponse["message"]);
       }
     });
   }
 
   onFetchAllReposCompleted (repoList) {
-    console.log(repoList)
     this.state.repos = repoList;
     this.state.repos.sort((a,b) =>{
       if (a.Name < b.Name) return -1;
@@ -66,9 +63,10 @@ class DashboardStore extends Reflux.Store {
     this._changed();
   }
 
-  onFetchAllReposFailed (errorObject) {
+  onFetchAllReposFailed (error) {
     this.state.repos = {};
-    this.state.error = errorObject["message"];
+    this.state.error = error;
+    console.log(error);
     this.state.loading = false;
     this._changed();
   }

@@ -18,27 +18,14 @@ class RepoStatus extends Reflux.Component {
   render() {
     const status = this.state.coordinatorStatuses[this.props.repoId];
 
-    if (status === undefined) {
-      return <span className="badge badge-pill badge-dark">...</span>
+    switch (status) {
+      case "ERROR": return <span className="badge badge-pill badge-danger">Error</span>;
+      case "SHUTTING DOWN": return <span className="badge badge-pill badge-danger">Shutting down..</span>;
+      case "DEPLOYING": return <span className="badge badge-pill badge-warning">Deploying...</span>;
+      case "ACTIVE": return <span className="badge badge-pill badge-success">Active</span>;
+      case "IDLE": return <span className="badge badge-pill badge-secondary">Idle</span>;
+      default: return <span className="badge badge-pill badge-dark">...</span>;
     }
-
-    if (!("Busy" in status)) {
-      if (this.props.isDeploying) {
-        return <span className="badge badge-pill badge-warning">Deploying...</span>
-      } else {
-        return <span className="badge badge-pill badge-danger">Unknown</span>
-      }
-    }
-
-    if (status["Busy"] === true) {
-      return <span className="badge badge-pill badge-success">Active</span>
-    } else {
-      return <span className="badge badge-pill badge-secondary">Idle</span>;
-    }
-  }
-
-  rerender() {
-    this.forceUpdate()
   }
 }
 

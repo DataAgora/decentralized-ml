@@ -44,11 +44,10 @@ class RepoLogsStore extends Reflux.Store {
 
   _handleResponse(response, refluxAction) {
     response.json().then(serverResponse => {
-      if (response.status === 200) {
-        refluxAction.completed(serverResponse);
+      if (serverResponse["error"]) {
+        refluxAction.failed(serverResponse["message"]);
       } else {
-        // TODO: Use error returned by server.
-        refluxAction.failed(serverResponse);
+        refluxAction.completed(serverResponse["message"]);
       }
     });
   }
@@ -59,9 +58,10 @@ class RepoLogsStore extends Reflux.Store {
     this._changed();
   }
 
-  onFetchRepoLogsFailed (errorObject) {
+  onFetchRepoLogsFailed (error) {
     this.state.repoLogs = {};
-    this.state.errorLogs = errorObject["Message"];
+    this.state.errorLogs = error;
+    console.log(error);
     this.state.loadingLogs = false;
     this._changed();
   }

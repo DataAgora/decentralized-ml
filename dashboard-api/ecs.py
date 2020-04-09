@@ -1,9 +1,8 @@
-from __future__ import print_function
 import os
 import sys
-# import git
-# import shutil
+import requests
 from time import strftime, sleep
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -16,7 +15,10 @@ EXPLORA_CONTAINER_NAME = "explora-container"
 CLOUD_SUBDOMAIN = "{}.cloud.discreetai.com"
 EXPLORA_SUBDOMAIN = "{}.explora.discreetai.com"
 DOMAIN_ID = "/hostedzone/Z3NSW3B4FM6A7X"
-
+DEPLOYING_STATUSES = ["PROVISIONING", "PENDING", "ACTIVATING"]
+RUNNING_STATUS = "RUNNING"
+SHUTTING_DOWN_STATUSES = ["DEACTIVATING", "STOPPING", "DEPROVISIONING"]
+ERROR_STATUS = "STOPPED"
 
 ecs_client = boto3.client("ecs")
 ec2_client = boto3.resource("ec2")
@@ -63,10 +65,26 @@ def stop_nodes(cloud_task_arn, explora_task_arn, repo_id, cloud_ip_address, \
         cloud_ip_address (str): The public IP address of the cloud task.
         explora_ip_address (str): The public IP address of the Explora task. 
     """
-    _stop_task(cloud_task_arn, explora_task_arn)
+    _stop_tasks(cloud_task_arn, explora_task_arn)
     names = _make_names(repo_id)
     ip_addresses = [cloud_ip_address, explora_ip_address]
     _modify_domains("DELETE", names, ip_addresses)
+
+def get_status(cloud_task_arn, explora_task_arn, repo_id):
+    """
+    Retrieve the statuses of the cloud and Explora task and form a general
+    status. 
+    
+    Args:
+        cloud_task_arn (str): The ARN of the cloud task to be stopped.
+        explora_task_arn (str): The ARN of the Explora task to be stopped.
+        repo_id (str): The repo ID of the repo associated with this task.
+    
+    Returns:
+        str: The general status describing the state of both the tasks.
+    """
+    statuses = _retrieve_statuses(cloud_task_arn, explora_task_arn)
+    return _determine_status(statuses, repo_id)
 
 def _run_new_tasks(api_key):
     """
@@ -219,6 +237,58 @@ def _stop_tasks(cloud_task_arn, explora_task_arn):
         reason="User requested deletion."
     )
 
+def _retrieve_statuses(cloud_task_arn, explora_task_arn):
+    """
+    Retrieve the actual task statuses from the cloud and Explora tasks.
+    
+    Args:
+        cloud_task_arn (str): The ARN of the cloud task to be stopped.
+        explora_task_arn (str): The ARN of the Explora task to be stopped.
+    
+    Returns:
+        str: The actual task statuses of the two tasks.
+    """
+    describe_response = ecs_client.describe_tasks(
+        cluster=CLUSTER_NAME,
+        tasks=[
+            cloud_task_arn,
+            explora_task_arn
+        ]
+    )
+    return [task["containers"][0]["lastStatus"] \
+        for task in describe_response["tasks"]]
+
+def _determine_status(statuses, repo_id):
+    """
+    Determine the general status given the actual two task statuses of the
+    cloud and Explora tasks.
+
+    For example, as long as one task is deploying/shutting down/shut down, both
+    are considered deploying/shutting down/shut down. 
+    
+    Args:
+        statuses (list): The two task statuses of the cloud and Explora tasks.
+        repo_id (str): The repo ID of the repo associated with this task.
+    
+    Returns:
+        str: The general status describing the state of both the tasks.
+    """
+    if any([status == ERROR_STATUS for status in statuses]):
+        return "ERROR"
+    elif any([status in SHUTTING_DOWN_STATUSES for status in statuses]):
+        return "SHUTTING DOWN"
+    elif any([status in DEPLOYING_STATUSES for status in statuses]):
+        return "DEPLOYING"
+    elif all([status == RUNNING_STATUS for status in statuses]):
+        cloud_node_url = CLOUD_SUBDOMAIN.format(repo_id)
+        # TODO: Add HTTPS to cloud node
+        cloud_response = requests.get("http://" + cloud_node_url + "/status")
+        status_data = cloud_response.json()
+        return "ACTIVE" if status_data["Busy"] else "IDLE"
+    else:
+        statuses = str(statuses)
+        raise Exception("Found an unexpected set of statuses: {statuses}")
+
 def _modify_domains(action, names, ip_addresses):
     """
     Create or remove the Route53 domain records with the provided names and
@@ -275,3 +345,8 @@ def _make_names(repo_id):
         list: The list of domain names for this repo ID.
     """
     return [CLOUD_SUBDOMAIN.format(repo_id), EXPLORA_SUBDOMAIN.format(repo_id)]
+
+# cloud_arn = "arn:aws:ecs:us-west-1:880058582700:task/08610c7b-3136-469a-8307-dfb6fded15e0"
+# explora_arn = "arn:aws:ecs:us-west-1:880058582700:task/87e67a2b-5953-4619-b916-15d1265a0bbd"
+
+# status = get_status([cloud_arn, explora_arn])

@@ -2,6 +2,7 @@ import Reflux from 'reflux';
 import RepoDataActions from './../actions/RepoDataActions';
 import AuthStore from './AuthStore';
 import Endpoints from './../constants/endpoints.js';
+import trackRepoStatus from "./../utils/updateStatus";
 
 
 class RepoDataStore extends Reflux.Store {
@@ -38,7 +39,6 @@ class RepoDataStore extends Reflux.Store {
   onShowModal() {
     this.state.creationState.created = true;
     this._changed();
-    console.log(this.state.creationState);
   }
 
   onFetchRepoData(repoId) {
@@ -70,10 +70,11 @@ class RepoDataStore extends Reflux.Store {
     this._changed();
   }
 
-  onFetchRepoDataFailed (errorObject) {
+  onFetchRepoDataFailed (error) {
     this.state.repoWasFound = false;
     this.state.repoData = {};
-    this.state.error = errorObject["Message"];
+    this.state.error = error;
+    console.log(error);
     this.state.loading = false;
     this._changed();
   }
@@ -106,20 +107,20 @@ class RepoDataStore extends Reflux.Store {
   }
 
   onCreateNewRepoCompleted(results) {
-    console.log(results)
-    this.state.creationState.repoId = results["Results"]["RepoId"];
-    this.state.creationState.apiKey = results["Results"]["TrueApiKey"];
+    this.state.creationState.repoId = results["RepoId"];
+    this.state.creationState.apiKey = results["ApiKey"];
     this.state.creationState.creating = false;
     this.state.creationState.created = true;
     this._changed();
   }
 
-  onCreateNewRepoFailed(errorObject) {
+  onCreateNewRepoFailed(error) {
     this.state.creationState.repoId = null;
     this.state.creationState.apiKey = null;
     this.state.creationState.creating = false;
     this.state.creationState.created = false;
-    this.state.creationState.error = errorObject["Message"];
+    this.state.creationState.error = error;
+    console.log(error);
     this._changed();
   }
 
@@ -152,24 +153,94 @@ class RepoDataStore extends Reflux.Store {
     this._changed();
   }
 
-  onFetchReposRemainingFailed(errorObject) {
+  onFetchReposRemainingFailed(error) {
     this.state.creationState.loading = false;
-    this.state.creationState.error = errorObject["Message"];
+    this.state.creationState.error = error
+    console.log(error);
     this._changed();
   }
 
-  onResetState() {
-    this.init();
+  onResetState(repoId) {
+    if (AuthStore.state.isAuthenticated) {
+      let jwtString = AuthStore.state.jwt;
+
+      this.state.creationState.loading = true;
+      this._changed();
+
+      fetch(
+        Endpoints["dashboardResetCloudNode"] + repoId, {
+          method: 'POST',
+          headers: {
+            'Content-Type':'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ' + jwtString,
+          }, 
+          body: JSON.stringify({})
+        }
+      ).then(response => {
+        this._handleResponse(response, RepoDataActions.resetState);
+      });
+    }
+  }
+
+  onResetStateCompleted(repoId) {
+    this.state.creationState.loading = false;
+    console.log(repoId + "'s state successfully reset!")
+    this._changed();
+  }
+
+  onResetStateFailed(error) {
+    this.state.creationState.loading = false;
+    this.state.creationState.error = error
+    console.log(error);
+    this._changed();
+  }
+  
+  onDeleteRepo(repoId) {
+    if (AuthStore.state.isAuthenticated) {
+      let jwtString = AuthStore.state.jwt;
+
+      this.state.creationState.loading = true;
+      this._changed();
+
+      fetch(
+        Endpoints["dashboardDeleteRepo"] + repoId, {
+          method: 'POST',
+          headers: {
+            'Content-Type':'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ' + jwtString,
+          },
+          body: JSON.stringify({})
+        }
+      ).then(response => {
+        this._handleResponse(response, RepoDataActions.deleteRepo);
+      });
+    }
+  }
+
+  onDeleteRepoCompleted(repoId) {
+    this.state.creationState.loading = false;
+    trackRepoStatus(repoId, true)
+    window.location.href = '/dashboard';
+    console.log(repoId + " successfully deleted!")
+    this._changed();
+  }
+
+  onDeleteRepoFailed(error) {
+    this.state.creationState.loading = false;
+    this.state.creationState.error = error
+    console.log(error);
+    this._changed();
   }
 
 
   _handleResponse(response, refluxAction) {
     response.json().then(serverResponse => {
-      if (response.status === 200) {
-        refluxAction.completed(serverResponse);
+      if (serverResponse["error"]) {
+        refluxAction.failed(serverResponse["message"]);
       } else {
-        // TODO: Use error returned by server.
-        refluxAction.failed(serverResponse);
+        refluxAction.completed(serverResponse["message"]);
       }
     });
   }
