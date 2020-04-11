@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 
 from websockets import connect
@@ -9,6 +10,7 @@ CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 NEW_CONNECTION_MESSAGE = {
     "type": "REGISTER",
     "node_type": "dashboard",
+    "api_key": os.environ["API_KEY"]
 }
 
 async def websocket_connect(cloud_node_host, new_message, max_size=2**22, \

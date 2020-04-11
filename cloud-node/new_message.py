@@ -1,4 +1,5 @@
 import json
+import os
 
 import state
 from message import Message
@@ -43,9 +44,14 @@ def process_new_message(message, factory, client):
     if message.type == MessageType.REGISTER.value:
         # Register the node
         if message.node_type in ["DASHBOARD", "LIBRARY"]:
+            if message.api_key != os.environ["API_KEY"]:
+                error_message = "API key provided is invalid!"
+                return {"error": True, "message": error_message}
+            
             result, error_message = factory.register(client, message.node_type)
             if not result:
-                results = {"error": True, "message": error_message}
+                return {"error": True, "message": error_message}
+            
             print("Registered node as type: {}".format(message.node_type))
 
             if message.node_type == "LIBRARY" and state.state["busy"] is True:

@@ -18,6 +18,7 @@ cloud-node/temp/
 datacenter/sessions
 dashboard-ui/src/utils.js
 model/
+*/docker_helper.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

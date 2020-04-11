@@ -71,6 +71,7 @@ class NewSessionMessage(Message):
 
     def __init__(self, serialized_message):
         self.repo_id = serialized_message["repo_id"]
+        self.api_key = serialized_message["api_key"]
         self.dataset_id = serialized_message.get("dataset_id", None)
         self.session_id = serialized_message["session_id"]
         self.hyperparams = serialized_message["hyperparams"]

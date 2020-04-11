@@ -111,7 +111,7 @@ def create_new_repo():
         server_details = create_new_nodes(repo_id, api_key)
         _create_new_repo_document(user_id, repo_id, repo_name, \
             repo_description, server_details)
-        _update_user_data_with_new_repo(user_id, repo_id, api_key)
+        _update_user_data_with_new_repo(user_id, repo_id)
     except Exception as e:
         # TODO: Revert things.
         return make_error("Error creating new repo: " + str(e))

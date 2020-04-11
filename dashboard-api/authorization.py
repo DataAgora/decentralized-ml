@@ -30,7 +30,7 @@ def authorize_user(request):
     provided. Return the claims if successful, `None` otherwise.
     """
     try:
-        jwt_string = request.get_json().get("token")
+        jwt_string = request.headers.get("Authorization").split('Bearer ')[1]
         claims = jwt.decode(jwt_string, JWT_SECRET, algorithms=[JWT_ALGO])
     except Exception as e:
         return None
