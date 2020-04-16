@@ -201,7 +201,6 @@ def _get_all_users_repos():
         repos = []
         for user in users:
             user_id = user["UserId"]
-            print(user)
             if "ReposManaged" not in user:
                 continue
             for repo_id in user["ReposManaged"]:

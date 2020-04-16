@@ -248,7 +248,6 @@ def _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description):
     """
     _assert_user_has_repos_left(user_id)
     server_details = create_new_nodes(repo_id, api_key)
-    print(server_details)
     _create_new_repo_document(user_id, repo_id, repo_name, \
         repo_description, server_details)
     _update_user_data_with_new_repo(user_id, repo_id)
