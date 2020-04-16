@@ -225,13 +225,13 @@ def _stop_tasks(cloud_task_arn, explora_task_arn):
         cloud_task_arn (str): The ARN of the cloud task to be stopped.
         explora_task_arn (str): The ARN of the Explora task to be stopped.
     """
-    cloud_task_response = ecs_client.stop_task(
+    _ = ecs_client.stop_task(
         cluster=CLUSTER_NAME,
         task=cloud_task_arn,
         reason="User requested deletion."
     )
 
-    explora_task_response = ecs_client.stop_task(
+    _ = ecs_client.stop_task(
         cluster=CLUSTER_NAME,
         task=explora_task_arn,
         reason="User requested deletion."
@@ -345,4 +345,3 @@ def _make_names(repo_id):
         list: The list of domain names for this repo ID.
     """
     return [CLOUD_SUBDOMAIN.format(repo_id), EXPLORA_SUBDOMAIN.format(repo_id)]
-
