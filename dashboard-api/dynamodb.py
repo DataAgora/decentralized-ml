@@ -37,6 +37,7 @@ def _update_user_data_with_new_repo(user_id, repo_id):
         data = response["Item"]
 
         repos_managed = data.get('ReposManaged', set([]))
+        repos_managed.add(repo_id)
 
         response = table.update_item(
             Key={
@@ -192,6 +193,22 @@ def _remove_logs(repo_id):
         return True
     except Exception as e:
         raise Exception("Error while getting logs for repo. " + str(e))
+
+def _get_all_users_repos():
+    users_table = _get_dynamodb_table("UsersDashboardData")
+    try:
+        users = users_table.scan()["Items"]
+        repos = []
+        for user in users:
+            user_id = user["UserId"]
+            print(user)
+            if "ReposManaged" not in user:
+                continue
+            for repo_id in user["ReposManaged"]:
+                repos.append((user_id, repo_id))
+        return repos
+    except Exception as e:
+        raise Exception("Error getting repos for all users. " + str(e))
 
 def _get_dynamodb_table(table_name):
     """

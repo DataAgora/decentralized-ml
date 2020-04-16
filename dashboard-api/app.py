@@ -1,6 +1,7 @@
 import re
 import secrets
 import hashlib
+import time
 
 import boto3
 import requests
@@ -13,7 +14,8 @@ from ecs import create_new_nodes, get_status, stop_nodes, CLOUD_SUBDOMAIN, \
     EXPLORA_SUBDOMAIN
 from dynamodb import _get_logs, _remove_logs, _get_user_data, \
     _remove_repo_from_user_details, _get_repo_details, _remove_repo_details, \
-    _update_user_data_with_new_repo, _create_new_repo_document, _get_all_repos
+    _update_user_data_with_new_repo, _create_new_repo_document, \
+    _get_all_repos, _get_all_users_repos
 from utils import make_success, make_error, make_unauthorized_error
 
 
@@ -102,16 +104,12 @@ def create_new_repo():
     repo_description = params["RepoDescription"][:80]
 
     # TODO: Check repo doesn't already exist.
-
-    user_id = claims["pk"]
     repo_name = re.sub('[^a-zA-Z0-9-]', '-', repo_name)
+    user_id = claims["pk"]
+    repo_id, api_key = _create_repo_id_and_api_key(user_id)
     try:
-        _assert_user_has_repos_left(user_id)
-        repo_id, api_key = _create_repo_id_and_api_key(user_id)
-        server_details = create_new_nodes(repo_id, api_key)
-        _create_new_repo_document(user_id, repo_id, repo_name, \
-            repo_description, server_details)
-        _update_user_data_with_new_repo(user_id, repo_id)
+       _create_new_repo(user_id, repo_id, api_key, repo_name, \
+           repo_description)
     except Exception as e:
         # TODO: Revert things.
         return make_error("Error creating new repo: " + str(e))
@@ -129,15 +127,7 @@ def delete_repo(repo_id):
 
     user_id = claims["pk"]
     try:
-        repo_details = _get_repo_details(user_id, repo_id)
-        cloud_task_arn = repo_details["CloudTaskArn"]
-        cloud_ip_address = repo_details["CloudIpAddress"]
-        explora_task_arn = repo_details["ExploraTaskArn"]
-        explora_ip_address = repo_details["ExploraIpAddress"]
-        _remove_logs(repo_id)
-        _remove_repo_from_user_details(user_id, repo_id)
-        _remove_repo_details(user_id, repo_id)
-        stop_nodes(cloud_task_arn, explora_task_arn, repo_id, cloud_ip_address, explora_ip_address)
+        _delete_repo(user_id, repo_id)
     except Exception as e:
         # TODO: Revert things.
         return make_error("Error deleting repo: " + str(e))
@@ -252,14 +242,28 @@ def _create_repo_id_and_api_key(user_id):
     api_key = h.hexdigest()
     return repo_id, api_key
 
-def _create_new_cloud_node(repo_id, api_key):
+def _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description):
     """
-    Creates a new cloud node.
+    Creates a new repo, which includes a cloud and Explora node.
     """
-    try:
-        run_new_task(repo_id)
-    except Exception as e:
-        raise Exception("Error while creating new cloud node: " + str(e))
+    _assert_user_has_repos_left(user_id)
+    server_details = create_new_nodes(repo_id, api_key)
+    print(server_details)
+    _create_new_repo_document(user_id, repo_id, repo_name, \
+        repo_description, server_details)
+    _update_user_data_with_new_repo(user_id, repo_id)
+
+def _delete_repo(user_id, repo_id):
+    repo_details = _get_repo_details(user_id, repo_id)
+    cloud_task_arn = repo_details["CloudTaskArn"]
+    cloud_ip_address = repo_details["CloudIpAddress"]
+    explora_task_arn = repo_details["ExploraTaskArn"]
+    explora_ip_address = repo_details["ExploraIpAddress"]
+    _remove_logs(repo_id)
+    _remove_repo_from_user_details(user_id, repo_id)
+    _remove_repo_details(user_id, repo_id)
+    stop_nodes(cloud_task_arn, explora_task_arn, repo_id, cloud_ip_address, explora_ip_address)
+    return repo_details
 
 def _create_presigned_url(bucket_name, object_name, expiration=3600):
     """Generate a presigned URL to share an S3 object
@@ -286,6 +290,23 @@ def _create_presigned_url(bucket_name, object_name, expiration=3600):
 
     # The response contains the presigned URL
     return response
+
+def update_service():
+    repos = _get_all_users_repos()
+    for user_id, repo_id in repos:
+        _update_repo(user_id, repo_id)
+
+def _update_repo(user_id, repo_id):
+    repo_details = _delete_repo(user_id, repo_id)
+
+    api_key = repo_details["ApiKey"]
+    repo_name = repo_details["Name"]
+    repo_description = repo_details["Description"]
+
+    time.sleep(10)
+    
+    _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description)
+    
 
 if __name__ == "__main__":
     app.run(port=5001)

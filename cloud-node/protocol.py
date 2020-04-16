@@ -71,20 +71,18 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             print(error_message)
             return
 
+        state.state_lock.acquire()
         # Process message
         try:
             results = process_new_message(received_message, self.factory, self)
+            state.state_lock.release()
         except Exception as e:
             state.reset_state()
             state.state_lock.release()
             error_message = "Exception processing new message: " + str(e)
             raise Exception(error_message)
-
-        if results["error"]:
-            # If there was an error, just send the results.
-            self.sendMessage(json.dumps(results).encode(), isBinary)
-        elif results["action"] == "BROADCAST":
-            # If there is no action to take, don't send any messages.
+        
+        if results["action"] == "BROADCAST":
             self._broadcastMessage(
                 payload=results["message"],
                 client_list=results["client_list"],

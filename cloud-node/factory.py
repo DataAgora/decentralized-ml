@@ -24,7 +24,7 @@ class CloudNodeFactory(WebSocketServerFactory):
                 `LIBRARY`.
         
         Returns:
-            bool: Returns whether registration was successful.
+            str: Error message, if an error occurred.
         """
         assert client_type in ('DASHBOARD', 'LIBRARY'), \
             "Type must be DASHBOARD or LIBRARY!"
@@ -34,13 +34,13 @@ class CloudNodeFactory(WebSocketServerFactory):
                 client_already_exists = True
 
         if client_type == "DASHBOARD" and len(self.clients[client_type]) == 1:
-            return False, "Only one DASHBOARD client allowed at a time!"
+            return "Only one DASHBOARD client allowed at a time!"
 
         if client_already_exists:
-            return False, "Client already exists!"
+            return "Client already exists!"
         
         self.clients[client_type].append(client)
-        return True, ""
+        return ""
 
     def unregister(self, client):
         """

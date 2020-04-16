@@ -34,11 +34,11 @@ async def websocket_connect(cloud_node_host, new_message, max_size=2**22, \
                 json_response = json.loads(response)
                 if json_response.get("action", None) == 'STOP':
                     print("Session complete! Check dashboard for final model!")
-                else:
-                    print("Unknown response received:")
-                    print(json_response)
-                    print("Stopping...")
-                return
+                elif json_response.get("error", None):
+                    print("Received error!")
+                    print(json_response["error_message"])
+                    print("Stopping...") 
+                    return
         except socket.gaierror as e:
             print("Server not found!")
         except:

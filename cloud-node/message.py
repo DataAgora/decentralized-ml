@@ -51,6 +51,7 @@ class RegistrationMessage(Message):
 
     def __init__(self, serialized_message):
         self.node_type = serialized_message["node_type"].upper()
+        self.api_key = serialized_message["api_key"]
 
     def __repr__(self):
         return json.dumps({
