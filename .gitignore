@@ -1,6 +1,8 @@
 # Other
 new-env/
 api-env/
+update_service.sh
+dashboard-api/update_service.py
 test.rst
 */test.rst
 */test.py
