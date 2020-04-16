@@ -1,7 +1,6 @@
 FROM python:3.6
 COPY . /app/
 WORKDIR /app
-RUN ls
 RUN pip install -r requirements.txt
 RUN pip uninstall -y notebook
 RUN pip install notebook
