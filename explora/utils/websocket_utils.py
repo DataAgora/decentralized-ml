@@ -7,12 +7,6 @@ from websockets import connect
 
 CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
-NEW_CONNECTION_MESSAGE = {
-    "type": "REGISTER",
-    "node_type": "dashboard",
-    "api_key": os.environ["API_KEY"]
-}
-
 async def websocket_connect(cloud_node_host, new_message, max_size=2**22, \
         num_reconnections=3):
     """
@@ -24,6 +18,12 @@ async def websocket_connect(cloud_node_host, new_message, max_size=2**22, \
         num_reconnections (int): Number of consecutive reconnections allowed
             for some arbitrary failure to connect.
     """
+    NEW_CONNECTION_MESSAGE = {
+        "type": "REGISTER",
+        "node_type": "dashboard",
+        "api_key": os.environ["API_KEY"]
+    }
+    
     while True:
         try:
             async with connect(cloud_node_host, max_size=2**22) as websocket:

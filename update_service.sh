@@ -1,4 +1,4 @@
-cd cloud
+cd cloud-node
 chmod +x docker_helper.sh
 ./docker_helper.sh
 ..
