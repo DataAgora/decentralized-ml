@@ -8,13 +8,13 @@ from new_message import process_new_message
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_state(api_key):
+    os.environ["API_KEY"] = api_key
     state.reset_state()
 
 @pytest.fixture
 def broadcast_message(factory, train_message):
     return {
-        "error": False,
         "action": "BROADCAST",
         "client_list": factory.clients["LIBRARY"],
         "message": train_message,
@@ -23,15 +23,10 @@ def broadcast_message(factory, train_message):
 @pytest.fixture
 def ios_broadcast_message(ios_train_message, factory, ios_session_id):
     return {
-        "error": False,
         "action": "BROADCAST",
         "client_list": factory.clients["LIBRARY"],
         "message": ios_train_message,
     }
-    
-@pytest.fixture(autouse=True)
-def reset_state():
-    state.reset_state()
 
 @pytest.fixture(autouse=True, scope="module")
 def manage_test_object(s3_object, ios_s3_object, h5_model_path, ios_model_path):
@@ -51,9 +46,10 @@ def test_session_while_busy(python_session_message, factory, \
 
     results = process_new_message(python_session_message, factory, 
         dashboard_client)
+    message = results["message"]
 
-    assert results["error"], "Error should have occurred!"
-    assert results["message"] == "Server is already busy working."
+    assert message["error"], "Error should have occurred!"
+    assert message["error_message"] == "Server is already busy working."
 
 def test_new_python_session(python_session_message, factory, \
         broadcast_message, dashboard_client):

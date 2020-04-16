@@ -9,7 +9,8 @@ from parse_weights import calculate_new_weights, read_compiled_weights
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_state(api_key):
+    os.environ["API_KEY"] = api_key
     state.reset_state()
 
 @pytest.fixture(scope="session")

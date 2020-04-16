@@ -86,13 +86,22 @@ def process_new_message(message, factory, client):
 
     elif message.type == MessageType.NEW_SESSION.value:
         # Verify this node has been registered
-        if not factory.is_registered(client, message.node_type): return
+        if not factory.is_registered(client, message.node_type): 
+            return _make_error_results("This client is not registered!", \
+                "NOT_REGISTERED")
+
         # Start new DML Session
+        if state.state["busy"]:
+            print("Aborting because the server is busy.")
+            return _make_error_results("Server is already busy working.", \
+                "SERVER_BUSY") 
         results = start_new_session(message, factory.clients["LIBRARY"])
 
     elif message.type == MessageType.NEW_UPDATE.value:
         # Verify this node has been registered
-        if not factory.is_registered(client, message.node_type): return
+        if not factory.is_registered(client, message.node_type): 
+            return _make_error_results("This client is not registered!", \
+                "NOT_REGISTERED")
 
         if factory.clients["DASHBOARD"]: 
             # Handle new weights (average, move to next round, terminate session)
@@ -105,7 +114,9 @@ def process_new_message(message, factory, client):
 
     elif message.type == MessageType.NO_DATASET.value:
         # Verify this node has been registered
-        if not factory.is_registered(client, message.node_type): return
+        if not factory.is_registered(client, message.node_type): 
+            return _make_error_results("This client is not registered!", \
+                "NOT_REGISTERED")
 
         if factory.clients["DASHBOARD"]: 
             # Handle `NO_DATASET` message (reduce # of chosen nodes, analyze 

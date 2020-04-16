@@ -11,7 +11,8 @@ from new_message import process_new_message
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_state(api_key):
+    os.environ["API_KEY"] = api_key
     state.reset_state()
 
 @pytest.fixture(autouse=True)
@@ -72,7 +73,6 @@ def simple_new_update_message(session_id, simple_gradients):
 def broadcast_message(simple_gradients, factory, train_message):
     train_message["round"] = 2
     return {
-        "error": False,
         "action": "BROADCAST",
         "client_list": factory.clients["LIBRARY"],
         "message": train_message,

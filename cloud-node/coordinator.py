@@ -24,15 +24,7 @@ def start_new_session(message, clients):
     """
     print("Starting new session...")
 
-    # 1. If server is BUSY or library type is not recognized, error. 
-    #    Otherwise, mark the service as BUSY.
-    if state.state["busy"]:
-        print("Aborting because the server is busy.")
-        return {
-            "error": True,
-            "message": "Server is already busy working."
-        }
-
+    # 1. Mark the service as BUSY.
     state.state["busy"] = True
 
     # 2. Set the internal round variable to 1, reset the number of nodes

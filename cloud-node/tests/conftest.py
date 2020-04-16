@@ -41,6 +41,10 @@ def repo_id():
     return "test-repo"
 
 @pytest.fixture(scope="session")
+def api_key():
+    return "test-api-key"
+
+@pytest.fixture(scope="session")
 def h5_model_path():
     return "cloud-node/tests/artifacts/my_model.h5"
 
@@ -137,6 +141,7 @@ def ios_session_message(session_message, ios_session_id, ios_config, \
 @pytest.fixture(scope="session")
 def train_message(session_id, repo_id, hyperparams):
     return {
+        "error": False,
         "session_id": session_id,
         "repo_id": repo_id,
         "round": 1,
@@ -145,15 +150,11 @@ def train_message(session_id, repo_id, hyperparams):
     }
 
 @pytest.fixture(scope="session")
-def ios_train_message(ios_session_id, repo_id, dataset_id, hyperparams):
-    return {
-        "session_id": ios_session_id,
-        "repo_id": repo_id,
-        "dataset_id": dataset_id,
-        "round": 1,
-        "action": "TRAIN",
-        "hyperparams": hyperparams,
-    }
+def ios_train_message(train_message, ios_session_id, dataset_id):
+    ios_train_message = deepcopy(train_message)
+    ios_train_message["session_id"] = ios_session_id
+    ios_train_message["dataset_id"] = dataset_id
+    return ios_train_message
 
 @pytest.fixture(scope="session")
 def no_action_message(ios_session_id, dataset_id):

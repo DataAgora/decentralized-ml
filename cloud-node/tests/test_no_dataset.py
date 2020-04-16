@@ -10,7 +10,8 @@ from new_message import process_new_message
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_state(api_key):
+    os.environ["API_KEY"] = api_key
     state.reset_state()
 
 @pytest.fixture(autouse=True)
@@ -67,7 +68,6 @@ def no_dataset_message(ios_session_id, dataset_id):
 def ios_broadcast_message(ios_train_message, factory, ios_session_id):
     ios_train_message["round"] = 2
     return {
-        "error": False,
         "action": "BROADCAST",
         "client_list": factory.clients["LIBRARY"],
         "message": ios_train_message,
@@ -99,4 +99,6 @@ def test_complex_no_dataset_message(complex_training_state, no_dataset_message, 
         library_client)
 
     assert state.state["num_nodes_chosen"] == 1
+    print(results)
+    print(ios_broadcast_message)
     assert results == ios_broadcast_message, "Resulting message is incorrect!"
