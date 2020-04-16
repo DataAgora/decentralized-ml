@@ -43,7 +43,6 @@ def create_new_nodes(repo_id, api_key):
         _run_new_tasks(api_key)
     names = _make_names(repo_id)
     ip_addresses = [cloud_ip_address, explora_ip_address]
-    print(ip_addresses)
     _modify_domains("CREATE", names, ip_addresses)
     return {
         "CloudIpAddress": cloud_ip_address,
