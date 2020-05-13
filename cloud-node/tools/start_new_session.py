@@ -5,13 +5,13 @@ from explora import Explora
 
 libraries = ["ios", "python"]
 
-if len(sys.argv) == 1:
+if len(sys.argv) != 3:
     print("Must include library as argument.")
 else:
     library = sys.argv[1]
     loop = asyncio.get_event_loop()
     explora = Explora()
-    repo_id = "99885f00eefcd4107572eb62a5cb429a"
+    repo_id = sys.argv[2]
 
     model_path = "../tests/artifacts/{}"
     if library == 'ios':

@@ -10,11 +10,6 @@ from new_message import process_new_message
 
 
 @pytest.fixture(autouse=True)
-def reset_state(api_key):
-    os.environ["API_KEY"] = api_key
-    state.reset_state()
-
-@pytest.fixture(autouse=True)
 def simple_training_state(ios_session_id, repo_id, ios_session_message, \
         dataset_id):
     return {
@@ -56,8 +51,9 @@ def complex_training_state(ios_model_path, ios_session_id, \
     return complex_state
 
 @pytest.fixture(scope="session")
-def no_dataset_message(ios_session_id, dataset_id):
+def no_dataset_message(repo_id, ios_session_id, dataset_id):
     return Message.make({
+        "repo_id": repo_id,
         "session_id": ios_session_id,
         "dataset_id": dataset_id,
         "round": 1,
@@ -65,11 +61,11 @@ def no_dataset_message(ios_session_id, dataset_id):
     })
 
 @pytest.fixture
-def ios_broadcast_message(ios_train_message, factory, ios_session_id):
+def ios_broadcast_message(ios_train_message, factory, repo_id):
     ios_train_message["round"] = 2
     return {
         "action": "BROADCAST",
-        "client_list": factory.clients["LIBRARY"],
+        "client_list": factory.clients[repo_id]["LIBRARY"],
         "message": ios_train_message,
     }
 

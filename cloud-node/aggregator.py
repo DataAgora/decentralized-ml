@@ -32,20 +32,29 @@ def handle_new_update(message, clients_dict):
             or state.state["library_type"] == LibraryType.IOS_TEXT.value) \
             and state.state["dataset_id"] != message.dataset_id:
         return {
-            "error": True,
-            "message": "The dataset ID in the message doesn't match the service's."
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The dataset ID in the message doesn't match the service's."
+            }
         }
 
     if state.state["session_id"] != message.session_id:
         return {
-            "error": True,
-            "message": "The session ID in the message doesn't match the service's."
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The session ID in the message doesn't match the service's."
+            }
         }
 
     if state.state["current_round"] != message.round:
         return {
-            "error": True,
-            "message": "The round in the message doesn't match the current round."
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The round in the message doesn't match the current round."
+            }
         }
 
     state.state["last_message_time"] = time.time()
@@ -84,7 +93,7 @@ def handle_new_update(message, clients_dict):
     # (NOTE: can't and won't happen with step 7.b.)
     if check_termination_criteria():
         # 8.a. Reset all state in the service and mark BUSY as false
-        results = stop_session(clients_dict)
+        results = stop_session(message.repo_id, clients_dict)
 
     return results
 
@@ -95,61 +104,89 @@ def handle_no_dataset(message, clients_dict):
 
     Args:
         message (NoDatasetMessage): The `NO_DATASET` message sent to the server.
+        clients_dict (dict): Dictionary of clients, keyed by type of client
+            (either `LIBRARY` or `DASHBOARD`).
 
     Returns:
         dict: Returns a dictionary detailing whether an error occurred and
             if there was no error, what the next action is.
     """
-    results = {"action": None, "error": False}
-
     # 1. Check things match.
-    if state.state["library_type"] != LibraryType.IOS_IMAGE.value \
-            and state.state["library_type"] != LibraryType.IOS_TEXT.value:
+    if (state.state["library_type"] == LibraryType.IOS_IMAGE.value \
+            or state.state["library_type"] == LibraryType.IOS_TEXT.value) \
+            and state.state["dataset_id"] != message.dataset_id:
         return {
-            "error": True,
-            "message": "The `NO_DATASET` message only applies for iOS libraries!"
-        }
-
-    if state.state["dataset_id"] != message.dataset_id:
-        return {
-            "error": True,
-            "message": "The dataset ID in the message doesn't match the service's."
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The dataset ID in the message doesn't match the service's."
+            }
         }
 
     if state.state["session_id"] != message.session_id:
         return {
-            "error": True,
-            "message": "The session id in the message doesn't match the service's."
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The session ID in the message doesn't match the service's."
+            }
         }
 
     if state.state["current_round"] != message.round:
         return {
-            "error": True,
-            "message": "The round in the message doesn't match the current round."
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The round in the message doesn't match the current round."
+            }
+        }
+
+    if state.state["dataset_id"] != message.dataset_id:
+        return {
+            "action": "UNICAST",
+            "message": {
+                "error": True,
+                "error_message": "The dataset ID in the message doesn't match the service's."
+            }
         }
 
     # 2. Reduce the number of chosen nodes by 1.
     state.state["num_nodes_chosen"] -= 1
 
-    # 3. If 'Continuation Criteria' is met...
+    # 3. If there are no nodes left in this round, cancel the session.
+    if state.state["num_nodes_chosen"] == 0:
+        state.reset_state(message.repo_id)
+        error_message = "No nodes in this round have the specified dataset!"
+        return {
+            "action": "BROADCAST",
+            "message": {
+                "error": True,
+                "error_message": "No nodes found with the specified dataset!"
+            },
+            "client_list": clients_dict["DASHBOARD"],
+        }
+
+    # 4. If 'Continuation Criteria' is met...
     if check_continuation_criteria():
-        # 3.a. Update round number (+1)
+        # 4.a. Update round number (+1)
         state.state["current_round"] += 1
 
-        # 3.b. If 'Termination Criteria' isn't met, then kickstart a new FL round
+        # 4.b. If 'Termination Criteria' isn't met, then kickstart a new FL round
         # NOTE: We need a way to swap the weights from the initial message
         # in node............
         if not check_termination_criteria():
             print("Going to the next round...")
-            results = start_next_round(clients_dict["LIBRARY"])
+            return start_next_round(clients_dict["LIBRARY"])
 
-    # 4. If 'Termination Criteria' is met...
+    # 5. If 'Termination Criteria' is met...
     # (NOTE: can't and won't happen with step 7.b.)
     if check_termination_criteria():
         # 4.a. Reset all state in the service and mark BUSY as false
-        results = stop_session(clients_dict)
+        print("Session finished!")
+        return stop_session(message.repo_id, clients_dict)
 
-    return results
+    return {"action": None, "error": False}
+
 
 def _do_running_weighted_average(message):
     """

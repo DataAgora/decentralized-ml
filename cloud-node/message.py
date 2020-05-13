@@ -12,6 +12,7 @@ class MessageType(Enum):
     NEW_SESSION = "NEW_SESSION"
     NEW_UPDATE = "NEW_UPDATE"
     NO_DATASET = "NO_DATASET"
+    TRAINING_ERROR = "TRAINING_ERROR"
 
 class LibraryType(Enum):
     """
@@ -51,11 +52,16 @@ class RegistrationMessage(Message):
 
     def __init__(self, serialized_message):
         self.node_type = serialized_message["node_type"].upper()
+        self.repo_id = serialized_message["repo_id"]
         self.api_key = serialized_message["api_key"]
+        if self.node_type == "DASHBOARD":
+            self.is_demo = serialized_message["is_demo"]
 
     def __repr__(self):
         return json.dumps({
-            "node_type": self.node_type
+            "node_type": self.node_type,
+            "repo_id": self.repo_id,
+            "api_key": self.api_key, 
         })
 
 
@@ -90,6 +96,9 @@ class NewSessionMessage(Message):
             "selection_criteria": self.selection_criteria,
             "continuation_criteria": self.continuation_criteria,
             "termination_criteria": self.termination_criteria,
+            "checkpoint_frequency": self.checkpoint_frequency,
+            "ios_config": self.ios_config,
+            "library_type": self.library_type,
         })
 
 
@@ -105,6 +114,7 @@ class NewUpdateMessage(Message):
     type = MessageType.NEW_UPDATE.value
 
     def __init__(self, serialized_message):
+        self.repo_id = serialized_message["repo_id"]
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         if "gradients" in serialized_message["results"]:
@@ -126,6 +136,7 @@ class NewUpdateMessage(Message):
 
     def __repr__(self):
         return json.dumps({
+            "repo_id": self.repo_id,
             "session_id": self.session_id,
             "round": self.round,
             "weights": "omitted",
@@ -144,6 +155,7 @@ class NoDatasetMessage(Message):
     type = MessageType.NO_DATASET.value
 
     def __init__(self, serialized_message):
+        self.repo_id = serialized_message["repo_id"]
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         self.dataset_id = serialized_message["dataset_id"]
@@ -151,6 +163,33 @@ class NoDatasetMessage(Message):
 
     def __repr__(self):
         return json.dumps({
+            "repo_id": self.repo_id,
+            "session_id": self.session_id,
+            "dataset_id": self.dataset_id,
+            "round": self.round,
+        })
+
+class TrainingErrorMessage(Message):
+    """
+    The no dataset message sent by the Library. Indicates that this client
+    does not have the specified dataset.
+
+    Args:
+        serialized_message (dict): The serialized message to provide the no
+            dataset message.
+    """
+    type = MessageType.TRAINING_ERROR.value
+
+    def __init__(self, serialized_message):
+        self.repo_id = serialized_message["repo_id"]
+        self.session_id = serialized_message["session_id"]
+        self.round = serialized_message["round"]
+        self.dataset_id = serialized_message["dataset_id"]
+        self.node_type = "LIBRARY"
+
+    def __repr__(self):
+        return json.dumps({
+            "repo_id": self.repo_id,
             "session_id": self.session_id,
             "dataset_id": self.dataset_id,
             "round": self.round,

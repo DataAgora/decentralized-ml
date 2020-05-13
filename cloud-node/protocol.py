@@ -17,11 +17,12 @@ class CloudNodeProtocol(WebSocketServerProtocol):
     def doPing(self):
         if self.run:
             self.sendPing()
-            print("Ping sent to {}".format(self.peer))
+            #print("Ping sent to {}".format(self.peer))
             reactor.callLater(10, self.doPing)
 
     def onPong(self, payload):
-        print("Pong received from {}".format(self.peer))
+        #print("Pong received from {}".format(self.peer))
+        pass
 
     def onConnect(self, request):
         """
@@ -66,22 +67,24 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             else:
                 error_message = "Error deserializing message: {}"
                 error_message = error_message.format(e)
-            message = json.dumps({"error": True, "message": error_message})
+            message = json.dumps({"error": True, "message": error_message, \
+                "type": "DESERIALIZATION"})
             self.sendMessage(message.encode(), isBinary)
             print(error_message)
             return
 
-        state.state_lock.acquire()
         # Process message
         try:
+            state.start_state(received_message.repo_id)
             results = process_new_message(received_message, self.factory, self)
-            state.state_lock.release()
+            state.stop_state()
         except Exception as e:
-            state.reset_state()
-            state.state_lock.release()
-            error_message = "Exception processing new message: " + str(e)
-            raise Exception(error_message)
+            state.stop_state()
+            print("Error processing new message: " + str(e))
+            raise e
         
+        print(results)
+
         if results["action"] == "BROADCAST":
             self._broadcastMessage(
                 payload=results["message"],

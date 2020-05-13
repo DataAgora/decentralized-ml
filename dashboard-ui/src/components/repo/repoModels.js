@@ -1,10 +1,15 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
+import Reflux from 'reflux';
 import AuthStore from './../../stores/AuthStore';
 import Endpoints from './../../constants/endpoints.js';
 
 
-class RepoModels extends Component {
+class RepoModels extends Reflux.Component {
+
+  constructor(props) {
+    super(props);
+  }
 
   _downloadModel(log) {
     let round = JSON.parse(log.Content)["round"];
@@ -29,24 +34,24 @@ class RepoModels extends Component {
       }
     ).then(response => {
       response.json().then(res => {
-        let url = res['DownloadUrl'];
+        let url = res['message'];
         this._openInNewTab(url);
       })
     });
   }
 
   _openInNewTab(url) {
-    var win = window.open(url);
+    var win = window.open(url, '_blank');
     win.focus();
   }
 
   render() {
     let content;
-    if (this.props.logs.length === 0) {
+    let logs = this.props.logs;
+    if (logs == undefined || logs.length === 0) {
       content = (
         <div>
           <p className="card-text"><b>No model has been trained yet.</b></p>
-          <a href={"https://explora.dataagora.com"} className="btn btn-dark mt-2">Train a new model</a>
         </div>
       );
     } else {
@@ -63,11 +68,11 @@ class RepoModels extends Component {
           </thead>
           <tbody>
 
-            {this.props.logs.map((log, index) => {
+            {logs.map((log, index) => {
               return <tr key={index}>
                 <th scope="row">{log.SessionId}</th>
                 <td>{JSON.parse(log.Content).round}</td>
-                <td>{this._formatTime(log.Timestamp)}</td>
+                <td>{this._formatTime(log.CreationTime)}</td>
                 <td>
                   <a href="#download-model" className="btn btn-xs btn-primary ml-2" onClick={this._downloadModel.bind(this, log)}>Download</a>
                 </td>

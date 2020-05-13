@@ -7,35 +7,31 @@ import state
 from new_message import process_new_message
 
 
-@pytest.fixture(autouse=True)
-def reset_state(api_key):
-    os.environ["API_KEY"] = api_key
-    state.reset_state()
-
 @pytest.fixture
-def broadcast_message(factory, train_message):
+def broadcast_message(factory, repo_id, train_message):
     return {
         "action": "BROADCAST",
-        "client_list": factory.clients["LIBRARY"],
+        "client_list": factory.clients[repo_id]["LIBRARY"],
         "message": train_message,
     }
 
 @pytest.fixture
-def ios_broadcast_message(ios_train_message, factory, ios_session_id):
+def ios_broadcast_message(ios_train_message, factory, repo_id):
     return {
         "action": "BROADCAST",
-        "client_list": factory.clients["LIBRARY"],
+        "client_list": factory.clients[repo_id]["LIBRARY"],
         "message": ios_train_message,
     }
 
 @pytest.fixture(autouse=True, scope="module")
-def manage_test_object(s3_object, ios_s3_object, h5_model_path, ios_model_path):
+def manage_test_object(repo_id, s3_object, ios_s3_object, h5_model_path, \
+        ios_model_path):
     s3_object.put(Body=open(h5_model_path, "rb"))
     ios_s3_object.put(Body=open(ios_model_path, "rb"))
     yield
     s3_object.delete()
     ios_s3_object.delete()
-    state.reset_state()    
+    state.reset_state(repo_id)    
 
 def test_session_while_busy(python_session_message, factory, \
         dashboard_client):

@@ -32,9 +32,9 @@ class ModelPaths(Enum):
     """
     Enum to enumerate the paths of the default models.
     """
-    MNIST_PATH = "artifacts/init_mlp_model_with_w.h5"
-    IOS_MNIST_PATH = "artifacts/small_ios_model.h5"
-    NGRAM_PATH = "artifacts/neural_ngram_updatable.mlmodel"
+    MNIST_PATH = "models/init_mlp_model_with_w.h5"
+    IOS_MNIST_PATH = "models/small_ios_model.h5"
+    NGRAM_PATH = "models/neural_ngram_updatable.mlmodel"
 
 library_types = tuple([library_type.value for library_type in LibraryType])
 color_spaces = tuple([color_space.value for color_space in ColorSpace])
@@ -44,7 +44,6 @@ class ErrorMessages(Enum):
     """
     Enum to enumerate the possible validation error messages.
     """
-    INVALID_REPO_ID = "Repo ID is in an invalid format!"
     INVALID_LIBRARY_TYPE = "Invalid library type! The only valid library " \
         "types are: {}".format(library_types)    
     INVALID_KERAS_MODEL_PATH = "Invalid Keras model path! Check that the " \
@@ -80,4 +79,5 @@ class ErrorMessages(Enum):
         "be set!"
     UNKNOWN_MODEL_NAME = "Unknown model name provided for this library/data " \
         "type!"
+    
     

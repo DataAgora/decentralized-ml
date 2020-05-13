@@ -1,13 +1,24 @@
+import os
 from copy import deepcopy
 
 import pytest
 import boto3
 
 import context
+import state
 from message import Message
 from factory import CloudNodeFactory
 from protocol import CloudNodeProtocol
 
+
+@pytest.fixture(autouse=True)
+def reset_state(repo_id, api_key):
+    os.environ["API_KEY"] = api_key
+    state.start_state(repo_id)
+    state.state["test"] = True
+    yield
+    state.stop_state()
+    state.reset_state(repo_id)
 
 @pytest.fixture(scope="session")
 def library_client():
@@ -18,10 +29,14 @@ def dashboard_client():
     return CloudNodeProtocol()
 
 @pytest.fixture(scope="session")
-def factory(library_client, dashboard_client):
+def repo_id():
+    return "test-repo"
+
+@pytest.fixture(scope="session")
+def factory(library_client, dashboard_client, repo_id):
     cloud_factory = CloudNodeFactory()
-    cloud_factory.register(library_client, "LIBRARY")
-    cloud_factory.register(dashboard_client, "DASHBOARD")
+    cloud_factory.register(library_client, "LIBRARY", repo_id)
+    cloud_factory.register(dashboard_client, "DASHBOARD", repo_id)
     return cloud_factory
 
 @pytest.fixture(scope="session")
@@ -35,10 +50,6 @@ def dataset_id():
 @pytest.fixture(scope="session")
 def ios_session_id():
     return "ios-test-session"
-
-@pytest.fixture(scope="session")
-def repo_id():
-    return "test-repo"
 
 @pytest.fixture(scope="session")
 def api_key():

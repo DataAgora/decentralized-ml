@@ -1,4 +1,5 @@
 import CoordinatorActions from "./../actions/CoordinatorActions"
+import RepoLogsActions from "./../actions/RepoLogsActions"
 
 
 var repoIds = new Set();
@@ -13,6 +14,7 @@ function startTimer() {
 function updateRepoStatuses() {
   for (let repoId of repoIds) {
     CoordinatorActions.fetchCoordinatorStatus(repoId)
+    RepoLogsActions.fetchRepoLogs(repoId)
   }
   setTimeout(updateRepoStatuses, 5000)
 }

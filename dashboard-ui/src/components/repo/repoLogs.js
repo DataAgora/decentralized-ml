@@ -29,7 +29,7 @@ class RepoLogs extends Component {
             {this.props.logs.map((log, index) => {
               return <tr key={index}>
                 <th scope="row">{log.SessionId}</th>
-                <td>{this._formatTime(log.Timestamp)}</td>
+                <td>{this._formatTime(log.CreationTime)}</td>
                 <td>{log.ContentType}</td>
                 <td>{log.Content}</td>
               </tr>

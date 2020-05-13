@@ -2,6 +2,7 @@ import Reflux from 'reflux';
 import cookie from 'react-cookies';
 import AuthActions from './../actions/AuthActions';
 import Endpoints from './../constants/endpoints.js';
+import DashboardActions from './../actions/DashboardActions';
 
 
 // TODO: Implement session keep-alive logic.
@@ -18,11 +19,15 @@ class AuthStore extends Reflux.Store {
     } else {
       // Pull cached token if one exists...
       this.state = {
-        error: false,
+        hasError: false,
+        error: "",
         loading: false,
         jwt: this._getJWT(),
         claims: this._getClaims(),
-        isAuthenticated: true
+        isAuthenticated: true,
+        waiting: false,
+        linkToDemo: false,
+        demoRepoId: "",
       };
     }
   }
@@ -30,9 +35,10 @@ class AuthStore extends Reflux.Store {
   onLogin (email, password) {
     this._resetState();
     this.state.loading = true;
+    this.state.waiting = true;
     this._changed();
 
-    var endpoint = Endpoints["eauthLogin"];
+    var endpoint = Endpoints["authLogin"];
     fetch(
       endpoint, {
         method: 'POST',
@@ -47,31 +53,43 @@ class AuthStore extends Reflux.Store {
     });
   }
 
-  onLoginCompleted (jwt) {
+  onLoginCompleted (message) {
+    var jwt = message["token"];
     this.state.jwt = jwt;
+    this.state.waiting = false;
     localStorage.setItem('jwt', jwt);
     this.state.claims = this._getClaims();
-    this.state.error = false;
+    this.state.hasError = false;
+    this.state.error = "";
     this.state.isAuthenticated = true;
     this.state.loading = false;
+    console.log(this.state)
     this._deleteCookies();
     this._changed();
   }
 
   onLoginFailed (errorMessage) {
     this._resetState();
-    this.state.error = errorMessage;
-    console.log(errorMessage)
+    let fullErrorMessage = "LOGIN ERROR: ";
+    Object.values(errorMessage).forEach(function(list) {
+      list.forEach(function(message) {
+        fullErrorMessage += message + "\n";
+      });
+    });
+    this.state.waiting = false;
+    this.state.hasError = true;
+    this.state.error = fullErrorMessage;
     this._changed();
   }
 
   onRegistration (registrationObject) {
     this._resetState();
     this.state.loading = true;
+    this.state.waiting = true;
     this._changed();
 
     fetch(
-      Endpoints["eauthRegistration"], {
+      Endpoints["authRegistration"], {
         method: 'POST',
         headers: {
           'Content-Type':'application/json',
@@ -84,22 +102,40 @@ class AuthStore extends Reflux.Store {
     });
   }
 
-  onRegistrationCompleted (jwt) {
+  onRegistrationCompleted (message) {
+    var jwt = message["token"];
+    var demoRepoId = message["demo_repo_id"]
     this.state.jwt = jwt;
     localStorage.setItem('jwt', jwt);
     this.state.claims = this._getClaims();
-    this.state.error = false;
+    this.state.hasError = false;
+    this.state.error = "";
+    this.state.waiting = false;
     this.state.isAuthenticated = true;
     this.state.loading = false;
+    this.state.linkToDemo = true;
+    this.state.demoRepoId = demoRepoId
     this._deleteCookies();
     this._changed();
   }
 
   onRegistrationFailed(errorMessage) {
     this._resetState();
-    this.state.error = errorMessage;
-    console.log(errorMessage)
+    let fullErrorMessage = "REGISTRATION ERROR: ";
+    Object.values(errorMessage).forEach(function(list) {
+      list.forEach(function(message) {
+        fullErrorMessage += message + "\n";
+      });
+    });
+    this.state.waiting = false;
+    this.state.hasError = true;
+    this.state.error = fullErrorMessage;
     this._changed();
+  }
+
+  onClearError() {
+    this.state.error = "";
+    this.state.hasError = false;
   }
 
   onLogout () {
@@ -110,12 +146,18 @@ class AuthStore extends Reflux.Store {
 
   _handleLoginRegistrationResponse(response, refluxAction) {
     response.json().then(serverResponse => {
-      if (serverResponse && "token" in serverResponse) {
-        var jwt = serverResponse['token'];
-        refluxAction.completed(jwt);
+      if (serverResponse["error"]) {
+        this._resetState();
+        let errorMessage = serverResponse["message"];
+        this.state.hasError = true;
+        this.state.error = errorMessage;
+        console.log(errorMessage);
+        this._changed();
+      } else if (serverResponse["message"] && "token" in serverResponse["message"]) {
+        refluxAction.completed(serverResponse["message"]);
       } else {
         // TODO: Use error returned by server.
-        refluxAction.failed(JSON.stringify(serverResponse));
+        refluxAction.failed(serverResponse["message"]);
       }
     });
   }
@@ -146,11 +188,25 @@ class AuthStore extends Reflux.Store {
 
   _resetState () {
     this.state = {
-      error: false,
+      hasError: false,
+      error: "",
       loading: false,
       jwt: null,
       isAuthenticated: false,
       claims: {},
+      creationState: {
+        reposRemaining: false,
+        repoName: null,
+        repoId: null,
+        apiKey: null,
+        loading: true,
+        creating: false,
+        created: false,
+        error: false,
+      },
+      waiting: false,
+      transition: true,
+      linkToDemo: false,
     };
 
     localStorage.removeItem('jwt');

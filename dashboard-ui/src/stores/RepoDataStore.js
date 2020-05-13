@@ -21,7 +21,7 @@ class RepoDataStore extends Reflux.Store {
       repoWasFound: false,
       repoData: {},
       repoStatus: {},
-      repoLogs: [],
+      repoLogs: {},
 
       creationState: {
         reposRemaining: false,
@@ -33,6 +33,7 @@ class RepoDataStore extends Reflux.Store {
         created: false,
         error: false,
       },
+      linkToDemo: false,
     };
   }
 
