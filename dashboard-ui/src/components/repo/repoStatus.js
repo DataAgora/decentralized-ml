@@ -28,7 +28,11 @@ class RepoStatus extends Reflux.Component {
     }
 
     deleteRepo() {
-        RepoDataActions.deleteRepo(this.repoId);
+        var response = window.confirm("Are you sure you want to delete your repo?");
+
+        if (response) {
+            RepoDataActions.deleteRepo(this.repoId);
+        }
     }
 
     launchExplora() {

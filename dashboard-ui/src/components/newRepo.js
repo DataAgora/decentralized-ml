@@ -14,10 +14,19 @@ class NewRepo extends Reflux.Component {
   constructor(props) {
     super(props);
     this.store = RepoDataStore;
+    this.checkRepoName = this.checkRepoName.bind(this);
   }
 
   componentDidMount() {
     RepoDataActions.fetchReposRemaining();
+  }
+
+  checkRepoName() {
+    let repoName = document.getElementById('repoNameInput')
+    let cleanRepoName = repoName.value.replace(/[^a-zA-Z0-9-]/g,'-');
+    if (repoName.value != cleanRepoName) {
+      repoName.setCustomValidity("Repo name must only contain letters, numbers or hyphens!")
+    }
   }
 
   _handleSubmit(event) {
@@ -81,7 +90,7 @@ class NewRepo extends Reflux.Component {
             <form id="newRepoForm" className="mt-4">
               <div className="form-group">
                <label htmlFor="repoNameInput">Repo name</label>
-               <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" required/>
+               <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" maxLength="20" onInput={this.checkRepoName} required/>
                <small id="repoNameHelp" className="form-text text-muted">Use a repo name you haven't used yet. Make it catchy.</small>
               </div>
               <div className="form-group">

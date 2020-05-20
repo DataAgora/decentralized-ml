@@ -111,7 +111,7 @@ def valid_model(data_config, model_path):
 def valid_and_prepare_hyperparameters(hyperparams):
     """
     Check that hyperparams has `batch_size` entry and that it is an 
-    appropriate number. Then add default entries for `epochs` and `shuffle`.
+    appropriate number. Then add default entry for `shuffle`.
 
     Args:
         hyperparams (dict): The hyperparameters to be used during training. 
@@ -124,7 +124,6 @@ def valid_and_prepare_hyperparameters(hyperparams):
             or hyperparams.get('batch_size', 0) < 1:
         print(ErrorMessages.INVALID_HYPERPARAMS.value)
         return False
-    hyperparams['epochs'] = hyperparams.get('epochs', 5)
     hyperparams['shuffle'] = hyperparams.get('shuffle', True)
     return True
 

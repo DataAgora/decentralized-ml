@@ -12,16 +12,29 @@ class LaunchStep extends Reflux.Component {
         this.store = CoordinatorStore;
 
         this.repoId = this.props.repoId
+        this.apiKey = this.props.apiKey
         this.isDemo = this.props.isDemo;
         this.launchExplora = this.launchExplora.bind(this);
         this.launchExploraImage = this.launchExploraImage.bind(this);
         this.launchExploraText = this.launchExploraText.bind(this);
         this.exploraURL = "http://" + this.repoId + ".explora.discreetai.com/notebooks/"
+        this.copyApiKeyToClipboard = this.copyApiKeyToClipboard.bind(this);
     }
 
     componentDidMount() {
         CoordinatorActions.fetchCoordinatorStatus(this.props.repoId);
     }
+
+    copyApiKeyToClipboard() {
+        // const { match: { params } } = this.props;
+        // const repoId = params.repoId;
+        var dummy = document.createElement("textarea");
+        document.body.appendChild(dummy);
+        dummy.value = this.apiKey;
+        dummy.select();
+        document.execCommand("copy");
+        document.body.removeChild(dummy);
+      }
 
     launchExplora() {
         var win = window.open(this.exploraURL + "Explora.ipynb", '_blank');
@@ -44,11 +57,11 @@ class LaunchStep extends Reflux.Component {
         if (this.isDemo) {
             var button = "";
             if (["ACTIVE", "AVAILABLE"].includes(status)) {
-                button = <button onClick={this.launchExploraImage} className="btn btn-primary ml-2"><b>Launch Explora</b></button>;
+                button = <button onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
             } else {
-                button = <button disabled onClick={this.launchExploraImage} className="btn btn-primary ml-2"><b>Launch Explora</b></button>;
+                button = <button disabled onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
             }
-            return <li>Start your session by clicking the following button: {button}</li>
+            return <li> <button class="btn btn-dark explora" onClick={this.copyApiKeyToClipboard}><b>Copy Password</b></button> and paste it when requested when you {button} to start your session!</li>
         } else {
             var exploraButton = "";
             var exploraImageButton = "";
@@ -64,7 +77,16 @@ class LaunchStep extends Reflux.Component {
                 exploraTextButton = <button disabled onClick={this.launchExploraText} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileText.ipynb</b></button>;
             }
 
-            return <li>Open the notebook {exploraButton} for Javascript/Python sessions. Open the notebook {exploraImageButton} and {exploraTextButton} for iOS sessions with image and text models respectively.</li>
+            return <li><button class="btn btn-dark explora" onClick={this.copyApiKeyToClipboard}><b>Copy Password</b></button> and paste it when requested when you open the following notebooks:
+                <ul>
+                    <br></br>
+                    <li>{exploraButton} (Javascript/Python sessions)</li>
+                    <br></br>
+                    <li>{exploraImageButton} (iOS sessions with image models)</li>
+                    <br></br>
+                    <li>{exploraTextButton} (iOS sessions with text models)</li>
+                </ul> 
+            </li>
         }
         
     }
