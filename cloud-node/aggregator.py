@@ -7,7 +7,7 @@ import state
 from updatestore import store_update
 from coordinator import start_next_round, stop_session
 from model import swap_weights, save_mlmodel_weights
-from message import LibraryType
+from message import ClientType, LibraryType, ActionType, ErrorType, make_error_results
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -25,37 +25,22 @@ def handle_new_update(message, clients_dict):
         dict: Returns a dictionary detailing whether an error occurred and
             if there was no error, what the next action is.
     """
-    results = {"action": None, "error": False}
+    results = {"action": ActionType.DO_NOTHING, "error": False}
 
     # 1. Check things match.
     if (state.state["library_type"] == LibraryType.IOS_IMAGE.value \
             or state.state["library_type"] == LibraryType.IOS_TEXT.value) \
             and state.state["dataset_id"] != message.dataset_id:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The dataset ID in the message doesn't match the service's."
-            }
-        }
+        error_message = "The dataset ID in the message doesn't match the service's."
+        return make_error_results(error_message, ErrorType.NEW_UPDATE)
 
     if state.state["session_id"] != message.session_id:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The session ID in the message doesn't match the service's."
-            }
-        }
+        error_message = "The session ID in the message doesn't match the service's."
+        return make_error_results(error_message, ErrorType.NEW_UPDATE)
 
     if state.state["current_round"] != message.round:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The round in the message doesn't match the current round."
-            }
-        }
+        error_message = "The round in the message doesn't match the current round."
+        return make_error_results(error_message, ErrorType.NEW_UPDATE)
 
     state.state["last_message_time"] = time.time()
 
@@ -87,7 +72,7 @@ def handle_new_update(message, clients_dict):
         # in node............
         if not check_termination_criteria():
             print("Going to the next round...")
-            results = start_next_round(clients_dict["LIBRARY"])
+            results = start_next_round(clients_dict[ClientType.LIBRARY])
 
     # 8. If 'Termination Criteria' is met...
     # (NOTE: can't and won't happen with step 7.b.)
@@ -115,40 +100,16 @@ def handle_no_dataset(message, clients_dict):
     if (state.state["library_type"] == LibraryType.IOS_IMAGE.value \
             or state.state["library_type"] == LibraryType.IOS_TEXT.value) \
             and state.state["dataset_id"] != message.dataset_id:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The dataset ID in the message doesn't match the service's."
-            }
-        }
+        error_message = "The dataset ID in the message doesn't match the service's."
+        return make_error_results(error_message, ErrorType.NO_DATASET)
 
     if state.state["session_id"] != message.session_id:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The session ID in the message doesn't match the service's."
-            }
-        }
+        error_message = "The session ID in the message doesn't match the service's."
+        return make_error_results(error_message, ErrorType.NO_DATASET)
 
     if state.state["current_round"] != message.round:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The round in the message doesn't match the current round."
-            }
-        }
-
-    if state.state["dataset_id"] != message.dataset_id:
-        return {
-            "action": "UNICAST",
-            "message": {
-                "error": True,
-                "error_message": "The dataset ID in the message doesn't match the service's."
-            }
-        }
+        error_message = "The round in the message doesn't match the current round."
+        return make_error_results(error_message, ErrorType.NO_DATASET)
 
     # 2. Reduce the number of chosen nodes by 1.
     state.state["num_nodes_chosen"] -= 1
@@ -157,14 +118,9 @@ def handle_no_dataset(message, clients_dict):
     if state.state["num_nodes_chosen"] == 0:
         state.reset_state(message.repo_id)
         error_message = "No nodes in this round have the specified dataset!"
-        return {
-            "action": "BROADCAST",
-            "message": {
-                "error": True,
-                "error_message": "No nodes found with the specified dataset!"
-            },
-            "client_list": clients_dict["DASHBOARD"],
-        }
+        client_list = clients_dict[ClientType.DASHBOARD]
+        return make_error_results(error_message, ErrorType.NEW_SESSION, \
+            action=ActionType.BROADCAST, client_list=client_list)
 
     # 4. If 'Continuation Criteria' is met...
     if check_continuation_criteria():
@@ -176,7 +132,7 @@ def handle_no_dataset(message, clients_dict):
         # in node............
         if not check_termination_criteria():
             print("Going to the next round...")
-            return start_next_round(clients_dict["LIBRARY"])
+            return start_next_round(clients_dict[ClientType.LIBRARY])
 
     # 5. If 'Termination Criteria' is met...
     # (NOTE: can't and won't happen with step 7.b.)
@@ -185,7 +141,7 @@ def handle_no_dataset(message, clients_dict):
         print("Session finished!")
         return stop_session(message.repo_id, clients_dict)
 
-    return {"action": None, "error": False}
+    return {"action": ActionType.DO_NOTHING, "error": False}
 
 
 def _do_running_weighted_average(message):

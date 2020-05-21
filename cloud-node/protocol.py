@@ -4,6 +4,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol
 from twisted.internet import reactor
 
 import state
+from message import ActionType, ErrorType, make_error_results
 from new_message import validate_new_message, process_new_message
 
 
@@ -44,7 +45,13 @@ class CloudNodeProtocol(WebSocketServerProtocol):
         """
         self.run = False
         print("WebSocket connection closed: {}".format(reason))
-        self.factory.unregister(self)
+        success, messages = self.factory.unregister(self)
+        for results in messages:
+            self._broadcastMessage(
+                payload=results["message"],
+                client_list=results["client_list"],
+                isBinary=False,
+            )
 
     def onMessage(self, payload, isBinary):
         """
@@ -67,9 +74,12 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             else:
                 error_message = "Error deserializing message: {}"
                 error_message = error_message.format(e)
-            message = json.dumps({"error": True, "message": error_message, \
-                "type": "DESERIALIZATION"})
-            self.sendMessage(message.encode(), isBinary)
+            message = {
+                "error": True,
+                "error_message": error_message,
+                "type": ErrorType.DESERIALIZATION.value
+            }
+            self.sendMessage(json.dumps(message).encode(), isBinary)
             print(error_message)
             return
 
@@ -80,18 +90,20 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             state.stop_state()
         except Exception as e:
             state.stop_state()
-            print("Error processing new message: " + str(e))
+            error_message = "Error processing new message: " + str(e)
+            print(error_message)
             raise e
+            results = make_error_results(error_message, ErrorType.OTHER)
         
         print(results)
 
-        if results["action"] == "BROADCAST":
+        if results["action"] == ActionType.BROADCAST:
             self._broadcastMessage(
                 payload=results["message"],
                 client_list=results["client_list"],
                 isBinary=isBinary,
             )
-        elif results["action"] == "UNICAST":
+        elif results["action"] == ActionType.UNICAST:
             message = json.dumps(results["message"]).encode()
             self.sendMessage(message, isBinary)
 

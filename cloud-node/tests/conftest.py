@@ -6,7 +6,7 @@ import boto3
 
 import context
 import state
-from message import Message
+from message import Message, ClientType, ActionType, LibraryActionType
 from factory import CloudNodeFactory
 from protocol import CloudNodeProtocol
 
@@ -14,11 +14,13 @@ from protocol import CloudNodeProtocol
 @pytest.fixture(autouse=True)
 def reset_state(repo_id, api_key):
     os.environ["API_KEY"] = api_key
+    os.environ["DEMO_API_KEY"] = "demo-api-key"
     state.start_state(repo_id)
     state.state["test"] = True
     yield
-    state.stop_state()
     state.reset_state(repo_id)
+    state.stop_state()
+    
 
 @pytest.fixture(scope="session")
 def library_client():
@@ -35,8 +37,8 @@ def repo_id():
 @pytest.fixture(scope="session")
 def factory(library_client, dashboard_client, repo_id):
     cloud_factory = CloudNodeFactory()
-    cloud_factory.register(library_client, "LIBRARY", repo_id)
-    cloud_factory.register(dashboard_client, "DASHBOARD", repo_id)
+    cloud_factory.register(library_client, ClientType.LIBRARY, repo_id)
+    cloud_factory.register(dashboard_client, ClientType.DASHBOARD, repo_id)
     return cloud_factory
 
 @pytest.fixture(scope="session")
@@ -156,7 +158,7 @@ def train_message(session_id, repo_id, hyperparams):
         "session_id": session_id,
         "repo_id": repo_id,
         "round": 1,
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "hyperparams": hyperparams,
     }
 
@@ -170,7 +172,7 @@ def ios_train_message(train_message, ios_session_id, dataset_id):
 @pytest.fixture(scope="session")
 def no_action_message(ios_session_id, dataset_id):
     return {
-        "action": None,
+        "action": ActionType.DO_NOTHING,
         "error": False,
     }
     

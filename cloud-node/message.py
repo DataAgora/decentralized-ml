@@ -14,6 +14,13 @@ class MessageType(Enum):
     NO_DATASET = "NO_DATASET"
     TRAINING_ERROR = "TRAINING_ERROR"
 
+class ClientType(Enum):
+    """ 
+    Client Types that the service can work with.
+    """
+    LIBRARY = "LIBRARY"
+    DASHBOARD = "DASHBOARD"
+
 class LibraryType(Enum):
     """
     Library Types that the service can work with.
@@ -23,6 +30,41 @@ class LibraryType(Enum):
     IOS = "IOS"
     IOS_IMAGE = "IOS_IMAGE"
     IOS_TEXT = "IOS_TEXT"
+
+class ActionType(Enum):
+    """
+    Type of general action to take with message transmission
+    """
+    UNICAST = "UNICAST"
+    BROADCAST = "BROADCAST"
+    DO_NOTHING = "DO_NOTHING"
+
+class LibraryActionType(Enum):
+    """
+    Type of action for library to take.
+    """
+    REGISTRATION_SUCCESS = "REGISTRATION_SUCCESS"
+    TRAIN = "TRAIN"
+    STOP = "STOP"
+
+class ErrorType(Enum):
+    """ 
+    Error types that the service sends out.
+    """
+    DESERIALIZATION = "DESERIALIZATION"
+    AUTHENTICATION = "AUTHENTICATION"
+    REGISTRATION = "REGISTRATION"
+    INCORRECT_CLIENT_TYPE = "INCORRECT_CLIENT_TYPE"
+    NOT_REGISTERED = "NOT_REGISTERED"
+    NEW_SESSION = "NEW_SESSION"
+    SERVER_BUSY = "SERVER_BUSY"
+    MODEL_ERROR = "MODEL_ERROR"
+    NO_NODES_LEFT = "NO_NODES_LEFT"
+    NEW_UPDATE = "NEW_UPDATE"
+    NO_DATASET = "NO_DATASET"
+    TRAINING_ERROR = "TRAINING_ERROR"
+    UNKNOWN_MESSAGE_TYPE = "UNKNOWN_MESSAGE_TYPE"
+    OTHER = "OTHER"
 
 class Message:
     """
@@ -42,7 +84,7 @@ class RegistrationMessage(Message):
     The type of message initially sent by a node with information of what type
     of node they are.
 
-    `node_type` should be one of DASHBOARD or LIBRARY.
+    `client_type` should be one of DASHBOARD or LIBRARY.
 
     Args:
         serialized_message (dict): The serialized message to register a new
@@ -51,15 +93,13 @@ class RegistrationMessage(Message):
     type = MessageType.REGISTER.value
 
     def __init__(self, serialized_message):
-        self.node_type = serialized_message["node_type"].upper()
+        self.client_type = serialized_message["node_type"].upper()
         self.repo_id = serialized_message["repo_id"]
         self.api_key = serialized_message["api_key"]
-        if self.node_type == "DASHBOARD":
-            self.is_demo = serialized_message["is_demo"]
 
     def __repr__(self):
         return json.dumps({
-            "node_type": self.node_type,
+            "client_type": self.client_type,
             "repo_id": self.repo_id,
             "api_key": self.api_key, 
         })
@@ -87,7 +127,7 @@ class NewSessionMessage(Message):
         self.checkpoint_frequency = serialized_message.get("checkpoint_frequency", 1)
         self.ios_config = serialized_message["ios_config"]
         self.library_type = serialized_message["library_type"]
-        self.node_type = "DASHBOARD"
+        self.client_type = ClientType.DASHBOARD
 
     def __repr__(self):
         return json.dumps({
@@ -132,7 +172,7 @@ class NewUpdateMessage(Message):
             raise Exception(("No update received!"))
         self.omega = serialized_message["results"]["omega"]
         self.dataset_id = serialized_message.get("dataset_id", None)
-        self.node_type = "LIBRARY"
+        self.client_type = ClientType.LIBRARY
 
     def __repr__(self):
         return json.dumps({
@@ -159,7 +199,7 @@ class NoDatasetMessage(Message):
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         self.dataset_id = serialized_message["dataset_id"]
-        self.node_type = "LIBRARY"
+        self.client_type = ClientType.LIBRARY
 
     def __repr__(self):
         return json.dumps({
@@ -185,7 +225,7 @@ class TrainingErrorMessage(Message):
         self.session_id = serialized_message["session_id"]
         self.round = serialized_message["round"]
         self.dataset_id = serialized_message["dataset_id"]
-        self.node_type = "LIBRARY"
+        self.client_type = ClientType.LIBRARY
 
     def __repr__(self):
         return json.dumps({
@@ -194,3 +234,32 @@ class TrainingErrorMessage(Message):
             "dataset_id": self.dataset_id,
             "round": self.round,
         })
+
+def make_error_results(error_message, error_type, action=ActionType.UNICAST, \
+        client_list=None):
+    """
+    Helper method to create error message dictionary.
+    
+    Args:
+        error_message (str): The actual error message to send.
+        error_type (ErrorType): The type of error that occurred.
+        action (ActionType): The type of action to take.
+        client_list (list): List of clients to send message to, if
+            applicable.
+    
+    Returns:
+        dict: The complete error message dictionary.
+    """
+    results = {
+        "action": action,
+        "message": {
+            "type": error_type.value,
+            "error": True, 
+            "error_message": error_message
+        }
+    }
+
+    if client_list:
+        results["client_list"] = client_list
+
+    return results

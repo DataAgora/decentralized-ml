@@ -7,13 +7,14 @@ from time import strftime, sleep
 import boto3
 from botocore.exceptions import ClientError
 
-from dynamodb import _get_demo_api_key
+from dynamodb import _get_demo_cloud_domain, _get_demo_api_key
 
 
 CLUSTER_NAME = "default"
 CLOUD_SUBDOMAIN = "{}.cloud.discreetai.com"
 EXPLORA_SUBDOMAIN = "{}.explora.discreetai.com"
-DEMO_CLOUD_DOMAIN = "demo.cloud.discreetai.com"
+EXPLORA_URL = "{0}.explora.discreetai.com/?token={1}"
+DEMO_CLOUD_DOMAIN = "{}.cloud.discreetai.com"
 TASK_DETAILS = {
     "cloud": ("cloud-task-definition", "cloud-container", \
         CLOUD_SUBDOMAIN),
@@ -30,7 +31,7 @@ ecs_client = boto3.client("ecs")
 ec2_client = boto3.resource("ec2")
 route53_client = boto3.client('route53')
 
-def create_new_nodes(repo_id, api_key, is_demo):
+def create_new_nodes(repo_id, api_key, token, is_demo):
     """
     Runs new tasks (Explora + cloud) for ECS cluster. Sets domain of task to 
     be `<repo_id>.cloud.discreetai.com by creating an record in Route53.
@@ -46,7 +47,8 @@ def create_new_nodes(repo_id, api_key, is_demo):
         dict: A dictionary holding the public IP address and task ARN of the
             newly created cloud and Explora task.
     """
-    results = {"ApiKey": api_key, "IsDemo": is_demo}
+    results = {"ApiKey": api_key, "IsDemo": is_demo, \
+        "Token": token, "ExploraUrl": EXPLORA_URL.format(repo_id, token)}
 
     for name, details in TASK_DETAILS.items():
         if is_demo and name == "cloud":
@@ -55,7 +57,7 @@ def create_new_nodes(repo_id, api_key, is_demo):
             continue
         task_definition, container_name, subdomain = details
         task_arn, ip_address = _run_new_task(task_definition, container_name, \
-            repo_id, api_key, subdomain)
+            repo_id, api_key, token, subdomain)
         results[name.capitalize() + "IpAddress"] = ip_address
         results[name.capitalize() + "TaskArn"] = task_arn
     
@@ -113,7 +115,8 @@ def reset_cloud_node(repo_id, is_demo):
         repo_id (str): The repo ID of the repo associated with this task.
         is_demo (bool): Boolean for whether this repo is a demo repo or not.
     """
-    cloud_node_url = DEMO_CLOUD_DOMAIN \
+    demo_domain = _get_demo_cloud_domain()
+    cloud_node_url = DEMO_CLOUD_DOMAIN.format(demo_domain) \
         if is_demo else CLOUD_SUBDOMAIN.format(repo_id)
     # TODO: Add HTTPS to cloud node
     cloud_response = requests.get("http://{0}/status/{1}".format(cloud_node_url, repo_id))
@@ -122,16 +125,14 @@ def update_cloud_demo_node():
     """
     Update the demo cloud node with the latest Docker image.
     """
-    with open("demo_node_details.json", "r") as f:
-        details = json.load(f)
-        ip_address = details["CloudIpAddress"]
-        task_arn = details["CloudTaskArn"]
-        _stop_task(task_arn, DEMO_CLOUD_DOMAIN, ip_address)
-
+    try:
+        delete_demo_node()
+    except Exception as e:
+        print(str(e))
     return create_demo_node()
 
 def _run_new_task(task_definition, container_name, repo_id, api_key, \
-        subdomain):
+        token, subdomain):
     """
     Run new task in the provided cluster with the provided task definition.
     
@@ -164,11 +165,17 @@ def _run_new_task(task_definition, container_name, repo_id, api_key, \
                     "name": "REPO_ID",
                     "value": repo_id
                 }, {
+                    "name": "DEMO_REPO_ID",
+                    "value": _get_demo_cloud_domain(),
+                }, {
                     "name": "API_KEY",
-                    "value": api_key
+                    "value": api_key,
                 }, {
                     "name": "DEMO_API_KEY",
                     "value": _get_demo_api_key(),
+                }, {
+                    "name": "TOKEN",
+                    "value": token,
                 }]
             }]
         }
@@ -289,7 +296,8 @@ def _determine_status(statuses, repo_id, is_demo):
     elif any([status in DEPLOYING_STATUSES for status in statuses]):
         return "DEPLOYING"
     elif all([status == RUNNING_STATUS for status in statuses]):
-        cloud_node_url = DEMO_CLOUD_DOMAIN \
+        demo_domain = _get_demo_cloud_domain()
+        cloud_node_url = DEMO_CLOUD_DOMAIN.format(demo_domain) \
             if is_demo else CLOUD_SUBDOMAIN.format(repo_id)
         # TODO: Add HTTPS to cloud node
         cloud_response = requests.get("http://{0}/status/{1}".format(cloud_node_url, repo_id))
@@ -348,10 +356,11 @@ def create_demo_node():
     name = "cloud"
     details = TASK_DETAILS[name]
     task_definition, container_name, subdomain = details
-    domain = DEMO_CLOUD_DOMAIN
+    demo_domain = _get_demo_cloud_domain()
+    full_domain = DEMO_CLOUD_DOMAIN.format(demo_domain)
     demo_api_key = _get_demo_api_key()
     task_arn, ip_address = _run_new_task(task_definition, container_name, \
-        "demo", demo_api_key, domain)
+        demo_domain, demo_api_key, "", CLOUD_SUBDOMAIN)
     results = {
         "CloudIpAddress": ip_address,
         "CloudTaskArn": task_arn
@@ -360,3 +369,16 @@ def create_demo_node():
         json.dump(results, f)
 
     return results
+
+def delete_demo_node():
+    """
+    Deletes the demo cloud node.
+    """
+    demo_domain = _get_demo_cloud_domain()
+    full_domain = DEMO_CLOUD_DOMAIN.format(demo_domain)
+
+    with open("demo_node_details.json", "r") as f:
+        details = json.load(f)
+        ip_address = details["CloudIpAddress"]
+        task_arn = details["CloudTaskArn"]
+        _stop_task(task_arn, full_domain, ip_address)

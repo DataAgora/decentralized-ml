@@ -26,6 +26,7 @@ from parse_weights import calculate_new_weights
 
 
 TEMP_FOLDER = 'temp'
+UNLIMITED_EPOCHS = 100000
 
 def convert_and_save_b64model(base64_h5_model):
     """
@@ -343,7 +344,7 @@ def _keras_2_mlmodel_image():
     else:
         raise Exception("iOS optimizer must be SGD or Adam!")
 
-    builder.set_epochs(100000)
+    builder.set_epochs(UNLIMITED_EPOCHS)
     builder.set_shuffle(state.state["hyperparams"]["shuffle"])  
 
     mlmodel_updatable = MLModel(spec)

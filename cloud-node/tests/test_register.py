@@ -6,7 +6,7 @@ import pytest
 import state
 from protocol import CloudNodeProtocol
 from new_message import process_new_message
-from message import Message
+from message import Message, ClientType, ActionType, LibraryActionType, ErrorType
 
 
 @pytest.fixture(scope="module")
@@ -20,6 +20,7 @@ def library_registration_message(repo_id, api_key):
         "node_type": "library",
         "repo_id": repo_id,
         "api_key": api_key,
+        "is_demo": False
     })
 
 @pytest.fixture(scope="module")
@@ -29,6 +30,7 @@ def bad_registration_message(repo_id):
         "node_type": "library",
         "repo_id": repo_id,
         "api_key": "bad-api-key",
+        "is_demo": "False"
     })
 
 @pytest.fixture(scope="module")
@@ -38,6 +40,7 @@ def dashboard_registration_message(repo_id, api_key):
         "node_type": "dashboard",
         "repo_id": repo_id,
         "api_key": api_key,
+        "is_demo": False
     })
 
 @pytest.fixture(scope="module")
@@ -49,9 +52,9 @@ def do_nothing():
 @pytest.fixture(scope="module")
 def registration_success():
     return {
-        "action": "UNICAST",
+        "action": ActionType.UNICAST,
         "message": {
-            "action": "REGISTRATION_SUCCESS",
+            "action": LibraryActionType.REGISTRATION_SUCCESS.value,
             "error": False,
         }
     }
@@ -61,7 +64,7 @@ def failed_authentication_error():
     return {
         "error": True,
         "error_message": "API key provided is invalid!",
-        "type": "AUTHENTICATION",
+        "type": ErrorType.AUTHENTICATION.value,
     }
 
 @pytest.fixture(scope="module")
@@ -69,7 +72,7 @@ def duplicate_client_error():
     return {
         "error": True,
         "error_message": "Client already exists!",
-        "type": "REGISTRATION",
+        "type": ErrorType.REGISTRATION.value,
     }
 
 @pytest.fixture(scope="module")
@@ -77,7 +80,7 @@ def only_one_dashboard_client_error():
     return {
         "error": True,
         "error_message": "Only one DASHBOARD client allowed at a time!",
-        "type": "REGISTRATION",
+        "type": ErrorType.REGISTRATION.value,
     }
 
 @pytest.fixture(scope="module")
@@ -85,9 +88,11 @@ def original_client_count(factory, repo_id):
     return _client_count(factory, repo_id)
 
 @pytest.fixture(autouse=True)
-def unregister(factory, dummy_client):
+def unregister(factory, repo_id, dummy_client):
     yield
-    factory.unregister(dummy_client)
+    clients = factory.clients[repo_id][ClientType.LIBRARY]
+    if dummy_client in clients:
+        clients.remove(dummy_client)
 
 def test_basic_register(library_registration_message, factory, dummy_client, \
         registration_success, original_client_count):
@@ -157,4 +162,5 @@ def _client_count(factory, repo_id):
     """
     Helper function to count the total number of clients in the factory.
     """
-    return len(factory.clients[repo_id]["DASHBOARD"]) + len(factory.clients[repo_id]["LIBRARY"])
+    return len(factory.clients[repo_id][ClientType.DASHBOARD]) \
+        + len(factory.clients[repo_id][ClientType.LIBRARY])

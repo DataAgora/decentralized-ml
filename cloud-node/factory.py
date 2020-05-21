@@ -1,6 +1,7 @@
 from autobahn.twisted.websocket import WebSocketServerFactory
 
 import state
+from message import ClientType, ErrorType, ActionType, make_error_results
 
 
 class CloudNodeFactory(WebSocketServerFactory):
@@ -22,8 +23,8 @@ class CloudNodeFactory(WebSocketServerFactory):
         Args:
             repo_id (str): The repo ID whose clients are to be tracked.
         """
-        self.clients[repo_id] = {"DASHBOARD": [], "LIBRARY": []}
-
+        self.clients[repo_id] = {ClientType.DASHBOARD: [], ClientType.LIBRARY: []}
+        
     def register(self, client, client_type, repo_id):
         """
         Register `client` with the given `client_type`. Only one `DASHBOARD`
@@ -37,7 +38,7 @@ class CloudNodeFactory(WebSocketServerFactory):
         Returns:
             str: Error message, if an error occurred.
         """
-        assert client_type in ('DASHBOARD', 'LIBRARY'), \
+        assert client_type in (ClientType.DASHBOARD, ClientType.LIBRARY), \
             "Type must be DASHBOARD or LIBRARY!"
 
         if repo_id not in self.clients:
@@ -48,7 +49,7 @@ class CloudNodeFactory(WebSocketServerFactory):
             if client in clients:
                 return "Client already exists!"
 
-        if client_type == "DASHBOARD" \
+        if client_type == ClientType.DASHBOARD \
                 and len(self.clients[repo_id][client_type]) == 1:
             return "Only one DASHBOARD client allowed at a time!"
         
@@ -65,20 +66,42 @@ class CloudNodeFactory(WebSocketServerFactory):
         Returns:
             bool: Returns whether unregistration was successful.
         """
+        messages = []
+
         success = False
         for repo_id, repo_clients in self.clients.items():
-            for node_type, clients in repo_clients.items():
+            state.start_state(repo_id)
+            for client_type, clients in repo_clients.items():
                 if client in clients:
                     print("Unregistered client {}".format(client.peer))
-                    self.clients[repo_id][node_type].remove(client)
+                    self.clients[repo_id][client_type].remove(client)
                     success = True
-                    if node_type == "DASHBOARD":
-                        state.start_state(repo_id)
-                        state.num_sessions -= 1
+                    if client_type == ClientType.DASHBOARD:
                         state.reset_state(repo_id)
-                        state.stop_state()
-        
-        return success
+                    elif state.state["busy"]:
+                        state.state["num_nodes_chosen"] -= 1
+                        if state.state["num_nodes_chosen"] == 0:
+                            state.reset_state(repo_id)
+                            message = self._make_no_nodes_left_message(repo_id)
+                            messages.append(message)
+                            
+            state.stop_state()
+        return success, messages
+
+    def _make_no_nodes_left_message(self, repo_id):
+        """
+        Helper method to make NO NODES LEFT message.
+
+        Args:
+            repo_id (str): The corresponding repo ID of the client.
+
+        Returns:
+            dict: The error message to send.
+        """
+        error_message = "All nodes in this round dropped out!"
+        client_list = self.clients[repo_id][ClientType.DASHBOARD]
+        return make_error_results(error_message, ErrorType.NO_NODES_LEFT, \
+            action=ActionType.BROADCAST, client_list=client_list)
 
     def is_registered(self, client, client_type, repo_id):
         """

@@ -15,7 +15,7 @@ from authorization import _assert_user_can_read_repo, \
     _user_can_read_repo
 from ecs import create_new_nodes, get_status, stop_nodes, reset_cloud_node, \
     wait_until_next_available_repo, CLOUD_SUBDOMAIN, EXPLORA_SUBDOMAIN, \
-    update_cloud_demo_node
+    update_cloud_demo_node, delete_demo_node, create_demo_node
 from dynamodb import _get_logs, _remove_logs, _get_user_data, \
     _remove_repo_from_user_details, _get_repo_details, _remove_repo_details, \
     _update_user_data_with_new_repo, _create_new_repo_document, \
@@ -77,7 +77,7 @@ def register():
         user_id = registration_details["user"]["pk"]
         repo_id = _assign_user_repo(user_id)
         registration_details["demo_repo_id"] = repo_id
-        _create_new_demo_repo(DEFAULT_USER_ID)
+        _create_new_demo_repo_async()
         while not _user_can_read_repo(user_id, repo_id):
             time.sleep(0.1)
     except Exception as e:
@@ -166,10 +166,10 @@ def create_new_repo():
     # TODO: Check repo doesn't already exist.
     repo_name = re.sub('[^a-zA-Z0-9-]', '-', repo_name)
     user_id = claims["pk"]
-    repo_id, api_key = _create_repo_id_and_api_key()
+    repo_id, api_key, token = _create_repo_id_and_api_key_and_token()
     try:
         _create_new_repo(user_id, repo_id, api_key, repo_name, \
-           repo_description, False)
+           repo_description, token, False)
     except Exception as e:
         # TODO: Revert things.
         return make_error("Error creating new repo: " + str(e))
@@ -291,36 +291,44 @@ def download_model():
     # Return url
     return make_success(url)
 
-def _create_repo_id_and_api_key():
+def _create_repo_id_and_api_key_and_token():
     """
-    Creates a new repo ID and API key for a user and repo.
+    Creates a new repo ID and API key and token for a user and repo.
     """
     repo_id = secrets.token_hex(5)
     api_key = secrets.token_hex(5)
-    return repo_id, api_key
+    token = secrets.token_hex(20)
+    return repo_id, api_key, token
 
-def _create_new_demo_repo(user_id):
+def _create_new_demo_repo_async():
     """
     Helper function to create new demo repo.
     """
-    repo_name = "demo-repo-ios"
-    repo_description = "Demo repo for training on iOS device."
-    repo_id, _ = _create_repo_id_and_api_key()
-    api_key = _get_demo_api_key()
     background_process = Process(
-        target=_create_new_repo,
-        args=(user_id, repo_id, api_key, repo_name, repo_description, True),
+        target=_create_new_demo_repo,
         daemon=True
     )
     background_process.start()
 
+def _create_new_demo_repo():
+    """
+    Helper function to create new demo repo.
+    """
+    user_id = DEFAULT_USER_ID
+    repo_name = "demo-repo-ios"
+    repo_description = "Demo repo for training on iOS device."
+    repo_id, _, token = _create_repo_id_and_api_key_and_token()
+    api_key = _get_demo_api_key()
+    _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description, \
+        token, True)
+
 def _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description, \
-        is_demo):
+        token, is_demo):
     """
     Creates a new repo, which includes a cloud and Explora node.
     """
     _assert_user_has_repos_left(user_id)
-    server_details = create_new_nodes(repo_id, api_key, is_demo)
+    server_details = create_new_nodes(repo_id, api_key, token, is_demo)
     _create_new_repo_document(user_id, repo_id, repo_name, \
         repo_description, server_details, is_demo)
     _update_user_data_with_new_repo(user_id, repo_id)
@@ -408,7 +416,7 @@ def precreate_demo_repos(n=5):
     Precreates n demo repos to be assigned when a new user registers.
     """
     for _ in range(n):
-        _create_new_demo_repo(DEFAULT_USER_ID)
+        _create_new_demo_repo()
 
 
 def _update_repo(user_id, repo_id):
@@ -422,12 +430,24 @@ def _update_repo(user_id, repo_id):
     repo_name = repo_details["Name"]
     repo_description = repo_details["Description"]
     is_demo = repo_details["IsDemo"]
+    token = repo_details["Token"]
 
     time.sleep(2)
     
     _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description, \
-        is_demo)
-    
+        token, is_demo)
+
+def clean_up():
+    update_cloud_demo_node()
+
+    repos = _get_all_users_repos()
+    for user_id, repo_id in repos:
+        if repo_id == "cloud-demo":
+            continue
+        _delete_repo(user_id, repo_id)
+
+    precreate_demo_repos(n=6)
+    _assign_user_repo(50)
 
 if __name__ == "__main__":
     app.run(port=5001)

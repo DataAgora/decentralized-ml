@@ -142,7 +142,6 @@ def reset_state(repo_id):
     state.start_state(repo_id)
     try:
         state.reset_state(repo_id)
-        state.num_sessions -= 1
     except Exception as e:
         print("Exception resetting state: " + str(e))
         state.stop_state()

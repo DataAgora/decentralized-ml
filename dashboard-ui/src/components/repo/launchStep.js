@@ -17,6 +17,9 @@ class LaunchStep extends Reflux.Component {
         this.launchExplora = this.launchExplora.bind(this);
         this.launchExploraImage = this.launchExploraImage.bind(this);
         this.launchExploraText = this.launchExploraText.bind(this);
+        this.exploraAuthUrl = "http://" + this.props.ExploraUrl
+        
+        
         this.exploraURL = "http://" + this.repoId + ".explora.discreetai.com/notebooks/"
         this.copyApiKeyToClipboard = this.copyApiKeyToClipboard.bind(this);
     }
@@ -37,18 +40,30 @@ class LaunchStep extends Reflux.Component {
       }
 
     launchExplora() {
-        var win = window.open(this.exploraURL + "Explora.ipynb", '_blank');
-        win.focus();
+        let url = this.exploraURL + "Explora.ipynb"
+        var close = function closeWindow(auth) {
+            window.open(url, '_blank')
+        }
+        var auth = window.open(this.exploraAuthUrl, "_blank");
+        setTimeout(close, 100, auth)
     }
 
     launchExploraImage() {
-        var win = window.open(this.exploraURL + "ExploraMobileImage.ipynb", '_blank');
-        win.focus();
+        let url = this.exploraURL + "ExploraMobileImage.ipynb"
+        var close = function closeWindow(auth) {
+            window.open(url, '_blank')
+        }
+        var auth = window.open(this.exploraAuthUrl, '_blank');
+        setTimeout(close, 100, auth)
     }
 
     launchExploraText() {
-        var win = window.open(this.exploraURL + "ExploraMobileText.ipynb", '_blank');
-        win.focus();
+        let url = this.exploraURL + "ExploraMobileText.ipynb"
+        var close = function closeWindow(auth) {
+            window.open(url, '_blank')
+        }
+        var auth = window.open(this.exploraAuthUrl, "_blank");
+        setTimeout(close, 100, auth)
     }
 
     render() {
@@ -61,7 +76,7 @@ class LaunchStep extends Reflux.Component {
             } else {
                 button = <button disabled onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
             }
-            return <li> <button class="btn btn-dark explora" onClick={this.copyApiKeyToClipboard}><b>Copy Password</b></button> and paste it when requested when you {button} to start your session!</li>
+            return <li> Start your session by clicking on the following button {button}</li>
         } else {
             var exploraButton = "";
             var exploraImageButton = "";
@@ -77,7 +92,7 @@ class LaunchStep extends Reflux.Component {
                 exploraTextButton = <button disabled onClick={this.launchExploraText} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileText.ipynb</b></button>;
             }
 
-            return <li><button class="btn btn-dark explora" onClick={this.copyApiKeyToClipboard}><b>Copy Password</b></button> and paste it when requested when you open the following notebooks:
+            return <li> Choose one of the following notebooks, based on what type of session you want to run.
                 <ul>
                     <br></br>
                     <li>{exploraButton} (Javascript/Python sessions)</li>

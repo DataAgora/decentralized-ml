@@ -5,7 +5,7 @@ import state
 import copy
 from model import convert_keras_model_to_tfjs, fetch_keras_model, \
     convert_keras_model_to_mlmodel, fetch_mlmodel
-from message import LibraryType
+from message import ClientType, LibraryType, ActionType, LibraryActionType
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -60,7 +60,7 @@ def start_new_session(message, clients):
         "session_id": state.state["session_id"],
         "repo_id": state.state["repo_id"],
         "round": 1,
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "hyperparams": message.hyperparams,
         "error": False,
     }
@@ -91,7 +91,7 @@ def start_new_session(message, clients):
 
     # 7. Kickstart a DML Session with the model and round # 1
     return {
-        "action": "BROADCAST",
+        "action": ActionType.BROADCAST,
         "client_list": chosen_clients,
         "message": new_message,
     }
@@ -122,7 +122,7 @@ def start_next_round(clients):
         "session_id": state.state["session_id"],
         "repo_id": state.state["repo_id"],
         "round": state.state["current_round"],
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "hyperparams": message.hyperparams,
         "error": False,
     }
@@ -141,7 +141,7 @@ def start_next_round(clients):
     assert state.state["current_round"] > 0
 
     return {
-        "action": "BROADCAST",
+        "action": ActionType.BROADCAST,
         "client_list": chosen_clients,
         "message": new_message,
     }
@@ -160,10 +160,9 @@ def stop_session(repo_id, clients_dict):
         dict: Returns the broadcast message with action `STOP`.
     """
     state.reset_state(repo_id)
-    state.num_sessions -= 1
 
     new_message = {
-        "action": "STOP",
+        "action": LibraryActionType.STOP.value,
         "session_id": state.state["session_id"],
         "dataset_id": state.state["dataset_id"],
         "repo_id": state.state["repo_id"],
@@ -171,8 +170,9 @@ def stop_session(repo_id, clients_dict):
     }
     
     results = {
-        "action": "BROADCAST",
-        "client_list": clients_dict["LIBRARY"] + clients_dict["DASHBOARD"],
+        "action": ActionType.BROADCAST,
+        "client_list": clients_dict[ClientType.LIBRARY] \
+            + clients_dict[ClientType.DASHBOARD],
         "message": new_message,
     }
 

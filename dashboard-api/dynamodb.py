@@ -222,6 +222,12 @@ def _get_all_users_repos():
     except Exception as e:
         raise Exception("Error getting repos for all users. " + str(e))
 
+def _get_demo_cloud_domain():
+    """
+    Helper function to get the demo API key.
+    """
+    return _get_repo_details(50, "cloud-demo")["CloudDomain"]
+
 def _get_demo_api_key():
     """
     Helper function to get the demo API key.

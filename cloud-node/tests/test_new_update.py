@@ -6,7 +6,8 @@ from keras.models import load_model
 import numpy as np
 
 import state
-from message import Message
+from message import Message, MessageType, ClientType, ActionType, \
+    LibraryActionType, ErrorType
 from new_message import process_new_message
 
 
@@ -56,21 +57,21 @@ def simple_new_update_message(repo_id, session_id, simple_gradients):
     return Message.make({
         "repo_id": repo_id,
         "session_id": session_id,
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "results": {
             "gradients": simple_gradients,
             "omega": 8000,
         },
         "round": 1,
-        "type": "NEW_UPDATE",
+        "type": MessageType.NEW_UPDATE.value,
     })  
 
 @pytest.fixture
 def broadcast_message(simple_gradients, factory, repo_id, train_message):
     train_message["round"] = 2
     return {
-        "action": "BROADCAST",
-        "client_list": factory.clients[repo_id]["LIBRARY"],
+        "action": ActionType.BROADCAST,
+        "client_list": factory.clients[repo_id][ClientType.LIBRARY],
         "message": train_message,
     }
 

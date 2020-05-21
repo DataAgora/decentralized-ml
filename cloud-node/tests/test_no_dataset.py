@@ -5,7 +5,7 @@ import pytest
 from keras.models import load_model
 
 import state
-from message import Message
+from message import Message, MessageType, ClientType, ActionType
 from new_message import process_new_message
 
 
@@ -57,15 +57,15 @@ def no_dataset_message(repo_id, ios_session_id, dataset_id):
         "session_id": ios_session_id,
         "dataset_id": dataset_id,
         "round": 1,
-        "type": "NO_DATASET",
+        "type": MessageType.NO_DATASET.value,
     })
 
 @pytest.fixture
 def ios_broadcast_message(ios_train_message, factory, repo_id):
     ios_train_message["round"] = 2
     return {
-        "action": "BROADCAST",
-        "client_list": factory.clients[repo_id]["LIBRARY"],
+        "action": ActionType.BROADCAST,
+        "client_list": factory.clients[repo_id][ClientType.LIBRARY],
         "message": ios_train_message,
     }
 
@@ -95,6 +95,4 @@ def test_complex_no_dataset_message(complex_training_state, no_dataset_message, 
         library_client)
 
     assert state.state["num_nodes_chosen"] == 1
-    print(results)
-    print(ios_broadcast_message)
     assert results == ios_broadcast_message, "Resulting message is incorrect!"

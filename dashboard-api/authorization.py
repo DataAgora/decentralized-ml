@@ -6,8 +6,7 @@ from dynamodb import _get_user_data
 
 
 AUTH_ENDPOINT = "https://eauth.discreetai.com/auth/{}/"
-JWT_SECRET = "datajbsnmd5h84rbewvzx6*cax^jgmqw@m3$ds_%z-4*qy0n44fjr5shark"
-JWT_ALGO = "HS256"
+
 
 def _assert_user_has_repos_left(user_id):
     """
@@ -42,7 +41,11 @@ def authorize_user(request):
     """
     try:
         jwt_string = request.headers.get("Authorization").split('Bearer ')[1]
-        claims = jwt.decode(jwt_string, JWT_SECRET, algorithms=[JWT_ALGO])
+        with open("jwt.json", "r") as f:
+            jwt_json = json.load(f)
+            JWT_SECRET = jwt_json["JWT_SECRET"]
+            JWT_ALGO = jwt_json["JWT_ALGO"]
+            claims = jwt.decode(jwt_string, JWT_SECRET, algorithms=[JWT_ALGO])
     except Exception as e:
         return None
     

@@ -71,7 +71,7 @@ class Repo extends Reflux.Component {
               To start your training session, complete the following steps once the cloud node status is <b>Idle</b>.
               <br></br><br></br>
               <ol>
-                <LaunchStep repoId={this.state.repoData.Id} apiKey={this.state.repoData.ApiKey} isDemo={this.state.repoData.IsDemo}/>
+                <LaunchStep repoId={this.state.repoData.Id} apiKey={this.state.repoData.ApiKey} isDemo={this.state.repoData.IsDemo} ExploraUrl={this.state.repoData.ExploraUrl}/>
                 <br></br>
                 <li>Run the cells to begin training with the sample model!</li>
               </ol>

@@ -17,6 +17,14 @@ def init():
 
     global reset_state
     def reset_state(repo_id):
+        global state
+        if state and state["busy"]:
+            global num_sessions
+            num_sessions -= 1
+
+            if num_sessions < 0:
+                raise Exception("HEH")
+
         states[repo_id] = {
             "busy": False,
             "session_id": None,
