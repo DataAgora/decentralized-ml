@@ -44,6 +44,7 @@ class RepoDataStore extends Reflux.Store {
 
   onFetchRepoData(repoId) {
     if (AuthStore.state.isAuthenticated) {
+      this.resetState()
       let jwtString = AuthStore.state.jwt;
 
       this.state.loading = true;
@@ -248,6 +249,30 @@ class RepoDataStore extends Reflux.Store {
 
   _changed () {
     this.trigger(this.state);
+  }
+
+  resetState() {
+    this.state = {
+      loading: true,
+      error: false,
+
+      repoWasFound: false,
+      repoData: {},
+      repoStatus: {},
+      repoLogs: {},
+
+      creationState: {
+        reposRemaining: false,
+        repoName: null,
+        repoId: null,
+        apiKey: null,
+        loading: true,
+        creating: false,
+        created: false,
+        error: false,
+      },
+      linkToDemo: false,
+    };
   }
 
 }

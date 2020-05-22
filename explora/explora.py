@@ -101,7 +101,7 @@ async def start_new_session(hyperparameters, model_name=None, \
     repo_id = os.environ["REPO_ID"]
     api_key = os.environ["API_KEY"]
 
-    websocket_url, is_demo = get_websocket_url(repo_id)
+    websocket_url = get_websocket_url(repo_id)
     if not websocket_url:
         return
 
@@ -131,7 +131,6 @@ async def start_new_session(hyperparameters, model_name=None, \
         "node_type": "dashboard",
         "repo_id": repo_id,
         "api_key": api_key,
-        "is_demo": is_demo
     }
 
     new_session_message = {

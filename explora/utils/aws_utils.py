@@ -73,7 +73,7 @@ def get_websocket_url(repo_id):
         return
 
     if repo_details["IsDemo"]:
-        repo_id = "demo"
+        repo_id = _get_repo_details("cloud-demo")["CloudDomain"]
 
-    return CLOUD_SUBDOMAIN.format(repo_id), repo_details["IsDemo"]
+    return CLOUD_SUBDOMAIN.format(repo_id)
         

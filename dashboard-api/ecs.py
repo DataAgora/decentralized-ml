@@ -52,7 +52,7 @@ def create_new_nodes(repo_id, api_key, token, is_demo):
 
     for name, details in TASK_DETAILS.items():
         if is_demo and name == "cloud":
-            with open("demo_node_details.json", "r") as f:
+            with open("demo_cloud_details.json", "r") as f:
                 results.update(json.load(f))
             continue
         task_definition, container_name, subdomain = details
@@ -365,7 +365,7 @@ def create_demo_node():
         "CloudIpAddress": ip_address,
         "CloudTaskArn": task_arn
     }
-    with open("demo_node_details.json", "w") as f:
+    with open("demo_cloud_details.json", "w") as f:
         json.dump(results, f)
 
     return results
@@ -377,7 +377,7 @@ def delete_demo_node():
     demo_domain = _get_demo_cloud_domain()
     full_domain = DEMO_CLOUD_DOMAIN.format(demo_domain)
 
-    with open("demo_node_details.json", "r") as f:
+    with open("demo_cloud_details.json", "r") as f:
         details = json.load(f)
         ip_address = details["CloudIpAddress"]
         task_arn = details["CloudTaskArn"]

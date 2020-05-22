@@ -14,14 +14,20 @@ class LaunchStep extends Reflux.Component {
         this.repoId = this.props.repoId
         this.apiKey = this.props.apiKey
         this.isDemo = this.props.isDemo;
+        this.launchAuth = this.launchAuth.bind(this);
         this.launchExplora = this.launchExplora.bind(this);
         this.launchExploraImage = this.launchExploraImage.bind(this);
         this.launchExploraText = this.launchExploraText.bind(this);
         this.exploraAuthUrl = "http://" + this.props.ExploraUrl
-        
-        
         this.exploraURL = "http://" + this.repoId + ".explora.discreetai.com/notebooks/"
         this.copyApiKeyToClipboard = this.copyApiKeyToClipboard.bind(this);
+
+        let authClicked = localStorage.getItem("authClicked" + this.repoId);
+        if (!authClicked) {
+            this.authClicked = false;
+        } else {
+            this.authClicked = true;
+        }
     }
 
     componentDidMount() {
@@ -39,60 +45,61 @@ class LaunchStep extends Reflux.Component {
         document.body.removeChild(dummy);
       }
 
-    launchExplora() {
-        let url = this.exploraURL + "Explora.ipynb"
+    launchAuth() {
         var close = function closeWindow(auth) {
-            window.open(url, '_blank')
+            auth.close()
+            localStorage.setItem("authClicked-" + this.repoId, true)
         }
         var auth = window.open(this.exploraAuthUrl, "_blank");
-        setTimeout(close, 100, auth)
+        this.authClicked = true;
+        setTimeout(close, 300, auth)
+    }
+
+    launchExplora() {
+        let url = this.exploraURL + "Explora.ipynb"
+        var notebook = window.open(url, '_blank')
     }
 
     launchExploraImage() {
         let url = this.exploraURL + "ExploraMobileImage.ipynb"
-        var close = function closeWindow(auth) {
-            window.open(url, '_blank')
-        }
-        var auth = window.open(this.exploraAuthUrl, '_blank');
-        setTimeout(close, 100, auth)
+        var notebook = window.open(url, '_blank')
     }
 
     launchExploraText() {
         let url = this.exploraURL + "ExploraMobileText.ipynb"
-        var close = function closeWindow(auth) {
-            window.open(url, '_blank')
-        }
-        var auth = window.open(this.exploraAuthUrl, "_blank");
-        setTimeout(close, 100, auth)
+        var notebook = window.open(url, '_blank')
     }
 
     render() {
         const status = this.state.coordinatorStatuses[this.props.repoId];
 
         if (this.isDemo) {
-            var button = "";
-            if (["ACTIVE", "AVAILABLE"].includes(status)) {
-                button = <button onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
+            var authButton = (<button id="auth" onClick={this.launchAuth} className="btn btn-dark ml-2 explora"><b>Authenticate</b></button>)
+            var launchButton = "";
+            if (["ACTIVE", "AVAILABLE"].includes(status) && this.authClicked) {
+                launchButton = <button id="image" onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
             } else {
-                button = <button disabled onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
+                launchButton = <button id="image" disabled onClick={this.launchExploraImage} className="btn btn-primary ml-2 explora"><b>Launch Explora</b></button>;
             }
-            return <li> Start your session by clicking on the following button {button}</li>
+            return <li> {authButton}, then start your session by clicking on the following button: {launchButton}</li>
         } else {
+            var authButton = (<button id="auth" onClick={this.launchAuth} className="btn btn-dark ml-2 explora"><b>Authenticate</b></button>)
+
             var exploraButton = "";
             var exploraImageButton = "";
             var exploraTextButton = "";
 
-            if (["ACTIVE", "AVAILABLE"].includes(status)) {
-                exploraButton = <button onClick={this.launchExplora} className="btn btn-xs explora btn-primary ml-2"><b>Explora.ipynb</b></button>;
-                exploraImageButton = <button onClick={this.launchExploraImage} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileImage.ipynb</b></button>;
-                exploraTextButton = <button onClick={this.launchExploraText} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileText.ipynb</b></button>;
+            if (["ACTIVE", "AVAILABLE"].includes(status) && this.authClicked) {
+                exploraButton = <button id="reg" onClick={this.launchExplora} className="btn btn-xs explora btn-primary ml-2"><b>Explora.ipynb</b></button>;
+                exploraImageButton = <button id="image" onClick={this.launchExploraImage} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileImage.ipynb</b></button>;
+                exploraTextButton = <button id="text" onClick={this.launchExploraText} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileText.ipynb</b></button>;
             } else {
-                exploraButton = <button disabled onClick={this.launchExplora} className="btn btn-xs explora btn-primary ml-2"><b>Explora.ipynb</b></button>;
-                exploraImageButton = <button disabled onClick={this.launchExploraImage} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileImage.ipynb</b></button>;
-                exploraTextButton = <button disabled onClick={this.launchExploraText} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileText.ipynb</b></button>;
+                exploraButton = <button id="reg" disabled onClick={this.launchExplora} className="btn btn-xs explora btn-primary ml-2"><b>Explora.ipynb</b></button>;
+                exploraImageButton = <button id="image" disabled onClick={this.launchExploraImage} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileImage.ipynb</b></button>;
+                exploraTextButton = <button id="text" disabled onClick={this.launchExploraText} className="btn btn-xs explora btn-primary ml-2"><b>ExploraMobileText.ipynb</b></button>;
             }
 
-            return <li> Choose one of the following notebooks, based on what type of session you want to run.
+            return <li>{authButton}, then choose one of the following notebooks, based on what type of session you want to run.
                 <ul>
                     <br></br>
                     <li>{exploraButton} (Javascript/Python sessions)</li>
