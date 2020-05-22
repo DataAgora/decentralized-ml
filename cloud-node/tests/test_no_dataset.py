@@ -76,6 +76,7 @@ def test_simple_no_dataset_message(simple_training_state, no_dataset_message, \
     chosen nodes and results in no further action taken when the continuation
     criteria is not fulfilled.
     """
+    state.num_sessions = 1
     state.state = simple_training_state
     results = process_new_message(no_dataset_message, factory, \
         library_client)
@@ -90,6 +91,7 @@ def test_complex_no_dataset_message(complex_training_state, no_dataset_message, 
     chosen nodes and results in the next round when the continuation
     criteria is fulfilled.
     """
+    state.num_sessions = 1
     state.state = complex_training_state
     results = process_new_message(no_dataset_message, factory, \
         library_client)

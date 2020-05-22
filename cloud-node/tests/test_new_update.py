@@ -39,6 +39,8 @@ def set_training_state(repo_id, session_id, python_session_message, \
         "checkpoint_frequency": 1,
         "test": True
     }
+
+    state.num_sessions = 1
     
 
 @pytest.fixture(scope="module")
