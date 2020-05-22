@@ -17,6 +17,13 @@ __pycache__/
 cloud-node/temp/
 datacenter/sessions
 dashboard-ui/src/utils.js
+dashboard-api/demo_cloud_details.json
+dashboard-api/assign_repo.py
+dashboard-api/clean_up.py
+dashboard-api/deploy.py
+dashboard-api/jwt.json
+dashboard-api/update.py
+update.sh
 model/
 
 # Byte-compiled / optimized / DLL files
