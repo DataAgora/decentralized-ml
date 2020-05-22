@@ -13,8 +13,6 @@ from protocol import CloudNodeProtocol
 
 @pytest.fixture(autouse=True)
 def reset_state(repo_id, api_key):
-    os.environ["API_KEY"] = api_key
-    os.environ["DEMO_API_KEY"] = "demo-api-key"
     state.start_state(repo_id)
     state.state["test"] = True
     yield
