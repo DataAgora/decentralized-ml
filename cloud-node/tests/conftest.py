@@ -1,13 +1,23 @@
+import os
 from copy import deepcopy
 
 import pytest
 import boto3
 
 import context
-from message import Message
+import state
+from message import Message, ClientType, ActionType, LibraryActionType
 from factory import CloudNodeFactory
 from protocol import CloudNodeProtocol
 
+
+@pytest.fixture(autouse=True)
+def reset_state(repo_id, api_key):
+    state.start_state(repo_id)
+    state.state["test"] = True
+    yield
+    state.reset_state(repo_id)
+    state.stop_state()
 
 @pytest.fixture(scope="session")
 def library_client():
@@ -18,10 +28,14 @@ def dashboard_client():
     return CloudNodeProtocol()
 
 @pytest.fixture(scope="session")
-def factory(library_client, dashboard_client):
+def repo_id():
+    return "test-repo"
+
+@pytest.fixture(scope="session")
+def factory(library_client, dashboard_client, repo_id):
     cloud_factory = CloudNodeFactory()
-    cloud_factory.register(library_client, "LIBRARY")
-    cloud_factory.register(dashboard_client, "DASHBOARD")
+    cloud_factory.register(library_client, ClientType.LIBRARY, repo_id)
+    cloud_factory.register(dashboard_client, ClientType.DASHBOARD, repo_id)
     return cloud_factory
 
 @pytest.fixture(scope="session")
@@ -35,10 +49,6 @@ def dataset_id():
 @pytest.fixture(scope="session")
 def ios_session_id():
     return "ios-test-session"
-
-@pytest.fixture(scope="session")
-def repo_id():
-    return "test-repo"
 
 @pytest.fixture(scope="session")
 def api_key():
@@ -101,7 +111,7 @@ def session_message(repo_id, session_id, hyperparams):
             "type": "MAX_ROUND",
             "value": 5
         },
-        "ios_config": {}
+        "ios_config": {},
     }
 
 @pytest.fixture(scope="session")
@@ -145,7 +155,7 @@ def train_message(session_id, repo_id, hyperparams):
         "session_id": session_id,
         "repo_id": repo_id,
         "round": 1,
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "hyperparams": hyperparams,
     }
 
@@ -159,7 +169,7 @@ def ios_train_message(train_message, ios_session_id, dataset_id):
 @pytest.fixture(scope="session")
 def no_action_message(ios_session_id, dataset_id):
     return {
-        "action": None,
+        "action": ActionType.DO_NOTHING,
         "error": False,
     }
     

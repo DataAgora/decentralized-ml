@@ -2,6 +2,8 @@ import re
 import secrets
 import hashlib
 import time
+import asyncio
+from multiprocessing import Process
 
 import boto3
 import requests
@@ -9,13 +11,16 @@ from flask_cors import CORS
 from flask import Flask, request, jsonify
 
 from authorization import _assert_user_can_read_repo, \
-    _assert_user_has_repos_left, authorize_user
-from ecs import create_new_nodes, get_status, stop_nodes, CLOUD_SUBDOMAIN, \
-    EXPLORA_SUBDOMAIN
+    _assert_user_has_repos_left, authorize_user, make_auth_call, \
+    _user_can_read_repo
+from ecs import create_new_nodes, get_status, stop_nodes, reset_cloud_node, \
+    wait_until_next_available_repo, CLOUD_SUBDOMAIN, EXPLORA_SUBDOMAIN, \
+    update_cloud_demo_node, delete_demo_node, create_demo_node
 from dynamodb import _get_logs, _remove_logs, _get_user_data, \
     _remove_repo_from_user_details, _get_repo_details, _remove_repo_details, \
     _update_user_data_with_new_repo, _create_new_repo_document, \
-    _get_all_repos, _get_all_users_repos
+    _get_all_repos, _get_all_users_repos, _get_demo_api_key, \
+    _create_new_repo_document_from_item, DEFAULT_USER_ID
 from utils import make_success, make_error, make_unauthorized_error
 
 
@@ -26,7 +31,59 @@ CORS(app)
 
 @app.route("/")
 def home():
+    """ 
+    Homepage of the API.
+    """
     return "This is the dashboard api homepage!"
+
+@app.route('/login', methods=['POST'])
+def login():
+    """
+    Process login request and return results.
+    """
+    params = request.get_json()
+    if "email" not in params:
+        return make_error("Missing email from request.")
+    if "password" not in params:
+        return make_error("Missing password from request.")
+    
+    try:
+        login_details = make_auth_call(params, "login")
+    except Exception as e:
+        return make_error("Error logging in user: " + str(e))
+    
+    return make_success(login_details)
+
+@app.route('/registration', methods=['POST'])
+def register():
+    """
+    Process registration request, assign user a demo repo, and start creating
+    the next demo repo.
+    """
+    params = request.get_json()
+    if "email" not in params:
+        return make_error("Missing email from request.")
+    if "password1" not in params:
+        return make_error("Missing password from request.")
+    if "password2" not in params:
+        return make_error("Missing password from request.")
+    for arg in ["first_name", "last_name", "company", "occupation"]:
+        params[arg] = params.get(arg, "N/A")
+
+    try:
+        registration_details = make_auth_call(params, "registration")
+        if "token" not in registration_details:
+            return make_success(registration_details)
+        user_id = registration_details["user"]["pk"]
+        repo_id = _assign_user_repo(user_id)
+        registration_details["demo_repo_id"] = repo_id
+        _create_new_demo_repo_async()
+        while not _user_can_read_repo(user_id, repo_id):
+            time.sleep(0.1)
+    except Exception as e:
+        return make_error("Error setting up demo node: " + str(e))
+
+    return make_success(registration_details)
 
 @app.route('/reset_state/<repo_id>', methods=['POST'])
 def reset_state(repo_id):
@@ -35,9 +92,12 @@ def reset_state(repo_id):
     """
     claims = authorize_user(request)
     if claims is None: return make_unauthorized_error()
+
+    user_id = claims["pk"]
     try:
-        CLOUD_RESET_ENDPOINT = "http://" + CLOUD_SUBDOMAIN + "/secret/reset_state"
-        response = requests.get(CLOUD_RESET_ENDPOINT.format(repo_id))
+        repo_details = _get_repo_details(user_id, repo_id)
+        is_demo = repo_details["IsDemo"]
+        reset_cloud_node(repo_id, is_demo)
     except Exception as e:
         return make_error("Error resetting state: " + str(e))
 
@@ -106,10 +166,10 @@ def create_new_repo():
     # TODO: Check repo doesn't already exist.
     repo_name = re.sub('[^a-zA-Z0-9-]', '-', repo_name)
     user_id = claims["pk"]
-    repo_id, api_key = _create_repo_id_and_api_key(user_id)
+    repo_id, api_key, token = _create_repo_id_and_api_key_and_token()
     try:
-       _create_new_repo(user_id, repo_id, api_key, repo_name, \
-           repo_description)
+        _create_new_repo(user_id, repo_id, api_key, repo_name, \
+           repo_description, token, False)
     except Exception as e:
         # TODO: Revert things.
         return make_error("Error creating new repo: " + str(e))
@@ -183,9 +243,9 @@ def get_task_status(repo_id):
     user_id = claims["pk"]
     try:
         repo_details = _get_repo_details(user_id, repo_id)
-        cloud_task_arn = repo_details["CloudTaskArn"]
-        explora_task_arn = repo_details["ExploraTaskArn"]
-        status = get_status(cloud_task_arn, explora_task_arn, repo_id)
+        task_arns = [repo_details["CloudTaskArn"], repo_details["ExploraTaskArn"]]
+        is_demo = repo_details["IsDemo"]
+        status = get_status(task_arns, repo_id, is_demo)
     except Exception as e:
         return make_error("Error checking status: " + str(e))
     return make_success(status)
@@ -231,37 +291,71 @@ def download_model():
     # Return url
     return make_success(url)
 
-def _create_repo_id_and_api_key(user_id):
+def _create_repo_id_and_api_key_and_token():
     """
-    Creates a new repo ID and API key for a user and repo.
+    Creates a new repo ID and API key and token for a user and repo.
     """
-    repo_id = secrets.token_hex(16)
-    true_api_key = secrets.token_urlsafe(32)
-    h = hashlib.sha256()
-    h.update(true_api_key.encode('utf-8'))
-    api_key = h.hexdigest()
-    return repo_id, api_key
+    repo_id = secrets.token_hex(5)
+    api_key = secrets.token_hex(5)
+    token = secrets.token_hex(20)
+    return repo_id, api_key, token
 
-def _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description):
+def _create_new_demo_repo_async():
+    """
+    Helper function to create new demo repo.
+    """
+    background_process = Process(
+        target=_create_new_demo_repo,
+        daemon=True
+    )
+    background_process.start()
+
+def _create_new_demo_repo():
+    """
+    Helper function to create new demo repo.
+    """
+    user_id = DEFAULT_USER_ID
+    repo_name = "demo-repo-ios"
+    repo_description = "Demo repo for training on iOS device."
+    repo_id, _, token = _create_repo_id_and_api_key_and_token()
+    api_key = _get_demo_api_key()
+    _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description, \
+        token, True)
+
+def _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description, \
+        token, is_demo):
     """
     Creates a new repo, which includes a cloud and Explora node.
     """
     _assert_user_has_repos_left(user_id)
-    server_details = create_new_nodes(repo_id, api_key)
+    server_details = create_new_nodes(repo_id, api_key, token, is_demo)
     _create_new_repo_document(user_id, repo_id, repo_name, \
-        repo_description, server_details)
+        repo_description, server_details, is_demo)
     _update_user_data_with_new_repo(user_id, repo_id)
 
 def _delete_repo(user_id, repo_id):
+    """ 
+    Helper function to delete repo.
+    """
     repo_details = _get_repo_details(user_id, repo_id)
+    
     cloud_task_arn = repo_details["CloudTaskArn"]
     cloud_ip_address = repo_details["CloudIpAddress"]
     explora_task_arn = repo_details["ExploraTaskArn"]
     explora_ip_address = repo_details["ExploraIpAddress"]
+    is_demo = repo_details["IsDemo"]
+
+    task_arns = [explora_task_arn] \
+        if is_demo else [cloud_task_arn, explora_task_arn]
+    ip_addresses = [explora_ip_address] \
+        if is_demo else [cloud_ip_address, explora_ip_address]
+    
     _remove_logs(repo_id)
     _remove_repo_from_user_details(user_id, repo_id)
     _remove_repo_details(user_id, repo_id)
-    stop_nodes(cloud_task_arn, explora_task_arn, repo_id, cloud_ip_address, explora_ip_address)
+
+    stop_nodes(task_arns, ip_addresses, repo_id, is_demo)
+    
     return repo_details
 
 def _create_presigned_url(bucket_name, object_name, expiration=3600):
@@ -290,22 +384,70 @@ def _create_presigned_url(bucket_name, object_name, expiration=3600):
     # The response contains the presigned URL
     return response
 
+def _assign_user_repo(user_id):
+    """
+    Helper function to assign user a precreated repo.
+    """
+    default_repos = _get_all_repos(DEFAULT_USER_ID)
+    repo_details = wait_until_next_available_repo(default_repos)
+    repo_id = repo_details["Id"]
+    repo_details["OwnerId"] = user_id
+    _remove_repo_details(DEFAULT_USER_ID, repo_id)
+    _remove_repo_from_user_details(DEFAULT_USER_ID, repo_id)
+    _create_new_repo_document_from_item(repo_details)        
+    _update_user_data_with_new_repo(user_id, repo_id)
+    return repo_id
+
 def update_service():
+    """
+    Update all repos with the latest Docker images for the cloud node and 
+    Explora.
+    """
+    update_cloud_demo_node()
+
     repos = _get_all_users_repos()
     for user_id, repo_id in repos:
+        if repo_id == "cloud-demo":
+            continue
         _update_repo(user_id, repo_id)
 
+def precreate_demo_repos(n=5):
+    """
+    Precreates n demo repos to be assigned when a new user registers.
+    """
+    for _ in range(n):
+        _create_new_demo_repo()
+
+
 def _update_repo(user_id, repo_id):
+    """
+    Helper function to update with the latest Docker images for the cloud node and 
+    Explora.
+    """
     repo_details = _delete_repo(user_id, repo_id)
 
     api_key = repo_details["ApiKey"]
     repo_name = repo_details["Name"]
     repo_description = repo_details["Description"]
+    is_demo = repo_details["IsDemo"]
+    token = repo_details["Token"]
 
-    time.sleep(10)
+    time.sleep(2)
     
-    _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description)
-    
+    _create_new_repo(user_id, repo_id, api_key, repo_name, repo_description, \
+        token, is_demo)
+
+def clean_up():
+    update_cloud_demo_node()
+
+    repos = _get_all_users_repos()
+    for user_id, repo_id in repos:
+        if repo_id == "cloud-demo":
+            continue
+        _delete_repo(user_id, repo_id)
+
+    precreate_demo_repos(n=6)
+    _assign_user_repo(50)
 
 if __name__ == "__main__":
     app.run(port=5001)

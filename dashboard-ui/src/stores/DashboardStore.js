@@ -17,6 +17,7 @@ class DashboardStore extends Reflux.Store {
       repos: [],
       loading: true,
       error: false,
+      linkToDemo: false,
     };
   }
 

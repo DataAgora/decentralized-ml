@@ -14,7 +14,7 @@ logging.basicConfig(format='[%(name)s] %(asctime)s %(levelname)s %(message)s',
                         level=logging.INFO)
 
 
-def bootstrap(repo_id=None, test=False):
+def bootstrap(repo_id="testRepo", api_key="demo-api-key", test=False):
     """
     Bootstraps the data provider unix service.
 
@@ -31,7 +31,7 @@ def bootstrap(repo_id=None, test=False):
 
     loop = asyncio.get_event_loop()
 
-    websocket_client = WebSocketClient(optimizer, config_manager, repo_id, test)
+    websocket_client = WebSocketClient(optimizer, config_manager, repo_id, api_key, test)
     # mappings = dataset_manager.get_mappings()
 
 

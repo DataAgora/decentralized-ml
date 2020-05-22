@@ -37,12 +37,20 @@ class LoginForm extends Reflux.Component {
 
   render() {
     var errorMessage = "";
-    if (this.state.error) {
+    var waitMessage = "";
+    var loginButton = (<button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Sign In</button>);
+
+    if (this.state.hasError) {
       errorMessage = (
         <div className='alert alert-danger padding-bottom alert-dismissible fade show' role="alert">
-          { "Authentication failed. Check to make sure that your email and password were entered correctly." }
+          { this.state.error }
         </div>
       );
+    }
+
+    if (this.state.waiting) {
+      loginButton = (<button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt" disabled>Sign In</button>);
+      waitMessage = (<p id="wait" className="mt-3"><b>Please wait...</b></p>);
     }
 
     return (
@@ -62,7 +70,9 @@ class LoginForm extends Reflux.Component {
           </div>
 
           <div className="form-group text-center">
-            <button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Sign In</button>
+            { loginButton }
+            { waitMessage }
+            
           </div>
 
           <div className="form-group text-center text-dark">

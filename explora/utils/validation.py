@@ -1,4 +1,5 @@
 import uuid
+import os
 
 import keras
 import coremltools
@@ -8,23 +9,18 @@ from utils.enums import ErrorMessages, LibraryType, DataType, ColorSpace, \
     ModelNames, ModelPaths, library_types, color_spaces, data_types
 
 
-def valid_repo_id(repo_id):
+def valid_setup():
     """
-    Check that repo ID is in the uuid4 format.
-
-    Args:
-        repo_id (str): The repo ID associated with the current dataset.
+    Validate setup of Explora instance.
 
     Returns:
-        bool: True if in valid format, False otherwise
+        bool: True if valid, False otherwise.
     """
-    try:
-        uuid_obj = uuid.UUID(repo_id, version=4)
-    except ValueError:
-        print(ErrorMessages.INVALID_REPO_ID.value)
+    if "REPO_ID"  not in os.environ or "API_KEY" not in os.environ:
+        print("An unknown error occurred during setup.")
         return False
     return True
-
+    
 def valid_library_type(library_type):
     """
     Check that library type is valid.
@@ -115,7 +111,7 @@ def valid_model(data_config, model_path):
 def valid_and_prepare_hyperparameters(hyperparams):
     """
     Check that hyperparams has `batch_size` entry and that it is an 
-    appropriate number. Then add default entries for `epochs` and `shuffle`.
+    appropriate number. Then add default entry for `shuffle`.
 
     Args:
         hyperparams (dict): The hyperparameters to be used during training. 
@@ -128,7 +124,6 @@ def valid_and_prepare_hyperparameters(hyperparams):
             or hyperparams.get('batch_size', 0) < 1:
         print(ErrorMessages.INVALID_HYPERPARAMS.value)
         return False
-    hyperparams['epochs'] = hyperparams.get('epochs', 5)
     hyperparams['shuffle'] = hyperparams.get('shuffle', True)
     return True
 
@@ -276,17 +271,17 @@ def valid_dataset_id(library_type, dataset_id):
         return False
     return True
 
-def valid_session_args(repo_id, model, hyperparameters, \
-        percentage_averaged=0.75, max_rounds=5, library_type="PYTHON", \
-        checkpoint_frequency=1, data_config=None, dataset_id=None):
+def valid_session_args(model_path, hyperparameters, percentage_averaged, \
+        max_rounds, library_type, checkpoint_frequency, data_config, \
+        dataset_id):
     """
     Validate arguments for starting a new session. Print error message message
     if validation failed.
 
     Args:
-        repo_id (str): The repo ID associated with the current dataset.
-        model (keras.engine.Model): The initial Keras model to train with. The
-            model must be compiled!
+        model_path (str): The path to the initial model to train with. Must be 
+            an `.mlmodel` (`MLModel`) file if the model is a text model for 
+            iOS, or a `.h5` (compiled Keras model) file otherwise.
         hyperparams (dict): The hyperparameters to be used during training.
             Must include `batch_size`!
         percentage_averaged (float): Percentage of nodes to be 
@@ -304,10 +299,9 @@ def valid_session_args(repo_id, model, hyperparameters, \
             applicable. If `library_type` is `IOS`, then this argument is 
             required since the application may have multiple datasets!
     """
-    return valid_repo_id(repo_id) \
-        and valid_library_type(library_type) \
+    return valid_library_type(library_type) \
         and valid_data_config(library_type, data_config) \
-        and valid_model(data_config, model) \
+        and valid_model(data_config, model_path) \
         and valid_and_prepare_hyperparameters(hyperparameters) \
         and valid_percentage_averaged(percentage_averaged) \
         and valid_max_rounds(max_rounds) \

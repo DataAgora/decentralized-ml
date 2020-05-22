@@ -14,9 +14,9 @@ class RepoLogsStore extends Reflux.Store {
 
   init () {
     this.state = {
-      loadingLogs: true,
-      errorLogs: false,
-      repoLogs: [],
+      loading: false,
+      repoLogs: {},
+      error: "",
     };
   }
 
@@ -24,11 +24,8 @@ class RepoLogsStore extends Reflux.Store {
     if (AuthStore.state.isAuthenticated) {
       let jwtString = AuthStore.state.jwt;
 
-      this.state.loadingLogs = true;
-      this._changed();
-
       fetch(
-        Endpoints["dashboardFetchRepoLogs"] + repoId, {
+        Endpoints.dashboardFetchRepoLogs + repoId, {
           method: 'GET',
           headers: {
             'Content-Type':'application/json',
@@ -37,39 +34,36 @@ class RepoLogsStore extends Reflux.Store {
           },
         }
       ).then(response => {
-        this._handleResponse(response, RepoLogsActions.fetchRepoLogs);
+        this._handleResponse(response, RepoLogsActions.fetchRepoLogs, repoId);
       });
     }
   }
 
-  _handleResponse(response, refluxAction) {
+  _handleResponse(response, refluxAction, repoId) {
     response.json().then(serverResponse => {
-      if (serverResponse["error"]) {
-        refluxAction.failed(serverResponse["message"]);
+      if (serverResponse.error) {
+        refluxAction.failed(serverResponse.message, repoId);
       } else {
-        refluxAction.completed(serverResponse["message"]);
+        refluxAction.completed(serverResponse.message, repoId);
       }
     });
   }
 
-  onFetchRepoLogsCompleted (repoLogs) {
-    this.state.repoLogs = repoLogs;
-    this.state.loadingLogs = false;
+  onFetchRepoLogsCompleted (repoLogs, repoId) {
+    this.state.repoLogs[repoId] = repoLogs;
     this._changed();
   }
 
-  onFetchRepoLogsFailed (error) {
-    this.state.repoLogs = {};
-    this.state.errorLogs = error;
+  onFetchRepoLogsFailed (error, repoId) {
+    this.state.repoLogs[repoId] = [];
+    this.state.error = error
     console.log(error);
-    this.state.loadingLogs = false;
     this._changed();
   }
 
   _changed () {
     this.trigger(this.state);
   }
-
 }
 
 export default RepoLogsStore;

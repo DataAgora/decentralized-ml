@@ -5,14 +5,9 @@ import pytest
 from keras.models import load_model
 
 import state
-from message import Message
+from message import Message, MessageType, ClientType, ActionType
 from new_message import process_new_message
 
-
-@pytest.fixture(autouse=True)
-def reset_state(api_key):
-    os.environ["API_KEY"] = api_key
-    state.reset_state()
 
 @pytest.fixture(autouse=True)
 def simple_training_state(ios_session_id, repo_id, ios_session_message, \
@@ -56,20 +51,21 @@ def complex_training_state(ios_model_path, ios_session_id, \
     return complex_state
 
 @pytest.fixture(scope="session")
-def no_dataset_message(ios_session_id, dataset_id):
+def no_dataset_message(repo_id, ios_session_id, dataset_id):
     return Message.make({
+        "repo_id": repo_id,
         "session_id": ios_session_id,
         "dataset_id": dataset_id,
         "round": 1,
-        "type": "NO_DATASET",
+        "type": MessageType.NO_DATASET.value,
     })
 
 @pytest.fixture
-def ios_broadcast_message(ios_train_message, factory, ios_session_id):
+def ios_broadcast_message(ios_train_message, factory, repo_id):
     ios_train_message["round"] = 2
     return {
-        "action": "BROADCAST",
-        "client_list": factory.clients["LIBRARY"],
+        "action": ActionType.BROADCAST,
+        "client_list": factory.clients[repo_id][ClientType.LIBRARY],
         "message": ios_train_message,
     }
 
@@ -80,6 +76,7 @@ def test_simple_no_dataset_message(simple_training_state, no_dataset_message, \
     chosen nodes and results in no further action taken when the continuation
     criteria is not fulfilled.
     """
+    state.num_sessions = 1
     state.state = simple_training_state
     results = process_new_message(no_dataset_message, factory, \
         library_client)
@@ -94,11 +91,10 @@ def test_complex_no_dataset_message(complex_training_state, no_dataset_message, 
     chosen nodes and results in the next round when the continuation
     criteria is fulfilled.
     """
+    state.num_sessions = 1
     state.state = complex_training_state
     results = process_new_message(no_dataset_message, factory, \
         library_client)
 
     assert state.state["num_nodes_chosen"] == 1
-    print(results)
-    print(ios_broadcast_message)
     assert results == ios_broadcast_message, "Resulting message is incorrect!"

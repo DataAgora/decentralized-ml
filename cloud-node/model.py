@@ -26,13 +26,14 @@ from parse_weights import calculate_new_weights
 
 
 TEMP_FOLDER = 'temp'
+UNLIMITED_EPOCHS = 100000
 
 def convert_and_save_b64model(base64_h5_model):
     """
     Takes the initial h5 model encoded in Base64, decodes it, saves it on
-    disk (in `<TEMP_FOLDER>/<session_id>/model.h5`), then calls the helper
-    function `_convert_and_save_model()` to convert the model into a tf.js
-    model which will be served to library nodes.
+    disk (in `<TEMP_FOLDER>/<repo_id>/<session_id>/model.h5`), then calls the
+    helper function `_convert_and_save_model()` to convert the model into a 
+    tf.js model which will be served to library nodes.
 
     This function is to be called at the beginning of a DML Session with
     Javascript libraries.
@@ -50,8 +51,7 @@ def fetch_keras_model():
 
     This function is to be called at the beginning of a DML Session.
     """
-    session_id = state.state["session_id"]
-    model_path = os.path.join(TEMP_FOLDER, session_id)
+    model_path = _fetch_model_folder()
 
     # Create directory if necessary
     if not os.path.exists(model_path):
@@ -82,8 +82,7 @@ def fetch_mlmodel():
 
     NOTE: This function is only for text models to be used with iOS libraries.
     """
-    session_id = state.state["session_id"]
-    model_path = os.path.join(TEMP_FOLDER, session_id)
+    model_path = _fetch_model_folder()
 
     # Create directory if necessary
     if not os.path.exists(model_path):
@@ -116,9 +115,7 @@ def save_mlmodel_weights(binary_weights):
     Args:
         binary_weights (str): The binary weights to be saved.
     """
-    session_id = state.state["session_id"]
-    round = state.state["current_round"]
-    mlmodel_folder_path = os.path.join(TEMP_FOLDER, session_id)
+    mlmodel_path = _fetch_model_folder()
     mlmodel_weights_path = os.path.join(mlmodel_folder_path, "weights")
     with open(mlmodel_folder_path, "rb") as f:
         f.write(binary_weights)
@@ -146,7 +143,6 @@ def get_keras_model():
     """
     return load_model(state.state["h5_model_path"])
 
-
 def convert_keras_model_to_tfjs():
     """
     Retrieves the current Keras model, converts it (from the path) into a
@@ -154,16 +150,17 @@ def convert_keras_model_to_tfjs():
     folder where this new converted model will be served from.
 
     The new converted model gets stored in:
-        `<TEMP_FOLDER>/<session_id>/<current_round>`
+        `<TEMP_FOLDER>/<repo_id>/<session_id>/<current_round>`
 
     Where the following files get created:
         - `group1.-shard1of1.bin`
         - `model.json`
         - `metadata.json`
     """
+    model_path = _fetch_model_folder()
     session_id = state.state["session_id"]
-    round = state.state["current_round"]
-    tfjs_model_path = os.path.join(TEMP_FOLDER, session_id, str(round))
+    current_round = state.state["current_round"]
+    tfjs_model_path = os.path.join(model_path, str(current_round))
     state.state["tfjs_model_path"] = tfjs_model_path
 
     _keras_2_tfjs()
@@ -176,7 +173,7 @@ def convert_keras_model_to_tfjs():
     metadata_path = state.state["tfjs_model_path"] + '/metadata.json'
     metadata = {
         "session_id": session_id,
-        "current_round": round,
+        "current_round": current_round,
     }
     with open(metadata_path, 'w') as fp:
         json.dump(metadata, fp, sort_keys=True, indent=4)
@@ -188,14 +185,14 @@ def convert_keras_model_to_mlmodel():
     be served from.
 
     The new converted model gets stored in:
-        `<TEMP_FOLDER>/<session_id>/<current_round>`
+        `<TEMP_FOLDER>/<repo_id>/<session_id>/<current_round>`
 
     Where the following files get created:
         - `my_model.mlmodel`
     """
-    session_id = state.state["session_id"]
-    round = state.state["current_round"]
-    mlmodel_folder_path = os.path.join(TEMP_FOLDER, session_id, str(round))
+    model_path = _fetch_model_folder()
+    current_round = state.state["current_round"]
+    mlmodel_folder_path = os.path.join(model_path, str(current_round))
     if not os.path.exists(mlmodel_folder_path):
         os.makedirs(mlmodel_folder_path)
     state.state["mlmodel_path"] = os.path.join(mlmodel_folder_path, "my_model.mlmodel")
@@ -206,11 +203,11 @@ def swap_weights():
     """
     For most libraries, load the stored h5 model, swap the weights with the 
     aggregated weights currently in the global state, then saves the new model 
-    in <TEMP_FOLDER>/<session_id>/model<round>.h5.
+    in <TEMP_FOLDER>/<repo_id>/<session_id>/model<round>.h5.
 
     For iOS libraries, read the binary weights file at the old weights path,
     and write to a new binary weights file at 
-    <TEMP_FOLDER>/<session_id>/weights.
+    <TEMP_FOLDER>/<repo_id>/<session_id>/weights.
 
     For Javascript libraries, this function also reconverts the Keras model
     to a TFJS model.
@@ -221,9 +218,9 @@ def swap_weights():
     model = get_keras_model()
     _clear_checkpoint()
 
-    base_model_path = os.path.join(TEMP_FOLDER, state.state["session_id"])
-    round = state.state["current_round"]
-    new_h5_model_path = base_model_path + '/model{0}.h5'.format(round)
+    base_model_path = _fetch_model_folder()
+    current_round = state.state["current_round"]
+    new_h5_model_path = base_model_path + '/model{0}.h5'.format(current_round)
     state.state['h5_model_path'] = new_h5_model_path
 
     if state.state["library_type"] == LibraryType.PYTHON.value:
@@ -254,7 +251,7 @@ def swap_weights():
         convert_keras_model_to_mlmodel()
     elif state.state["library_type"] == LibraryType.IOS_TEXT.value:
         old_mlmodel_weights_path = state.state["mlmodel_weights_path"]
-        new_mlmodel_weights_path = base_model_path + '/weights{0}'.format(round)
+        new_mlmodel_weights_path = base_model_path + '/weights{0}'.format(current_round)
         gradients = state.state["current_gradients"]
         learning_rate = K.eval(model.optimizer.lr)
         _ = calculate_new_weights(old_mlmodel_weights_path, \
@@ -347,7 +344,7 @@ def _keras_2_mlmodel_image():
     else:
         raise Exception("iOS optimizer must be SGD or Adam!")
 
-    builder.set_epochs(state.state["hyperparams"]["epochs"])
+    builder.set_epochs(UNLIMITED_EPOCHS)
     builder.set_shuffle(state.state["hyperparams"]["shuffle"])  
 
     mlmodel_updatable = MLModel(spec)
@@ -355,13 +352,13 @@ def _keras_2_mlmodel_image():
 
     K.clear_session()
 
-def _test():
+def _fetch_model_folder():
     """
-    Nothing important here.
+    Retreive the model folder for this session.
     """
-    state.init()
-    out = _convert_and_save_model('../notebooks/saved_mlp_model_with_w.h5')
-    print(out)
+    repo_id = state.state["repo_id"]
+    session_id = state.state["session_id"]
+    return os.path.join(TEMP_FOLDER, repo_id, session_id)
 
 
 # def decode_weights(h5_model_path):

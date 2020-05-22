@@ -3,5 +3,6 @@ import os
 
 from notebook.auth.security import set_password
 
-
-set_password(password=sys.argv[1])
+if sys.argv[1] == sys.argv[2]:
+    os.remove("Explora.ipynb")
+    os.remove("ExploraMobileText.ipynb")

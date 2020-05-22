@@ -25,18 +25,26 @@ app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
 CORS(app)
 
-@app.route("/status")
-def get_status():
+@app.route("/status/<repo_id>", methods=["GET"])
+def get_status(repo_id):
     """
     Returns the status of the Cloud Node.
 
     The dashboard-api is the only hitting this endpoint, so it should be
     secured.
     """
-    return jsonify({"Busy": state.state["busy"]})
+    state.start_state(repo_id)
+    try:
+        status = jsonify({"Busy": state.state["busy"]})
+    except Exception as e:
+        print("Exception getting status: " + str(e))
+        state.stop_state()
+        return
+    state.stop_state()
+    return status
 
-@app.route('/model/<path:filename>')
-def serve_tfjs_model(filename):
+@app.route('/model/<session_id>/<path:filename>', methods=["GET"])
+def serve_tfjs_model(session_id, filename):
     """
     Serves the TFJS model to the user.
 
@@ -46,83 +54,116 @@ def serve_tfjs_model(filename):
     Args:
         filename (str): The filename to serve.
     """
-    if not state.state["busy"]:
+    if not state.start_state_by_session_id(session_id):
         return "No active session!\n"
+    try:
+        if not state.state["busy"]:
+            return "No active session!\n"
+        if state.state["library_type"] != LibraryType.JS.value:
+            return "Current session is not for JAVASCRIPT!"
+        folder_path = os.path.join(app.root_path, state.state['tfjs_model_path'])
+    except Exception as e:
+        print("Exception getting TFJS model: " + str(e))
+        state.stop_state()
+        return
+    state.stop_state()
+    return send_from_directory(folder_path, filename)
 
-    if state.state["library_type"] != LibraryType.JS.value:
-        return "Current session is not for JAVASCRIPT!"
+@app.route('/mlmodel/<session_id>', methods=["GET"])
+def serve_mlmodel(session_id):
+    """
+    Serves the mlmodel model to the user.
 
-    return send_from_directory(
-        os.path.join(app.root_path, state.state['tfjs_model_path']),
-        filename,
-    )
+    TODO: Should do this through ngnix for a boost in performance. Should also
+    have some auth token -> session id mapping (security fix in the future).
+    """
+    if not state.start_state_by_session_id(session_id):
+        return "No active session!\n"
+    try:
+        if not state.state["busy"]:
+            return "No active session!\n"
+        if state.state["library_type"] != LibraryType.IOS_IMAGE.value:
+            return "Current session is not for IOS!"
+        app_path = os.path.join(app.root_path, state.state['mlmodel_path'])
+    except Exception as e:
+        print("Exception getting mlmodel: " + str(e))
+        state.stop_state()
+        return
+    state.stop_state()
+    return send_file(app_path)
 
-@app.route('/my_model.mlmodel')
-def serve_mlmodel():
+@app.route('/mlmodel/weights/<session_id>', methods=["GET"])
+def serve_mlmodel_weights(session_id):
     """
     Serves the TFJS model to the user.
 
     TODO: Should do this through ngnix for a boost in performance. Should also
     have some auth token -> session id mapping (security fix in the future).
     """
-    if not state.state["busy"]:
+    if not state.start_state_by_session_id(session_id):
         return "No active session!\n"
+    try:
+        if not state.state["busy"]:
+            return "No active session!\n"
+        if state.state["library_type"] != LibraryType.IOS_TEXT.value:
+            return "Current session is not for IOS!"
+        app_path = os.path.join(app.root_path, state.state['mlmodel_weights_path'])
+    except Exception as e:
+        print("Exception getting mlmodel weights: " + str(e))
+        state.stop_state()
+        return
 
-    if state.state["library_type"] not in \
-            [LibraryType.IOS_IMAGE.value, LibraryType.IOS_TEXT.value]:
-        return "Current session is not for IOS!"
-
-    app_path = os.path.join(app.root_path, state.state['mlmodel_path'])
+    state.stop_state()
     return send_file(app_path)
 
-@app.route('/weights')
-def serve_mlmodel_weights():
-    """
-    Serves the TFJS model to the user.
-
-    TODO: Should do this through ngnix for a boost in performance. Should also
-    have some auth token -> session id mapping (security fix in the future).
-    """
-    if not state.state["busy"]:
+@app.route('/keras/<session_id>', methods=['POST', 'GET'])
+def serve_keras_model(session_id):
+    if not state.start_state_by_session_id(session_id):
         return "No active session!\n"
-
-    if state.state["library_type"] != LibraryType.IOS_TEXT.value:
-        return "Current session is not for IOS!"
-
-    app_path = os.path.join(app.root_path, state.state['mlmodel_weights_path'])
+    try:
+        if not state.state["busy"]:
+            return "No active session!\n"
+        if state.state["library_type"] != LibraryType.PYTHON.value:
+            return "Current session is not for PYTHON!"
+        app_path = os.path.join(app.root_path, state.state['h5_model_path'])
+    except Exception as e:
+        print("Exception getting Keras model: " + str(e))
+        state.stop_state()
+        return
+    
+    state.stop_state()
     return send_file(app_path)
 
-@app.route('/model.h5', methods=['POST', 'GET'])
-def serve_keras_model():
-    if not state.state["busy"]:
-        return "No active session!\n"
-
-    if state.state["library_type"] != LibraryType.PYTHON.value:
-        return "Current session is not for PYTHON!"
-
-    app_path = os.path.join(app.root_path, state.state['h5_model_path'])
-    return send_file(app_path)
-
-@app.route('/secret/reset_state')
-def reset_state():
+@app.route('/reset_state/<repo_id>', methods=["GET"])
+def reset_state(repo_id):
     """
     Resets the state of the cloud node.
-
-    TODO: This is only for debugging. Should be deleted.
     """
-    state.state_lock.acquire()
-    state.reset_state()
-    state.state_lock.release()
-    return "State reset successfully!\n"
+    state.start_state(repo_id)
+    try:
+        state.reset_state(repo_id)
+    except Exception as e:
+        print("Exception resetting state: " + str(e))
+        state.stop_state()
+        return
+    state.stop_state()
+    return "State reset successfully!"
 
-@app.route('/secret/get_state')
-def get_state():
+@app.route('/get_state/<repo_id>')
+def get_state(repo_id):
     """
     Get the state of the cloud node.
-
-    TODO: This is only for debugging. Should be deleted.
     """
-    return repr(state.state)
+    state.start_state(repo_id)
+    try:
+        state_dict = repr(state.state)
+    except Exception as e:
+        print("Exception getting state: " + str(e))
+        state.stop_state()
+        return
+    
+    state.stop_state()
+    return state_dict
 
 if __name__ == '__main__':
     tf.compat.v1.disable_eager_execution()

@@ -51,8 +51,8 @@ class RegistationForm extends Reflux.Component {
       }
 
       var registrationObject = {
-        "first_name": ReactDOM.findDOMNode(this.refs.fname).value,
-        "last_name": ReactDOM.findDOMNode(this.refs.lname).value,
+        "first_name": firstName,
+        "last_name": lastName,
         "company": "N/A",
         "occupation": "N/A",
         "email": ReactDOM.findDOMNode(this.refs.email).value,
@@ -66,8 +66,11 @@ class RegistationForm extends Reflux.Component {
 
   render() {
     var errorMessage = "";
+    var waitMessage = "";
+    var registerButton = (<button id="register" type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt ">Register</button>);
 
-    if (this.state.error) {
+
+    if (this.state.hasError) {
       errorMessage = (
         <div className='alert alert-danger padding-bottom alert-dismissible fade show' role="alert">
           <a href="#close-error" className="close" data-dismiss="alert" aria-label="close">&times;</a>
@@ -76,6 +79,10 @@ class RegistationForm extends Reflux.Component {
       );
     }
 
+    if (this.state.waiting) {
+      registerButton = (<button id="register" type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt" disabled >Register</button>);
+      waitMessage = (<p id="wait" className="mt-3"><b>Please wait...</b></p>);
+    } 
 
     return (
       <form id="registrationForm" className="login-form col-12 col-sm-12 col-md-6 offset-md-3">
@@ -109,8 +116,11 @@ class RegistationForm extends Reflux.Component {
         </div>
 
         <div className="form-group text-center">
-          <button type="submit" onClick={this._handleSubmit.bind(this)} className="btn btn-dark-alt">Register</button>
+          { registerButton }
+          { waitMessage }
         </div>
+
+        
 
         <div className="form-group text-center text-dark">
           Already a user? <Link to="signin" className="text-primary" href="#">Sign in!</Link>

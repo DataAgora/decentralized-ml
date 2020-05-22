@@ -1,17 +1,18 @@
 import uuid
+import os
+import sys
+sys.stderr = open(os.devnull, 'w')
 
-import tensorflow as tf
-tf.compat.v1.disable_v2_behavior()
+import logging
+logging.disable(logging.CRITICAL)
 
-from utils.validation import valid_session_args, valid_image_config_args, \
-    valid_text_config_args, valid_model_name
-from utils.s3_utils import upload_keras_model
+from utils.validation import valid_setup, valid_session_args, \
+    valid_image_config_args, valid_text_config_args, valid_model_name
+from utils.aws_utils import upload_keras_model, get_websocket_url
 from utils.websocket_utils import websocket_connect
 from utils.enums import ErrorMessages, DataType, data_types
 from utils.data_config import DataConfig, ImageConfig, TextConfig 
 
-
-CLOUD_BASE_URL = ".au4c4pd2ch.us-west-1.elasticbeanstalk.com"
 
 def make_data_config(data_type, image_labels=None, vocab_size=None, \
         color_space=None, dims=None):
@@ -47,7 +48,7 @@ def make_data_config(data_type, image_labels=None, vocab_size=None, \
             "Invalid text config arguments!"
         return TextConfig(vocab_size)
 
-async def start_new_session(repo_id, hyperparameters, model_name=None, \
+async def start_new_session(hyperparameters, model_name=None, \
         model_path=None, percentage_averaged=0.75, max_rounds=5, \
         library_type="PYTHON", checkpoint_frequency=1, data_config=None, \
         dataset_id=None):
@@ -57,12 +58,12 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
     `Explora.ipynb`.
 
     Args:
-        repo_id (str): The repo ID associated with the current dataset.
         hyperparams (dict): The hyperparameters to be used during training.
             Must include `batch_size`!
-        model_path (str): The path to the initial model to train with. Must be 
-            an `.mlmodel` (`MLModel`) file if the model is a text model for 
-            iOS, or a `.h5` (compiled Keras model) file otherwise.
+        model_path (str, optional): The path to the initial model to train 
+            with. Must be an `.mlmodel` (`MLModel`) file if the model is a 
+            text model for iOS, or a `.h5` (compiled Keras model) file 
+            otherwise.
         percentage_averaged (float, optional): Percentage of nodes to be 
             averaged before moving on to the next round. Defaults to 0.75.
         max_rounds (int, optional): Maximum number of rounds to train for.
@@ -83,9 +84,8 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
 
     Examples:
         >>> start_new_session(
-        ...     repo_id="c9bf9e57-1685-4c89-bafb-ff5af830be8a",
-        ...     model=keras.models.load_model("model.h5"),
-        ...     hyperparameters={"batch_size": 100},
+        ...     {"batch_size": 100},
+        ...     model_name="mnist",
         ...     percentage_averaged=0.75,
         ...     max_rounds=5,
         ...     library_type="PYTHON",
@@ -95,7 +95,16 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
         Waiting...
         Session complete! Check dashboard for final model!
     """
-    cloud_node_host = "ws://" + repo_id + CLOUD_BASE_URL
+    if not valid_setup():
+        return
+
+    repo_id = os.environ["REPO_ID"]
+    api_key = os.environ["API_KEY"]
+
+    websocket_url = get_websocket_url(repo_id)
+    if not websocket_url:
+        return
+
     session_id = str(uuid.uuid4())
 
     if model_name:
@@ -104,8 +113,8 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
         if not model_path:
             return
 
-    if not valid_session_args(repo_id, model_path, model_name, \
-            hyperparameters, percentage_averaged, max_rounds, library_type, \
+    if not valid_session_args(model_path, hyperparameters, \
+            percentage_averaged, max_rounds, library_type, \
             checkpoint_frequency, data_config, dataset_id):
         return
     
@@ -117,7 +126,14 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
 
     ios_config = data_config.serialize() if data_config else {}
 
-    new_message = {
+    registration_message = {
+        "type": "REGISTER",
+        "node_type": "dashboard",
+        "repo_id": repo_id,
+        "api_key": api_key,
+    }
+
+    new_session_message = {
         "type": "NEW_SESSION",
         "session_id": session_id,
         "repo_id": repo_id,
@@ -139,4 +155,5 @@ async def start_new_session(repo_id, hyperparameters, model_name=None, \
         "ios_config": ios_config,
     }
 
-    await websocket_connect(cloud_node_host, new_message)
+    await websocket_connect(websocket_url, registration_message, \
+        new_session_message)

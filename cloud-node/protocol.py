@@ -4,6 +4,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol
 from twisted.internet import reactor
 
 import state
+from message import ActionType, ErrorType, make_error_results
 from new_message import validate_new_message, process_new_message
 
 
@@ -17,11 +18,12 @@ class CloudNodeProtocol(WebSocketServerProtocol):
     def doPing(self):
         if self.run:
             self.sendPing()
-            print("Ping sent to {}".format(self.peer))
+            #print("Ping sent to {}".format(self.peer))
             reactor.callLater(10, self.doPing)
 
     def onPong(self, payload):
-        print("Pong received from {}".format(self.peer))
+        #print("Pong received from {}".format(self.peer))
+        pass
 
     def onConnect(self, request):
         """
@@ -43,7 +45,13 @@ class CloudNodeProtocol(WebSocketServerProtocol):
         """
         self.run = False
         print("WebSocket connection closed: {}".format(reason))
-        self.factory.unregister(self)
+        success, messages = self.factory.unregister(self)
+        for results in messages:
+            self._broadcastMessage(
+                payload=results["message"],
+                client_list=results["client_list"],
+                isBinary=False,
+            )
 
     def onMessage(self, payload, isBinary):
         """
@@ -66,29 +74,36 @@ class CloudNodeProtocol(WebSocketServerProtocol):
             else:
                 error_message = "Error deserializing message: {}"
                 error_message = error_message.format(e)
-            message = json.dumps({"error": True, "message": error_message})
-            self.sendMessage(message.encode(), isBinary)
+            message = {
+                "error": True,
+                "error_message": error_message,
+                "type": ErrorType.DESERIALIZATION.value
+            }
+            self.sendMessage(json.dumps(message).encode(), isBinary)
             print(error_message)
             return
 
-        state.state_lock.acquire()
         # Process message
         try:
+            state.start_state(received_message.repo_id)
             results = process_new_message(received_message, self.factory, self)
-            state.state_lock.release()
+            state.stop_state()
         except Exception as e:
-            state.reset_state()
-            state.state_lock.release()
-            error_message = "Exception processing new message: " + str(e)
-            raise Exception(error_message)
+            state.stop_state()
+            error_message = "Error processing new message: " + str(e)
+            print(error_message)
+            raise e
+            results = make_error_results(error_message, ErrorType.OTHER)
         
-        if results["action"] == "BROADCAST":
+        print(results)
+
+        if results["action"] == ActionType.BROADCAST:
             self._broadcastMessage(
                 payload=results["message"],
                 client_list=results["client_list"],
                 isBinary=isBinary,
             )
-        elif results["action"] == "UNICAST":
+        elif results["action"] == ActionType.UNICAST:
             message = json.dumps(results["message"]).encode()
             self.sendMessage(message, isBinary)
 

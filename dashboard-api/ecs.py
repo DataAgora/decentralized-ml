@@ -1,19 +1,26 @@
 import os
 import sys
+import json
 import requests
 from time import strftime, sleep
 
 import boto3
 from botocore.exceptions import ClientError
 
+from dynamodb import _get_demo_cloud_domain, _get_demo_api_key
+
 
 CLUSTER_NAME = "default"
-CLOUD_TASK_DEFINITION = "cloud-task-definition"
-EXPLORA_TASK_DEFINITION = "explora-task-definition"
-CLOUD_CONTAINER_NAME = "cloud-container"
-EXPLORA_CONTAINER_NAME = "explora-container"
 CLOUD_SUBDOMAIN = "{}.cloud.discreetai.com"
 EXPLORA_SUBDOMAIN = "{}.explora.discreetai.com"
+EXPLORA_URL = "{0}.explora.discreetai.com/?token={1}"
+DEMO_CLOUD_DOMAIN = "{}.cloud.discreetai.com"
+TASK_DETAILS = {
+    "cloud": ("cloud-task-definition", "cloud-container", \
+        CLOUD_SUBDOMAIN),
+    "explora": ("explora-task-definition", "explora-container", \
+        EXPLORA_SUBDOMAIN)
+}
 DOMAIN_ID = "/hostedzone/Z3NSW3B4FM6A7X"
 DEPLOYING_STATUSES = ["PROVISIONING", "PENDING", "ACTIVATING"]
 RUNNING_STATUS = "RUNNING"
@@ -24,7 +31,7 @@ ecs_client = boto3.client("ecs")
 ec2_client = boto3.resource("ec2")
 route53_client = boto3.client('route53')
 
-def create_new_nodes(repo_id, api_key):
+def create_new_nodes(repo_id, api_key, token, is_demo):
     """
     Runs new tasks (Explora + cloud) for ECS cluster. Sets domain of task to 
     be `<repo_id>.cloud.discreetai.com by creating an record in Route53.
@@ -34,92 +41,116 @@ def create_new_nodes(repo_id, api_key):
             with.
         api_key (str): The corresponding API key of the repo. Used for auth in
             the tasks.
+        is_demo (bool): Boolean for whether this repo is a demo repo or not.
     
     Returns:
         dict: A dictionary holding the public IP address and task ARN of the
             newly created cloud and Explora task.
     """
-    cloud_ip_address, cloud_task_arn, explora_ip_address, explora_task_arn = \
-        _run_new_tasks(api_key)
-    names = _make_names(repo_id)
-    ip_addresses = [cloud_ip_address, explora_ip_address]
-    _modify_domains("CREATE", names, ip_addresses)
-    return {
-        "CloudIpAddress": cloud_ip_address,
-        "CloudTaskArn": cloud_task_arn,
-        "ExploraIpAddress": explora_ip_address,
-        "ExploraTaskArn": explora_task_arn, 
-        "ApiKey": api_key
-    }
+    results = {"ApiKey": api_key, "IsDemo": is_demo, \
+        "Token": token, "ExploraUrl": EXPLORA_URL.format(repo_id, token)}
 
-def stop_nodes(cloud_task_arn, explora_task_arn, repo_id, cloud_ip_address, \
-        explora_ip_address):
+    for name, details in TASK_DETAILS.items():
+        if is_demo and name == "cloud":
+            with open("demo_cloud_details.json", "r") as f:
+                results.update(json.load(f))
+            continue
+        task_definition, container_name, subdomain = details
+        task_arn, ip_address = _run_new_task(task_definition, container_name, \
+            repo_id, api_key, token, subdomain)
+        results[name.capitalize() + "IpAddress"] = ip_address
+        results[name.capitalize() + "TaskArn"] = task_arn
+    
+    return results
+
+def stop_nodes(task_arns, ip_addresses, repo_id, is_demo):
     """
     Stop the cloud and Explora task with its task ARN and remove the 
     corresponding record in Route53.
     
     Args:
-        cloud_task_arn (str): The ARN of the cloud task to be stopped.
-        explora_task_arn (str): The ARN of the Explora task to be stopped.
+        task_arns (list): The ARN of the tasks to be stopped.
         repo_id (str): The repo ID of the repo associated with this task.
-        cloud_ip_address (str): The public IP address of the cloud task.
-        explora_ip_address (str): The public IP address of the Explora task. 
+        ip_addresses (list): The public IP addresses of the tasks.
+        is_demo (bool): Boolean for whether this repo is a demo repo or not.
     """
-    _stop_tasks(cloud_task_arn, explora_task_arn)
-    names = _make_names(repo_id)
-    ip_addresses = [cloud_ip_address, explora_ip_address]
-    _modify_domains("DELETE", names, ip_addresses)
+    subdomains = [EXPLORA_SUBDOMAIN] \
+        if is_demo else [CLOUD_SUBDOMAIN, EXPLORA_SUBDOMAIN]
 
-def get_status(cloud_task_arn, explora_task_arn, repo_id):
+    for task_arn, subdomain, ip_address in zip(task_arns, subdomains, \
+            ip_addresses):
+        domain = subdomain.format(repo_id)
+        _stop_task(task_arn, domain, ip_address)
+
+def get_status(task_arns, repo_id, is_demo):
     """
     Retrieve the statuses of the cloud and Explora task and form a general
     status. 
     
     Args:
-        cloud_task_arn (str): The ARN of the cloud task to be stopped.
-        explora_task_arn (str): The ARN of the Explora task to be stopped.
+        task_arns (list): The ARN of the tasks whose statuses are needed.
         repo_id (str): The repo ID of the repo associated with this task.
+        is_demo (bool): Boolean for whether this repo is a demo repo or not.
     
     Returns:
         str: The general status describing the state of both the tasks.
     """
-    statuses = _retrieve_statuses(cloud_task_arn, explora_task_arn)
-    return _determine_status(statuses, repo_id)
+    statuses = _retrieve_statuses(task_arns)
+    return _determine_status(statuses, repo_id, is_demo)
 
-def _run_new_tasks(api_key):
+def wait_until_next_available_repo(repos):
+    for repo_details in repos:
+        status = get_status([repo_details["ExploraTaskArn"]], \
+            repo_details["Id"], True)
+        if status == "AVAILABLE":
+            return repo_details
+    sleep(5)
+    return wait_until_next_available_repo(repos)
+
+def reset_cloud_node(repo_id, is_demo):
+    """
+    Reset the cloud node with the given repo ID.
+
+    Args:
+        repo_id (str): The repo ID of the repo associated with this task.
+        is_demo (bool): Boolean for whether this repo is a demo repo or not.
+    """
+    demo_domain = _get_demo_cloud_domain()
+    cloud_node_url = DEMO_CLOUD_DOMAIN.format(demo_domain) \
+        if is_demo else CLOUD_SUBDOMAIN.format(repo_id)
+    # TODO: Add HTTPS to cloud node
+    cloud_response = requests.get("http://{0}/status/{1}".format(cloud_node_url, repo_id))
+
+def update_cloud_demo_node():
+    """
+    Update the demo cloud node with the latest Docker image.
+    """
+    try:
+        delete_demo_node()
+    except Exception as e:
+        print(str(e))
+    return create_demo_node()
+
+def _run_new_task(task_definition, container_name, repo_id, api_key, \
+        token, subdomain):
     """
     Run new task in the provided cluster with the provided task definition.
     
     Args:
+        task_definition (str): Task definition of the task to be run.
+        container_name (str): Name of the Docker container to run in the task.
+        repo_id (str): The repo ID of the repo associated with this task.
         api_key (str): The corresponding API key of the repo. Used for auth in
-            the task.
+            the tasks.
+        subdomain (str): The name of the subdomain to create the domain at.
     
     Returns:
         (str, str): The task ARN and public IP address of the newly created 
             task.
     """
-    cloud_task_arn, explora_task_arn = _create_new_task(api_key)
-    cloud_network_interface_id = _get_network_interface_id(cloud_task_arn)
-    explora_network_interface_id = _get_network_interface_id(explora_task_arn)
-    cloud_ip_address = _get_public_ip(cloud_network_interface_id)
-    explora_ip_address = _get_public_ip(explora_network_interface_id)
-    return cloud_ip_address, cloud_task_arn, explora_ip_address, \
-        explora_task_arn
-
-def _create_new_task(api_key):
-    """
-    Run new task in the provided cluster with the provided task definition.
-    
-    Args:
-        api_key (str): The corresponding API key of the repo. Used for auth in
-            the tasks.
-    
-    Returns:
-        str: The task ARN of the newly created task.
-    """
-    cloud_task_response = ecs_client.run_task(
+    new_task_response = ecs_client.run_task(
         cluster=CLUSTER_NAME,
-        taskDefinition=CLOUD_TASK_DEFINITION,
+        taskDefinition=task_definition,
         launchType="FARGATE",
         networkConfiguration = {
             "awsvpcConfiguration": {
@@ -129,46 +160,38 @@ def _create_new_task(api_key):
         },
         overrides = {
             "containerOverrides": [{
-                "name": CLOUD_CONTAINER_NAME,
+                "name": container_name,
                 "environment": [{
+                    "name": "REPO_ID",
+                    "value": repo_id
+                }, {
+                    "name": "DEMO_REPO_ID",
+                    "value": _get_demo_cloud_domain(),
+                }, {
                     "name": "API_KEY",
-                    "value": api_key
+                    "value": api_key,
+                }, {
+                    "name": "DEMO_API_KEY",
+                    "value": _get_demo_api_key(),
+                }, {
+                    "name": "TOKEN",
+                    "value": token,
                 }]
             }]
         }
     )
 
-    explora_task_response = ecs_client.run_task(
-        cluster=CLUSTER_NAME,
-        taskDefinition=EXPLORA_TASK_DEFINITION,
-        launchType="FARGATE",
-        networkConfiguration = {
-            "awsvpcConfiguration": {
-                "subnets": ["subnet-066927cc2aa7d231f"],
-                "assignPublicIp": "ENABLED",
-            }
-        },
-        overrides = {
-            "containerOverrides": [{
-                "name": EXPLORA_CONTAINER_NAME,
-                "environment": [{
-                    "name": "API_KEY",
-                    "value": api_key
-                }]
-            }]
-        }
-    )
-
-    if cloud_task_response["failures"]:
+    if new_task_response["failures"]:
         raise Exception(str(new_task_response["failures"]))
 
-    if explora_task_response["failures"]:
-        raise Exception(str(new_task_response["failures"]))
+    task_arn = new_task_response["tasks"][0]["taskArn"]
+    network_interface_id = _get_network_interface_id(task_arn)
+    ip_address = _get_public_ip(network_interface_id)
+    
+    full_domain = subdomain.format(repo_id)
+    _modify_domain("CREATE", full_domain, ip_address)
 
-    cloud_task_arn = cloud_task_response["tasks"][0]["taskArn"]
-    explora_task_arn = explora_task_response["tasks"][0]["taskArn"]
-
-    return cloud_task_arn, explora_task_arn
+    return task_arn, ip_address
 
 def _get_network_interface_id(task_arn):
     """
@@ -217,7 +240,7 @@ def _get_public_ip(network_interface_id):
     ip_address = ip_address_details["Association"]["PublicIp"]
     return ip_address
 
-def _stop_tasks(cloud_task_arn, explora_task_arn):
+def _stop_task(task_arn, domain, ip_address):
     """
     Stop cloud and Explora task with the provided task ARNs.
     
@@ -227,38 +250,30 @@ def _stop_tasks(cloud_task_arn, explora_task_arn):
     """
     _ = ecs_client.stop_task(
         cluster=CLUSTER_NAME,
-        task=cloud_task_arn,
+        task=task_arn,
         reason="User requested deletion."
     )
 
-    _ = ecs_client.stop_task(
-        cluster=CLUSTER_NAME,
-        task=explora_task_arn,
-        reason="User requested deletion."
-    )
+    _modify_domain("DELETE", domain, ip_address)
 
-def _retrieve_statuses(cloud_task_arn, explora_task_arn):
+def _retrieve_statuses(task_arns):
     """
     Retrieve the actual task statuses from the cloud and Explora tasks.
     
     Args:
-        cloud_task_arn (str): The ARN of the cloud task to be stopped.
-        explora_task_arn (str): The ARN of the Explora task to be stopped.
+        task_arns (list): The ARN of the tasks whose statuses are needed.
     
     Returns:
         str: The actual task statuses of the two tasks.
     """
     describe_response = ecs_client.describe_tasks(
         cluster=CLUSTER_NAME,
-        tasks=[
-            cloud_task_arn,
-            explora_task_arn
-        ]
+        tasks=task_arns,
     )
     return [task["containers"][0]["lastStatus"] \
         for task in describe_response["tasks"]]
 
-def _determine_status(statuses, repo_id):
+def _determine_status(statuses, repo_id, is_demo):
     """
     Determine the general status given the actual two task statuses of the
     cloud and Explora tasks.
@@ -269,6 +284,7 @@ def _determine_status(statuses, repo_id):
     Args:
         statuses (list): The two task statuses of the cloud and Explora tasks.
         repo_id (str): The repo ID of the repo associated with this task.
+        is_demo (bool): Boolean for whether this repo is a demo repo or not.
     
     Returns:
         str: The general status describing the state of both the tasks.
@@ -280,31 +296,31 @@ def _determine_status(statuses, repo_id):
     elif any([status in DEPLOYING_STATUSES for status in statuses]):
         return "DEPLOYING"
     elif all([status == RUNNING_STATUS for status in statuses]):
-        cloud_node_url = CLOUD_SUBDOMAIN.format(repo_id)
+        demo_domain = _get_demo_cloud_domain()
+        cloud_node_url = DEMO_CLOUD_DOMAIN.format(demo_domain) \
+            if is_demo else CLOUD_SUBDOMAIN.format(repo_id)
         # TODO: Add HTTPS to cloud node
-        cloud_response = requests.get("http://" + cloud_node_url + "/status")
+        cloud_response = requests.get("http://{0}/status/{1}".format(cloud_node_url, repo_id))
         status_data = cloud_response.json()
-        return "ACTIVE" if status_data["Busy"] else "IDLE"
+        return "ACTIVE" if status_data["Busy"] else "AVAILABLE"
     else:
         statuses = str(statuses)
         raise Exception("Found an unexpected set of statuses: {statuses}")
 
-def _modify_domains(action, names, ip_addresses):
+def _modify_domain(action, name, ip_address):
     """
     Create or remove the Route53 domain records with the provided names and
     corresponding public IP addresses.
     
     Args:
         action (str): Action to take. Must be CREATE or DELETE.
-        names (list): The list of names of domain records.
-        ip_addresses (str): The list of corresponding IP addresses that the
-            names point at.
+        name (list): The name of the domain record to modify.
+        ip_address (str): The IP address corresponding to the name.
     """
-    changes = [_route53_record_change(action, name, ip_address) \
-        for name, ip_address in zip(names, ip_addresses)]
+    change = _route53_record_change(action, name, ip_address)
     response = route53_client.change_resource_record_sets(
         HostedZoneId=DOMAIN_ID,
-        ChangeBatch={"Changes": changes}
+        ChangeBatch={"Changes": [change]}
     )
 
 def _route53_record_change(action, name, ip_address):
@@ -333,15 +349,36 @@ def _route53_record_change(action, name, ip_address):
         }
     }
 
-def _make_names(repo_id):
+def create_demo_node():
     """
-    Helper function to make the domain names with the provided repo ID.
-    
-    Args:
-        repo_id (str): The repo ID corresponding to the repo to make domain
-            names for.
-    
-    Returns:
-        list: The list of domain names for this repo ID.
+    Create the demo cloud node.
     """
-    return [CLOUD_SUBDOMAIN.format(repo_id), EXPLORA_SUBDOMAIN.format(repo_id)]
+    name = "cloud"
+    details = TASK_DETAILS[name]
+    task_definition, container_name, subdomain = details
+    demo_domain = _get_demo_cloud_domain()
+    full_domain = DEMO_CLOUD_DOMAIN.format(demo_domain)
+    demo_api_key = _get_demo_api_key()
+    task_arn, ip_address = _run_new_task(task_definition, container_name, \
+        demo_domain, demo_api_key, "", CLOUD_SUBDOMAIN)
+    results = {
+        "CloudIpAddress": ip_address,
+        "CloudTaskArn": task_arn
+    }
+    with open("demo_cloud_details.json", "w") as f:
+        json.dump(results, f)
+
+    return results
+
+def delete_demo_node():
+    """
+    Deletes the demo cloud node.
+    """
+    demo_domain = _get_demo_cloud_domain()
+    full_domain = DEMO_CLOUD_DOMAIN.format(demo_domain)
+
+    with open("demo_cloud_details.json", "r") as f:
+        details = json.load(f)
+        ip_address = details["CloudIpAddress"]
+        task_arn = details["CloudTaskArn"]
+        _stop_task(task_arn, full_domain, ip_address)
