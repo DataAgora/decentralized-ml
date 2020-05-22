@@ -13,8 +13,8 @@ def main(args=None):
     """The main routine."""
     if args is None:
         args = sys.argv[1:]
-    if args:
-        bootstrap(repo_id=args[0])
+    if args and len(args) == 2:
+        bootstrap(repo_id=args[0], api_key=args[1])
     else:
         bootstrap(test=True)
 

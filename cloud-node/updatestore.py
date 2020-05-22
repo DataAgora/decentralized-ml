@@ -39,8 +39,8 @@ def store_update(type, message, with_weights=True):
         item = {
             "Id": str(uuid.uuid4()),
             "RepoId": state.state["repo_id"],
-            "CreationTime": int(current_time.timestamp),
-            "ExpirationTime": int((current_time + timedelta(days=3)).timestamp),
+            "CreationTime": int(current_time.timestamp()),
+            "ExpirationTime": int((current_time + timedelta(days=3)).timestamp()),
             "ContentType": type,
             "SessionId": state.state["session_id"],
             "Content": repr(message),

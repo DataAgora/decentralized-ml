@@ -3,24 +3,13 @@ import context
 import pytest
 
 from explora import make_data_config
-from utils.validation import valid_repo_id, valid_model, \
-    valid_and_prepare_hyperparameters, valid_percentage_averaged, \
-    valid_max_rounds, valid_library_type, valid_dataset_id, \
-    valid_checkpoint_frequency, valid_data_config, valid_image_config_args, \
-    valid_text_config_args, valid_session_args, valid_model_name
+from utils.validation import valid_model, valid_and_prepare_hyperparameters, \
+    valid_percentage_averaged, valid_max_rounds, valid_library_type, \
+    valid_dataset_id, valid_checkpoint_frequency, valid_data_config, \
+    valid_image_config_args, valid_text_config_args, valid_session_args, \
+    valid_model_name
 from utils.enums import ModelPaths
 
-
-def test_repo_id_validation(good_repo_id, bad_repo_id):
-    """
-    Test that a valid repo ID passes validation and an invalid one fails
-    validation.
-    """
-    assert valid_repo_id(good_repo_id), \
-        "This repo ID should have passed validation!"
-
-    assert not valid_repo_id(bad_repo_id), \
-        "This repo ID should have failed validation!"
 
 def test_dataset_id_validation(ios, python, good_dataset_id, bad_dataset_id):
     """

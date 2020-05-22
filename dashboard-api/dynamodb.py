@@ -5,6 +5,7 @@ import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
 
+DEFAULT_USER_ID = -1
 dynamodb_client = boto3.resource('dynamodb', region_name='us-west-1')
 
 def _get_user_data(user_id):
@@ -18,7 +19,15 @@ def _get_user_data(user_id):
                 "UserId": user_id,
             }
         )
-        data = response["Item"]
+
+        if "Item" not in response:
+            data = {
+                "ReposRemaining": 3,
+                "UserId": user_id,
+            }
+            table.put_item(Item=data)
+        else:
+            data = response["Item"]
     except Exception as e:
         raise Exception("Error while getting user dashboard data: " + str(e))
     return data
@@ -29,12 +38,7 @@ def _update_user_data_with_new_repo(user_id, repo_id):
     """
     table = _get_dynamodb_table("UsersDashboardData")
     try:
-        response = table.get_item(
-            Key={
-                "UserId": user_id,
-            }
-        )
-        data = response["Item"]
+        data = _get_user_data(user_id)
 
         repos_managed = data.get('ReposManaged', set([]))
         repos_managed.add(repo_id)
@@ -58,12 +62,7 @@ def _remove_repo_from_user_details(user_id, repo_id):
     """
     table = _get_dynamodb_table("UsersDashboardData")
     try:
-        response = table.get_item(
-            Key={
-                "UserId": user_id,
-            }
-        )
-        data = response["Item"]
+        data = _get_user_data(user_id)
         repos_managed = data['ReposManaged']
         if repo_id in repos_managed:
             repos_managed.remove(repo_id)
@@ -74,12 +73,22 @@ def _remove_repo_from_user_details(user_id, repo_id):
                 Item=data
             )
         else:
-            raise Exception("Could not find corresponding API key or repo id!")
+            raise Exception("Could not find corresponding repo ID!")
     except Exception as e:
         raise Exception("Error while removing user dashboard data: " + str(e))
 
+def _create_new_repo_document_from_item(item):
+    """
+    Creates a new repo document in the DB.
+    """
+    table = _get_dynamodb_table("Repos")
+    try:
+        table.put_item(Item=item)
+    except Exception as e:
+        raise Exception("Error while creating the new repo document: " + str(e))
+
 def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
-        server_details):
+        server_details, is_demo):
     """
     Creates a new repo document in the DB.
     """
@@ -91,6 +100,7 @@ def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
             'Description': repo_description,
             'OwnerId': user_id,
             'CreatedAt': int(time.time()),
+            'IsDemo': is_demo,
         }
         item.update(server_details)
         table.put_item(Item=item)
@@ -186,7 +196,7 @@ def _remove_logs(repo_id):
                 batch.delete_item(
                     Key={
                         'RepoId': item['RepoId'],
-                        'Timestamp': item['Timestamp']
+                        'ExpirationTime': item['ExpirationTime']
                     }
                 )
         print("Successfully deleted logs!")
@@ -195,6 +205,9 @@ def _remove_logs(repo_id):
         raise Exception("Error while getting logs for repo. " + str(e))
 
 def _get_all_users_repos():
+    """
+    Helper function get all tuples of (user_id, repo_id).
+    """
     users_table = _get_dynamodb_table("UsersDashboardData")
     try:
         users = users_table.scan()["Items"]
@@ -208,6 +221,18 @@ def _get_all_users_repos():
         return repos
     except Exception as e:
         raise Exception("Error getting repos for all users. " + str(e))
+
+def _get_demo_cloud_domain():
+    """
+    Helper function to get the demo API key.
+    """
+    return _get_repo_details(50, "cloud-demo")["CloudDomain"]
+
+def _get_demo_api_key():
+    """
+    Helper function to get the demo API key.
+    """
+    return _get_repo_details(50, "cloud-demo")["ApiKey"]
 
 def _get_dynamodb_table(table_name):
     """

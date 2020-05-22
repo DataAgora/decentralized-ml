@@ -4,38 +4,35 @@ from copy import deepcopy
 import pytest
 
 import state
+from message import ClientType, ActionType
 from new_message import process_new_message
 
 
-@pytest.fixture(autouse=True)
-def reset_state(api_key):
-    os.environ["API_KEY"] = api_key
-    state.reset_state()
-
 @pytest.fixture
-def broadcast_message(factory, train_message):
+def broadcast_message(factory, repo_id, train_message):
     return {
-        "action": "BROADCAST",
-        "client_list": factory.clients["LIBRARY"],
+        "action": ActionType.BROADCAST,
+        "client_list": factory.clients[repo_id][ClientType.LIBRARY],
         "message": train_message,
     }
 
 @pytest.fixture
-def ios_broadcast_message(ios_train_message, factory, ios_session_id):
+def ios_broadcast_message(ios_train_message, factory, repo_id):
     return {
-        "action": "BROADCAST",
-        "client_list": factory.clients["LIBRARY"],
+        "action": ActionType.BROADCAST,
+        "client_list": factory.clients[repo_id][ClientType.LIBRARY],
         "message": ios_train_message,
     }
 
 @pytest.fixture(autouse=True, scope="module")
-def manage_test_object(s3_object, ios_s3_object, h5_model_path, ios_model_path):
+def manage_test_object(repo_id, s3_object, ios_s3_object, h5_model_path, \
+        ios_model_path):
     s3_object.put(Body=open(h5_model_path, "rb"))
     ios_s3_object.put(Body=open(ios_model_path, "rb"))
     yield
     s3_object.delete()
     ios_s3_object.delete()
-    state.reset_state()    
+    state.reset_state(repo_id)    
 
 def test_session_while_busy(python_session_message, factory, \
         dashboard_client):
@@ -43,6 +40,7 @@ def test_session_while_busy(python_session_message, factory, \
     Test that new session cannot be started while server is busy.
     """
     state.state["busy"] = True
+    state.num_sessions = 1
 
     results = process_new_message(python_session_message, factory, 
         dashboard_client)
@@ -50,6 +48,7 @@ def test_session_while_busy(python_session_message, factory, \
 
     assert message["error"], "Error should have occurred!"
     assert message["error_message"] == "Server is already busy working."
+    assert state.num_sessions == 1, "Number of sessions should be 1!"
 
 def test_new_python_session(python_session_message, factory, \
         broadcast_message, dashboard_client):
@@ -64,6 +63,7 @@ def test_new_python_session(python_session_message, factory, \
     assert os.path.isfile(state.state["h5_model_path"]), "Model not saved!"
 
     assert results == broadcast_message, "Resulting message is incorrect!"
+    assert state.num_sessions == 1, "Number of sessions should be 1!"
     
 
 def test_new_js_session(js_session_message, factory, broadcast_message, \
@@ -84,6 +84,7 @@ def test_new_js_session(js_session_message, factory, broadcast_message, \
         "TFJS model conversion failed!"
 
     assert results == broadcast_message, "Resulting message is incorrect!"
+    assert state.num_sessions == 1, "Number of sessions should be 1!"
 
 def test_new_ios_session(ios_session_message, factory, ios_broadcast_message, \
         dashboard_client):
@@ -102,4 +103,5 @@ def test_new_ios_session(ios_session_message, factory, ios_broadcast_message, \
         "iOS model conversion failed!"
 
     assert results == ios_broadcast_message, "Resulting message is incorrect!"
+    assert state.num_sessions == 1, "Number of sessions should be 1!"
     

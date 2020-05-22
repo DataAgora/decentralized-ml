@@ -14,10 +14,19 @@ class NewRepo extends Reflux.Component {
   constructor(props) {
     super(props);
     this.store = RepoDataStore;
+    this.checkRepoName = this.checkRepoName.bind(this);
   }
 
   componentDidMount() {
     RepoDataActions.fetchReposRemaining();
+  }
+
+  checkRepoName() {
+    let repoName = document.getElementById('repoNameInput')
+    let cleanRepoName = repoName.value.replace(/[^a-zA-Z0-9-]/g,'-');
+    if (repoName.value != cleanRepoName) {
+      repoName.setCustomValidity("Repo name must only contain letters, numbers or hyphens!")
+    }
   }
 
   _handleSubmit(event) {
@@ -27,7 +36,6 @@ class NewRepo extends Reflux.Component {
 
     if (form.reportValidity()) {
       let repoName = ReactDOM.findDOMNode(this.refs.repoName).value.replace(/[^a-zA-Z0-9-]/g,'-');
-      document.getElementById("wait").hidden = false;
       RepoDataActions.createNewRepo(
         repoName,
         ReactDOM.findDOMNode(this.refs.repoDescription).value
@@ -35,8 +43,7 @@ class NewRepo extends Reflux.Component {
     }
   }
 
-  _handleContinue(event) {
-    event.preventDefault();
+  _handleContinue() {
     RepoDataActions.resetState();
     this.props.history.push("/repo/" + this.state.creationState.repoId);
   }
@@ -52,26 +59,7 @@ class NewRepo extends Reflux.Component {
     }
 
     if (this.state.creationState.created) {
-      return (
-        <div>
-          <div className="row text-center">
-            <div className="col-2"></div>
-            <div className="col-8">
-              <h3>Important!</h3>
-              <h5 className="mt-4">The new repo was created and your <b>API Key</b> is shown below.</h5>
-              <h5>Please save it!</h5>
-              <h5>You won't be able to access it again and you will need it to hook up clients to this repo.</h5>
-              <br /><br />
-              <h6 className="text-success">{this.state.creationState.apiKey}</h6>
-              <br /><br />
-              <div>
-                <button type="submit" className="btn btn-lg btn-info" onClick={this._handleContinue.bind(this)}>Continue (I have saved the key)</button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      )
+      this._handleContinue()
     }
 
     let reposLeft = this.state.creationState.reposRemaining;
@@ -84,6 +72,14 @@ class NewRepo extends Reflux.Component {
         </div>
       );
     } else {
+      var waitMessage = "";
+      var createRepoButton = (<button type="submit" className="btn btn-lg btn-primary" onClick={this._handleSubmit.bind(this)}>Create Repo</button>);
+
+      if (this.state.creationState.creating) {
+        createRepoButton = (<button type="submit" className="btn btn-lg btn-primary" onClick={this._handleSubmit.bind(this)} disabled>Create Repo</button>);
+        waitMessage = (<p id="wait" className="mt-3"><b>Please wait...</b></p>);
+      }
+
       return (
         <div className="row">
           <div className="col-4"></div>
@@ -94,7 +90,7 @@ class NewRepo extends Reflux.Component {
             <form id="newRepoForm" className="mt-4">
               <div className="form-group">
                <label htmlFor="repoNameInput">Repo name</label>
-               <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" required/>
+               <input type="text" className="form-control" id="repoNameInput" ref="repoName" aria-describedby="repoName" placeholder="awesome-dml-experiment" maxLength="20" onInput={this.checkRepoName} required/>
                <small id="repoNameHelp" className="form-text text-muted">Use a repo name you haven't used yet. Make it catchy.</small>
               </div>
               <div className="form-group">
@@ -103,9 +99,9 @@ class NewRepo extends Reflux.Component {
                <small id="repoDescriptionHelp" className="form-text text-muted">Anything will do. Use this to remember what a repo is about.</small>
               </div>
               <div className="text-center mt-5">
-                <button type="submit" className={"btn btn-lg btn-primary " + (this.state.creationState.creating ? "disabled" : "")} onClick={this._handleSubmit.bind(this)}>Create Repo</button>
+                { createRepoButton }
+                { waitMessage }
               </div>
-              <p id="wait" hidden="true" className="mt-3">Please wait...</p>
             </form>
           </div>
         </div>

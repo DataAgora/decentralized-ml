@@ -1,8 +1,6 @@
 var Endpoints = {
-  'eauthLogin': 'https://eauth.discreetai.com/auth/login/',
-  'eauthUser': 'https://eauth.discreetai.com/auth/user/',
-  'eauthRegistration': 'https://eauth.discreetai.com/auth/registration/',
-  'eauthLogout': 'https://eauth.discreetai.com/auth/logout/', // Not used with JWT.
+  'authLogin': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/login',
+  'authRegistration': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/registration',
 
   'dashboardFetchReposRemaining': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/userdata',
   'dashboardCreateNewRepo': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/repo',

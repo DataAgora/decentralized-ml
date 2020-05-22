@@ -5,7 +5,7 @@ import state
 import copy
 from model import convert_keras_model_to_tfjs, fetch_keras_model, \
     convert_keras_model_to_mlmodel, fetch_mlmodel
-from message import LibraryType
+from message import ClientType, LibraryType, ActionType, LibraryActionType
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -37,8 +37,21 @@ def start_new_session(message, clients):
     state.state["session_id"] = message.session_id
     state.state["checkpoint_frequency"] = message.checkpoint_frequency
     state.state["ios_config"] = message.ios_config
+    
+    # 3. If there are already 5 ongoing sessions, don't start a new one and 
+    #    notify the user.
+    if state.num_sessions == 5:
+        error_message = "Too many ongoing sessions! Please check back in 5 " \
+            "minutes!"
+        return {
+            "action": "UNICAST",
+            "error": True,
+            "message": error_message,
+        }
+    
+    state.num_sessions += 1
 
-    # 3. According to the 'Selection Criteria', choose clients to forward
+    # 4. According to the 'Selection Criteria', choose clients to forward
     #    training messages to.
     chosen_clients = _choose_clients(message.selection_criteria, clients)
     state.state["num_nodes_chosen"] = len(chosen_clients)
@@ -47,12 +60,12 @@ def start_new_session(message, clients):
         "session_id": state.state["session_id"],
         "repo_id": state.state["repo_id"],
         "round": 1,
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "hyperparams": message.hyperparams,
         "error": False,
     }
 
-    # 4. Record the message to be sent and the library type we are training
+    # 5. Record the message to be sent and the library type we are training
     #    with. By default, we use gradients for transmission.
     state.state["last_message_sent_to_library"] = new_message
     state.state["use_gradients"] = True
@@ -63,7 +76,7 @@ def start_new_session(message, clients):
         state.state["library_type"] = LibraryType.IOS_IMAGE.value \
             if data_type == "image" else LibraryType.IOS_TEXT.value
 
-    # 5. Retrieve the initial model we are training with and convert it if 
+    # 6. Retrieve the initial model we are training with and convert it if 
     #    necessary..
     if state.state["library_type"] == LibraryType.IOS_TEXT.value:
         fetch_mlmodel()
@@ -76,13 +89,12 @@ def start_new_session(message, clients):
             state.state["hyperparams"] = message.hyperparams
             _ = convert_keras_model_to_mlmodel()
 
-    # 6. Kickstart a DML Session with the model and round # 1
+    # 7. Kickstart a DML Session with the model and round # 1
     return {
-        "action": "BROADCAST",
+        "action": ActionType.BROADCAST,
         "client_list": chosen_clients,
         "message": new_message,
     }
-
 
 def start_next_round(clients):
     """
@@ -110,7 +122,7 @@ def start_next_round(clients):
         "session_id": state.state["session_id"],
         "repo_id": state.state["repo_id"],
         "round": state.state["current_round"],
-        "action": "TRAIN",
+        "action": LibraryActionType.TRAIN.value,
         "hyperparams": message.hyperparams,
         "error": False,
     }
@@ -129,27 +141,28 @@ def start_next_round(clients):
     assert state.state["current_round"] > 0
 
     return {
-        "action": "BROADCAST",
+        "action": ActionType.BROADCAST,
         "client_list": chosen_clients,
         "message": new_message,
     }
 
-def stop_session(clients_dict):
+def stop_session(repo_id, clients_dict):
     """
     Stop the current session. Reset state and return broadcast `STOP` message
     to all clients.
 
     Args:
+        repo_id (str): The repo ID of the repo in this session.
         clients_dict (dict): Dictionary of clients, keyed by type of client
             (either `LIBRARY` or `DASHBOARD`).
 
     Returns:
         dict: Returns the broadcast message with action `STOP`.
     """
-    state.reset_state()
+    state.reset_state(repo_id)
 
     new_message = {
-        "action": "STOP",
+        "action": LibraryActionType.STOP.value,
         "session_id": state.state["session_id"],
         "dataset_id": state.state["dataset_id"],
         "repo_id": state.state["repo_id"],
@@ -157,8 +170,9 @@ def stop_session(clients_dict):
     }
     
     results = {
-        "action": "BROADCAST",
-        "client_list": clients_dict["LIBRARY"] + clients_dict["DASHBOARD"],
+        "action": ActionType.BROADCAST,
+        "client_list": clients_dict[ClientType.LIBRARY] \
+            + clients_dict[ClientType.DASHBOARD],
         "message": new_message,
     }
 

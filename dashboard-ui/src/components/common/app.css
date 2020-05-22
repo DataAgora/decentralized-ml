@@ -81,3 +81,19 @@ body {
 .text-primary {
   color: #304ffe !important;
 }
+
+.hidden {
+  visibility: hidden;
+}
+
+.padding {
+  padding-top: 25px;
+}
+
+.copy {
+  margin-left: 10px;
+}
+
+.explora {
+  margin-right: 5px;
+}

@@ -5,8 +5,8 @@ class NotFoundPage extends Component {
   render() {
       return (
         <div className="text-center">
-          <h1>Page Not Found</h1>
-          <p>Whoops! Sorry, there is nothing to see here.</p>
+          <h1>Searching For Repo...</h1>
+          <p>If this is your repo, it will be available shortly.</p>
           <p><Link to="/">Back to Home</Link></p>
         </div>
       );

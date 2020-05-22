@@ -11,14 +11,6 @@ from utils.validation import _make_mnist_config, _make_ngram_config
 
 
 @pytest.fixture(scope="session")
-def good_repo_id():
-    return "99885f00eefcd4107572eb62a5cb429a"
-
-@pytest.fixture(scope="session")
-def bad_repo_id():
-    return "bad_repo_id"
-
-@pytest.fixture(scope="session")
 def good_dataset_id():
     return "testDataset"
 

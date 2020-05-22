@@ -27,25 +27,26 @@ class ClientWebSocketProtocol(WebSocketClientProtocol):
         print("Pong sent to {}".format(self.peer))
 
 class WebSocketClient(object):
-    def __init__(self, optimizer, config_manager, repo_id, test):
+    def __init__(self, optimizer, config_manager, repo_id, api_key, test):
         self._optimizer = optimizer
         self.repo_id = repo_id
-        base_url = "ws://{}.au4c4pd2ch.us-west-1.elasticbeanstalk.com"
-        base_cloud = "http://{}.au4c4pd2ch.us-west-1.elasticbeanstalk.com"
-        self._websocket_url = "ws://localhost:8999" if test else base_url.format(repo_id)
-        self._cloud_url = "http://localhost:8999" if test else base_cloud.format(repo_id)
-        self.reconnections_remaining = 3
+        self.api_key = api_key
+        base_url = "ws://{}.cloud.discreetai.com"
+        base_cloud = "http://{}.cloud.discreetai.com"
+        self._websocket_url = "ws://localhost" if test else base_url.format(repo_id)
+        self._cloud_url = "http://localhost" if test else base_cloud.format(repo_id)
+        self.reconnections_remaining = 1
         self.logger = logging.getLogger("WebSocketClient")
         self.logger.info("WebSocketClient {} set up!".format(repo_id))
         self.message_to_send = None
 
     async def prepare_dml(self):
         stop_received = False
-        self.reconnections_remaining -= 1
         while not stop_received:
             if not self.reconnections_remaining:
                 self.logger.info("Failed to connect!")
                 return
+            self.reconnections_remaining -= 1
             async with websockets.connect(self._websocket_url, ping_interval=None, \
                     ping_timeout=None, close_timeout=None, max_size=None, \
                     max_queue=None, read_limit=100000, write_limit=10000, \
@@ -55,10 +56,11 @@ class WebSocketClient(object):
                     json_response = await self.listen(websocket)
                     if not json_response["success"]:
                         break
+                    print(json_response)
                     assert 'action' in json_response, 'No action found: {}'.format(str(json_response))
                     if json_response['action'] == 'TRAIN':
                         self.logger.info('Received TRAIN message, beginning training...')
-                        url = self._cloud_url + "/model.h5"
+                        url = "{0}/keras/{1}".format(self._cloud_url, json_response["session_id"])
                         if json_response["round"] == 1:
                             h5_model_folder = os.path.join('sessions', json_response['session_id'])
                             h5_model_filepath = os.path.join(h5_model_folder, 'model.h5')
@@ -69,7 +71,9 @@ class WebSocketClient(object):
                         if not results["success"]:
                             break
                         await self.send_new_weights(websocket, results, json_response['session_id'], json_response['round'])
-                        self.reconnections_remaining = 3
+                        #self.reconnections_remaining = 1
+                    elif json_response['action'] == 'REGISTRATION_SUCCESS':
+                        self.logger.info("Registration successful!")
                     elif json_response['action'] == 'STOP':
                         self.logger.info('Received STOP message, terminating...')
                         stop_received = True
@@ -81,7 +85,9 @@ class WebSocketClient(object):
     async def send_register_message(self, websocket): 
         registration_message = {
             "type": "REGISTER",
-            "node_type": "LIBRARY"
+            "node_type": "LIBRARY",
+            "repo_id": self.repo_id,
+            "api_key": self.api_key,
         }
         self.logger.info("Sending register message for {}".format(self.repo_id))
         await websocket.send(json.dumps(registration_message))
@@ -90,6 +96,7 @@ class WebSocketClient(object):
     async def send_new_weights(self, websocket, results, session_id, round):
         new_weights_message = {
             "type": "NEW_UPDATE",
+            "repo_id": self.repo_id,
             "session_id": session_id,
             "action": "TRAIN",
             "results": results,

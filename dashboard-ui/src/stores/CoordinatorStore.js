@@ -17,6 +17,7 @@ class CoordinatorStore extends Reflux.Store {
       loading: true, // not used
       error: false, // not used
       coordinatorStatuses: {},
+      linkToDemo: false,
     };
   }
 
