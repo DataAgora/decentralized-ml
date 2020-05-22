@@ -7,9 +7,9 @@ Decentralized Machine Learning
 
 Check out the documentation `here <https://discreetai.readthedocs.io/en/latest/>`_!
 
-You can try DiscreetAI out at https://beta.discreetai.com/signup
+You can try DiscreetAI out by making an account `here <https://beta.discreetai.com/signup>`_.
 
-To get started developing iOS apps that can generate insights from user data in a secure way, follow these `instructions https://github.com/DiscreetAI/ios-library`
+To get started developing iOS apps that can generate insights from user data in a secure way, follow these `instructions <https://github.com/DiscreetAI/ios-library/blob/master/README.md>`_.
 
 .. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
     :alt: Documentation Status
