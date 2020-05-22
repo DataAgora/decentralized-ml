@@ -1,11 +1,15 @@
 Decentralized Machine Learning
 ==============================
-
+.. image:: https://discreetai.com/wp-content/uploads/2019/12/dataagora-logo-blck-1-1.png
 |build| |docs|
 
-Full stack service enabling decentralized machine learning on private data.
+**DiscreetAI is a full stack service enabling machine learning on private data.**
 
 Check out the documentation `here <https://discreetai.readthedocs.io/en/latest/>`_!
+
+You can try DiscreetAI out at https://beta.discreetai.com/signup
+
+To get started developing iOS apps that can generate insights from user data in a secure way, follow these `instructions https://github.com/DiscreetAI/ios-library`
 
 .. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
     :alt: Documentation Status
