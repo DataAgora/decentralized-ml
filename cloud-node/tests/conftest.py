@@ -18,7 +18,6 @@ def reset_state(repo_id, api_key):
     yield
     state.reset_state(repo_id)
     state.stop_state()
-    
 
 @pytest.fixture(scope="session")
 def library_client():
