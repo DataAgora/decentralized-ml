@@ -60,3 +60,4 @@ def identity(payload):
     username = payload['identity']
     data = _get_user_data(username)
     return User(data)
+    

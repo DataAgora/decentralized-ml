@@ -113,8 +113,6 @@ class AuthStore extends Reflux.Store {
     this.state.linkToDemo = true;
     this.state.demoRepoId = demoRepoId
     this.onLogin(message["username"], message["password"])
-    // this._deleteCookies();
-    // this._changed();
   }
 
   onRegistrationFailed(errorMessage) {
