@@ -46,15 +46,14 @@ class AuthStore extends Reflux.Store {
           'Content-Type':'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({"email": email, "password": password}),
+        body: JSON.stringify({"username": email, "password": password}),
       }
     ).then(response => {
       this._handleLoginRegistrationResponse(response, AuthActions.login);
     });
   }
 
-  onLoginCompleted (message) {
-    var jwt = message["token"];
+  onLoginCompleted (jwt) {
     this.state.jwt = jwt;
     this.state.waiting = false;
     localStorage.setItem('jwt', jwt);
@@ -98,15 +97,13 @@ class AuthStore extends Reflux.Store {
         body: JSON.stringify(registrationObject),
       }
     ).then(response => {
+        
       this._handleLoginRegistrationResponse(response, AuthActions.registration);
     });
   }
 
   onRegistrationCompleted (message) {
-    var jwt = message["token"];
     var demoRepoId = message["demo_repo_id"]
-    this.state.jwt = jwt;
-    localStorage.setItem('jwt', jwt);
     this.state.claims = this._getClaims();
     this.state.hasError = false;
     this.state.error = "";
@@ -115,8 +112,9 @@ class AuthStore extends Reflux.Store {
     this.state.loading = false;
     this.state.linkToDemo = true;
     this.state.demoRepoId = demoRepoId
-    this._deleteCookies();
-    this._changed();
+    this.onLogin(message["username"], message["password"])
+    // this._deleteCookies();
+    // this._changed();
   }
 
   onRegistrationFailed(errorMessage) {
@@ -146,14 +144,17 @@ class AuthStore extends Reflux.Store {
 
   _handleLoginRegistrationResponse(response, refluxAction) {
     response.json().then(serverResponse => {
-      if (serverResponse["error"]) {
+      console.log(serverResponse)
+      if ("access_token" in serverResponse) {
+        refluxAction.completed(serverResponse["access_token"])
+      } else if (serverResponse["error"]) {
         this._resetState();
         let errorMessage = serverResponse["message"];
         this.state.hasError = true;
         this.state.error = errorMessage;
         console.log(errorMessage);
         this._changed();
-      } else if (serverResponse["message"] && "token" in serverResponse["message"]) {
+      } else if (serverResponse["message"] && "demo_repo_id" in serverResponse["message"]) {
         refluxAction.completed(serverResponse["message"]);
       } else {
         // TODO: Use error returned by server.

@@ -34,7 +34,7 @@ class CoordinatorStore extends Reflux.Store {
           headers: {
             'Content-Type':'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + jwtString,
+            'Authorization': 'JWT ' + jwtString,
           },
         }
       ).then(response => {

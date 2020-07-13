@@ -56,7 +56,7 @@ class RepoDataStore extends Reflux.Store {
           headers: {
             'Content-Type':'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + jwtString,
+            'Authorization': 'JWT ' + jwtString,
           },
         }
       ).then(response => {
@@ -95,7 +95,7 @@ class RepoDataStore extends Reflux.Store {
           headers: {
             'Content-Type':'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + jwtString,
+            'Authorization': 'JWT ' + jwtString,
           },
           body: JSON.stringify({
             "RepoName": repoName,
@@ -140,7 +140,7 @@ class RepoDataStore extends Reflux.Store {
           headers: {
             'Content-Type':'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + jwtString,
+            'Authorization': 'JWT ' + jwtString,
           }
         }
       ).then(response => {
@@ -175,7 +175,7 @@ class RepoDataStore extends Reflux.Store {
           headers: {
             'Content-Type':'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + jwtString,
+            'Authorization': 'JWT ' + jwtString,
           }, 
           body: JSON.stringify({})
         }
@@ -211,7 +211,7 @@ class RepoDataStore extends Reflux.Store {
           headers: {
             'Content-Type':'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + jwtString,
+            'Authorization': 'JWT ' + jwtString,
           },
           body: JSON.stringify({})
         }

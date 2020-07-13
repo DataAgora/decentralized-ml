@@ -1,7 +1,6 @@
 var Endpoints = {
-  'authLogin': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/login',
+  'authLogin': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/auth',
   'authRegistration': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/registration',
-
   'dashboardFetchReposRemaining': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/userdata',
   'dashboardCreateNewRepo': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/repo',
   'dashboardFetchAllRepos': 'https://fwkebecb19.execute-api.us-west-1.amazonaws.com/dev/repos',

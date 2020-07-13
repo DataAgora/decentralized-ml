@@ -5,10 +5,23 @@ import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
 
-DEFAULT_USER_ID = -1
+DEFAULT_USERNAME = "default"
 dynamodb_client = boto3.resource('dynamodb', region_name='us-west-1')
 
-def _get_user_data(user_id):
+
+def _register_user(username, password):
+    table = _get_dynamodb_table("UsersDashboardData")
+    try:
+        data = {
+            "Username": username,
+            "Password": password,
+            "ReposRemaining": 3,
+        }
+        table.put_item(Item=data)
+    except Exception as e:
+        raise Exception("Error while registering user dashboard data: " + str(e))
+
+def _get_user_data(username):
     """
     Returns the user's data.
     """
@@ -16,36 +29,28 @@ def _get_user_data(user_id):
     try:
         response = table.get_item(
             Key={
-                "UserId": user_id,
+                "Username": username,
             }
         )
-
-        if "Item" not in response:
-            data = {
-                "ReposRemaining": 3,
-                "UserId": user_id,
-            }
-            table.put_item(Item=data)
-        else:
-            data = response["Item"]
+        data = response["Item"]
     except Exception as e:
         raise Exception("Error while getting user dashboard data: " + str(e))
     return data
 
-def _update_user_data_with_new_repo(user_id, repo_id):
+def _update_user_data_with_new_repo(username, repo_id):
     """
     Updates a user with a new repo and its metadata.
     """
     table = _get_dynamodb_table("UsersDashboardData")
     try:
-        data = _get_user_data(user_id)
+        data = _get_user_data(username)
 
         repos_managed = data.get('ReposManaged', set([]))
         repos_managed.add(repo_id)
 
         response = table.update_item(
             Key={
-                'UserId': user_id,
+                "Username": username,
             },
             UpdateExpression="SET ReposRemaining = ReposRemaining - :val, ReposManaged = :val2",
             ExpressionAttributeValues={
@@ -56,13 +61,13 @@ def _update_user_data_with_new_repo(user_id, repo_id):
     except Exception as e:
         raise Exception("Error while updating user data with new repo data: " + str(e))
 
-def _remove_repo_from_user_details(user_id, repo_id):
+def _remove_repo_from_user_details(username, repo_id):
     """
     Upon removing a repo, remove the repo from the user's details.
     """
     table = _get_dynamodb_table("UsersDashboardData")
     try:
-        data = _get_user_data(user_id)
+        data = _get_user_data(username)
         repos_managed = data['ReposManaged']
         if repo_id in repos_managed:
             repos_managed.remove(repo_id)
@@ -87,7 +92,7 @@ def _create_new_repo_document_from_item(item):
     except Exception as e:
         raise Exception("Error while creating the new repo document: " + str(e))
 
-def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
+def _create_new_repo_document(username, repo_id, repo_name, repo_description, \
         server_details, is_demo):
     """
     Creates a new repo document in the DB.
@@ -98,7 +103,7 @@ def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
             'Id': repo_id,
             'Name': repo_name,
             'Description': repo_description,
-            'OwnerId': user_id,
+            'OwnerId': username,
             'CreatedAt': int(time.time()),
             'IsDemo': is_demo,
         }
@@ -108,7 +113,7 @@ def _create_new_repo_document(user_id, repo_id, repo_name, repo_description, \
         raise Exception("Error while creating the new repo document: " + str(e))
     return repo_id
 
-def _get_repo_details(user_id, repo_id):
+def _get_repo_details(username, repo_id):
     """
     Returns a repo's details.
     """
@@ -117,7 +122,7 @@ def _get_repo_details(user_id, repo_id):
         response = repos_table.get_item(
             Key={
                 "Id": repo_id,
-                "OwnerId": user_id,
+                "OwnerId": username,
             }
         )
         repo_details = response["Item"]
@@ -125,7 +130,7 @@ def _get_repo_details(user_id, repo_id):
         raise Exception("Error while getting repo details: " + str(e))
     return repo_details
 
-def _remove_repo_details(user_id, repo_id):
+def _remove_repo_details(username, repo_id):
     """
     Removes a repo's details.
     """
@@ -134,7 +139,7 @@ def _remove_repo_details(user_id, repo_id):
         response = repos_table.delete_item(
             Key={
                 "Id": repo_id,
-                "OwnerId": user_id,
+                "OwnerId": username,
             }
         )
         print("Removed repo details!")
@@ -142,13 +147,13 @@ def _remove_repo_details(user_id, repo_id):
     except Exception as e:
         raise Exception("Error while getting repo details: " + str(e))
 
-def _get_all_repos(user_id):
+def _get_all_repos(username):
     """
     Returns all repos for a user.
     """
     try:
-        user_data = _get_user_data(user_id)
-        repos_managed = user_data.get('ReposManaged', 'None')
+        user_data = _get_user_data(username)
+        repos_managed = user_data.get('ReposManaged', set([]))
 
         repos_table = _get_dynamodb_table("Repos")
         all_repos = []
@@ -157,7 +162,7 @@ def _get_all_repos(user_id):
             response = repos_table.get_item(
                 Key={
                     "Id": repo_id,
-                    "OwnerId": user_id,
+                    "OwnerId": username,
                 }
             )
 
@@ -206,18 +211,19 @@ def _remove_logs(repo_id):
 
 def _get_all_users_repos():
     """
-    Helper function get all tuples of (user_id, repo_id).
+    Helper function get all tuples of (username, repo_id).
     """
     users_table = _get_dynamodb_table("UsersDashboardData")
     try:
         users = users_table.scan()["Items"]
         repos = []
         for user in users:
-            user_id = user["UserId"]
+            username = user["Username"]
+            password = user["Password"]
             if "ReposManaged" not in user:
                 continue
             for repo_id in user["ReposManaged"]:
-                repos.append((user_id, repo_id))
+                repos.append((username, password, repo_id))
         return repos
     except Exception as e:
         raise Exception("Error getting repos for all users. " + str(e))
@@ -226,13 +232,13 @@ def _get_demo_cloud_domain():
     """
     Helper function to get the demo API key.
     """
-    return _get_repo_details(50, "cloud-demo")["CloudDomain"]
+    return _get_repo_details("demo", "cloud-demo")["CloudDomain"]
 
 def _get_demo_api_key():
     """
     Helper function to get the demo API key.
     """
-    return _get_repo_details(50, "cloud-demo")["ApiKey"]
+    return _get_repo_details("demo", "cloud-demo")["ApiKey"]
 
 def _get_dynamodb_table(table_name):
     """
